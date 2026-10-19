@@ -1,0 +1,48 @@
+// Copyright 2023 Itineris Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.fetcher;
+
+import com.google.common.collect.Iterables;
+import com.forwardmeasure.itineris.core.ItinerisMultiVertexQuery;
+import com.forwardmeasure.itineris.core.ItinerisVertex;
+import com.forwardmeasure.itineris.graphdb.query.vertex.BasicVertexCentricQueryUtil;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class LabelStepBatchFetcher extends MultiQueriableStepBatchFetcher<String>{
+
+    private final FetchQueryBuildFunction fetchQueryBuildFunction;
+
+    public LabelStepBatchFetcher(FetchQueryBuildFunction fetchQueryBuildFunction, int batchSize) {
+        super(batchSize);
+        this.fetchQueryBuildFunction = fetchQueryBuildFunction;
+    }
+
+    @Override
+    protected Map<ItinerisVertex, String> makeQueryAndExecute(ItinerisMultiVertexQuery multiQuery) {
+        multiQuery = fetchQueryBuildFunction.makeQuery(multiQuery);
+        Map<ItinerisVertex, Iterable<ItinerisVertex>> labelsBatch = multiQuery.vertices();
+        Map<ItinerisVertex, String> result = new HashMap<>(labelsBatch.size());
+        for(Map.Entry<ItinerisVertex, Iterable<ItinerisVertex>> labelEntry : labelsBatch.entrySet()){
+            result.put(
+                labelEntry.getKey(),
+                BasicVertexCentricQueryUtil.castToVertexLabel(Iterables.getOnlyElement(labelEntry.getValue(),null)).name()
+            );
+        }
+        return result;
+    }
+
+}

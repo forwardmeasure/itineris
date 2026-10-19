@@ -1,0 +1,129 @@
+// Copyright 2017 Itineris Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.forwardmeasure.itineris.core;
+
+import com.forwardmeasure.itineris.graphdb.relations.RelationIdentifier;
+
+/**
+ * ItinerisTransaction defines a transactional context for a {@link Itineris}. Since Itineris is a transactional graph
+ * database, all interactions with the graph are mitigated by a ItinerisTransaction.
+ * <p>
+ * All vertex and edge retrievals are channeled by a graph transaction which bundles all such retrievals, creations and
+ * deletions into one transaction. A graph transaction is analogous to a
+ * <a href="https://en.wikipedia.org/wiki/Database_transaction">database transaction</a>.
+ * The isolation level and <a href="https://en.wikipedia.org/wiki/ACID">ACID support</a> are configured through the storage
+ * backend, meaning whatever level of isolation is supported by the storage backend is mirrored by a graph transaction.
+ * <p>
+ * A graph transaction supports:
+ * <ul>
+ * <li>Creating vertices, properties and edges</li>
+ * <li>Creating types</li>
+ * <li>Index-based retrieval of vertices</li>
+ * <li>Querying edges and vertices</li>
+ * <li>Aborting and committing transaction</li>
+ * </ul>
+ *
+ * @author Matthias Br&ouml;cheler (http://www.matthiasb.com)
+ */
+public interface ItinerisTransaction extends Transaction {
+
+   /* ---------------------------------------------------------------
+    * Modifications
+    * ---------------------------------------------------------------
+    */
+
+    /**
+     * Creates a new vertex in the graph with the given vertex id and the given vertex label.
+     * Note, that an exception is thrown if the vertex id is not a valid Itineris vertex id or if a vertex with the given
+     * id already exists.
+     * <p>
+     * Custom id setting must be enabled via the configuration option {@link com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration#ALLOW_SETTING_VERTEX_ID}
+     * and valid Itineris vertex ids must be provided. Use {@link com.forwardmeasure.itineris.graphdb.idmanagement.IDManager#toVertexId(long)}
+     * to construct a valid Itineris vertex id from a user id, where <code>idManager</code> can be obtained through
+     * {@link com.forwardmeasure.itineris.graphdb.database.StandardItineris#getIDManager()}.
+     * <pre>
+     * <code>long vertexId = ((StandardItineris) graph).getIDManager().toVertexId(userVertexId);</code>
+     * </pre>
+     *
+     * @param id vertex id of the vertex to be created
+     * @param vertexLabel vertex label for this vertex - can be null if no vertex label should be set.
+     * @return New vertex
+     */
+    ItinerisVertex addVertex(Object id, VertexLabel vertexLabel);
+
+    /**
+     * Retrieves the vertex for the specified id.
+     *
+     * This method is intended for internal use only. Use {@link org.apache.tinkerpop.gremlin.structure.Graph#vertices(Object...)} instead.
+     *
+     * @param id id of the vertex to retrieve
+     * @return vertex with the given id if it exists, else null
+     */
+    ItinerisVertex getVertex(Object id);
+
+
+    Iterable<ItinerisVertex> getVertices(Object... ids);
+
+    Iterable<ItinerisEdge> getEdges(RelationIdentifier... ids);
+
+   /* ---------------------------------------------------------------
+    * Closing and admin
+    * ---------------------------------------------------------------
+    */
+
+    /**
+     * Commits and closes the transaction.
+     * <p>
+     * Will attempt to persist all modifications which may result in exceptions in case of persistence failures or
+     * lock contention.
+     * <br>
+     * The call releases data structures if possible. All element references (e.g. vertex objects) retrieved
+     * through this transaction are stale after the transaction closes and should no longer be used.
+     */
+    void commit();
+
+    /**
+     * Aborts and closes the transaction. Will discard all modifications.
+     * <p>
+     * The call releases data structures if possible. All element references (e.g. vertex objects) retrieved
+     * through this transaction are stale after the transaction closes and should no longer be used.
+     */
+    void rollback();
+
+    /**
+     * Checks whether the transaction is still open.
+     *
+     * @return true, when the transaction is open, else false
+     */
+    boolean isOpen();
+
+    /**
+     * Checks whether the transaction has been closed.
+     *
+     * @return true, if the transaction has been closed, else false
+     */
+    boolean isClosed();
+
+    /**
+     * Checks whether any changes to the graph database have been made in this transaction.
+     * <p>
+     * A modification may be an edge or vertex update, addition, or deletion.
+     *
+     * @return true, if the transaction contains updates, else false.
+     */
+    boolean hasModifications();
+
+    void expireSchemaElement(final long id);
+}

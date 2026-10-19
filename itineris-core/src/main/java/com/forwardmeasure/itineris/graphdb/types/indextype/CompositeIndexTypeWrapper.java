@@ -1,0 +1,125 @@
+// Copyright 2017 Itineris Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.forwardmeasure.itineris.graphdb.types.indextype;
+
+import com.google.common.base.Preconditions;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import com.forwardmeasure.itineris.core.Cardinality;
+import com.forwardmeasure.itineris.core.PropertyKey;
+import com.forwardmeasure.itineris.core.schema.ConsistencyModifier;
+import com.forwardmeasure.itineris.core.schema.Parameter;
+import com.forwardmeasure.itineris.core.schema.SchemaStatus;
+import com.forwardmeasure.itineris.graphdb.types.CompositeIndexType;
+import com.forwardmeasure.itineris.graphdb.types.IndexField;
+import com.forwardmeasure.itineris.graphdb.types.ParameterType;
+import com.forwardmeasure.itineris.graphdb.types.SchemaSource;
+import com.forwardmeasure.itineris.graphdb.types.TypeDefinitionCategory;
+import com.forwardmeasure.itineris.graphdb.types.TypeUtil;
+
+import java.util.List;
+
+/**
+ * @author Matthias Broecheler (me@matthiasb.com)
+ */
+public class CompositeIndexTypeWrapper extends IndexTypeWrapper implements CompositeIndexType {
+
+    private IndexField[] fields = null;
+
+    private String[] inlineKeys = null;
+
+    public CompositeIndexTypeWrapper(SchemaSource base) {
+        super(base);
+    }
+
+    @Override
+    public boolean isCompositeIndex() {
+        return true;
+    }
+
+    @Override
+    public boolean isMixedIndex() {
+        return false;
+    }
+
+    @Override
+    public long getID() {
+        return base.longId();
+    }
+
+    @Override
+    public SchemaStatus getStatus() {
+        return base.getStatus();
+    }
+
+    @Override
+    public IndexField[] getFieldKeys() {
+        IndexField[] result = fields;
+        if (result==null) {
+            List<SchemaSource.Entry> entries = base.getRelated(TypeDefinitionCategory.INDEX_FIELD,Direction.OUT);
+            int numFields = entries.size();
+            result = new IndexField[numFields];
+            for (SchemaSource.Entry entry : entries) {
+                Integer value = ParameterType.INDEX_POSITION.findParameter((Parameter[]) entry.getModifier(),null);
+                Preconditions.checkNotNull(value);
+                int pos = value;
+                Preconditions.checkArgument(pos>=0 && pos<numFields,"Invalid field position: %s",pos);
+                assert entry.getSchemaType() instanceof PropertyKey;
+                result[pos]=IndexField.of((PropertyKey)entry.getSchemaType());
+            }
+            fields=result;
+        }
+        assert result!=null;
+        return result;
+    }
+
+    @Override
+    public String[] getInlineFieldKeys() {
+        String[] result = inlineKeys;
+        if (result == null) {
+            List<SchemaSource.Entry> entries = base.getRelated(TypeDefinitionCategory.INDEX_INLINE_KEY, Direction.OUT);
+            int numFields = entries.size();
+            result = new String[numFields];
+            int pos = 0;
+            for (SchemaSource.Entry entry : entries) {
+                assert entry.getSchemaType() instanceof PropertyKey;
+                result[pos] = ((PropertyKey) entry.getSchemaType()).name();
+                pos++;
+            }
+            inlineKeys = result;
+        }
+        return result;
+    }
+
+    @Override
+    public void resetCache() {
+        super.resetCache();
+        fields = null;
+        inlineKeys = null;
+    }
+
+    @Override
+    public Cardinality getCardinality() {
+        return base.getDefinition().getValue(TypeDefinitionCategory.INDEX_CARDINALITY,Cardinality.class);
+    }
+
+    private ConsistencyModifier consistency = null;
+
+    public ConsistencyModifier getConsistencyModifier() {
+        if (consistency==null) {
+            consistency = TypeUtil.getConsistencyModifier(base);
+        }
+        return consistency;
+    }
+}

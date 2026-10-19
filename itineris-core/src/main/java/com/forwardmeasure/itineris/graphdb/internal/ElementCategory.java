@@ -1,0 +1,123 @@
+// Copyright 2017 Itineris Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.forwardmeasure.itineris.graphdb.internal;
+
+import com.google.common.base.Preconditions;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import com.forwardmeasure.itineris.core.ItinerisEdge;
+import com.forwardmeasure.itineris.core.ItinerisElement;
+import com.forwardmeasure.itineris.core.ItinerisTransaction;
+import com.forwardmeasure.itineris.core.ItinerisVertex;
+import com.forwardmeasure.itineris.core.ItinerisVertexProperty;
+import com.forwardmeasure.itineris.core.schema.ItinerisSchemaType;
+import com.forwardmeasure.itineris.graphdb.relations.RelationIdentifier;
+import com.forwardmeasure.itineris.graphdb.relations.RelationIdentifierUtils;
+import com.forwardmeasure.itineris.graphdb.types.VertexLabelVertex;
+import com.forwardmeasure.itineris.graphdb.types.vertices.EdgeLabelVertex;
+import com.forwardmeasure.itineris.graphdb.types.vertices.PropertyKeyVertex;
+
+/**
+* @author Matthias Broecheler (me@matthiasb.com)
+*/
+public enum ElementCategory {
+    VERTEX, EDGE, PROPERTY;
+
+    public Class<? extends Element> getElementType() {
+        switch(this) {
+            case VERTEX: return ItinerisVertex.class;
+            case EDGE: return ItinerisEdge.class;
+            case PROPERTY: return ItinerisVertexProperty.class;
+            default: throw new IllegalArgumentException();
+        }
+    }
+
+    public boolean isRelation() {
+        switch(this) {
+            case VERTEX: return false;
+            case EDGE:
+            case PROPERTY: return true;
+            default: throw new IllegalArgumentException();
+        }
+    }
+
+    public boolean isValidConstraint(ItinerisSchemaType type) {
+        Preconditions.checkNotNull(type);
+        switch(this) {
+            case VERTEX: return (type instanceof VertexLabelVertex);
+            case EDGE: return (type instanceof EdgeLabelVertex);
+            case PROPERTY: return (type instanceof PropertyKeyVertex);
+            default: throw new IllegalArgumentException();
+        }
+    }
+
+    public boolean matchesConstraint(ItinerisSchemaType type, ItinerisElement element) {
+        Preconditions.checkNotNull(type);
+        Preconditions.checkNotNull(element);
+        assert isInstance(element);
+        assert isValidConstraint(type);
+        switch(this) {
+            case VERTEX: return ((ItinerisVertex)element).vertexLabel().equals(type);
+            case EDGE: return ((ItinerisEdge)element).edgeLabel().equals(type);
+            case PROPERTY: return ((ItinerisVertexProperty)element).propertyKey().equals(type);
+            default: throw new IllegalArgumentException();
+        }
+    }
+
+    public boolean isInstance(ItinerisElement element) {
+        Preconditions.checkNotNull(element);
+        return getElementType().isAssignableFrom(element.getClass());
+    }
+
+    public boolean subsumedBy(Class<? extends Element> clazz) {
+        return clazz.isAssignableFrom(getElementType());
+    }
+
+    public String getName() {
+        return toString().toLowerCase();
+    }
+
+    public ItinerisElement retrieve(Object elementId, ItinerisTransaction tx) {
+        Preconditions.checkArgument(elementId!=null,"Must provide elementId");
+        switch (this) {
+            case VERTEX:
+                Preconditions.checkArgument(elementId instanceof Long, "elementId [%s] must be of type Long", elementId);
+                return tx.getVertex((Long) elementId);
+            case EDGE:
+                Preconditions.checkArgument(elementId instanceof RelationIdentifier, "elementId [%s] must be of type RelationIdentifier", elementId);
+                return RelationIdentifierUtils.findEdge(((RelationIdentifier)elementId), tx);
+            case PROPERTY:
+                Preconditions.checkArgument(elementId instanceof RelationIdentifier, "elementId [%s] must be of type RelationIdentifier", elementId);
+                return RelationIdentifierUtils.findProperty(((RelationIdentifier)elementId), tx);
+            default: throw new IllegalArgumentException();
+        }
+    }
+
+    public static ElementCategory getByClazz(Class<? extends Element> clazz) {
+        Preconditions.checkArgument(clazz!=null,"Need to provide a element class argument");
+        if (Vertex.class.isAssignableFrom(clazz)) return VERTEX;
+        else if (Edge.class.isAssignableFrom(clazz)) return EDGE;
+        else if (ItinerisVertexProperty.class.isAssignableFrom(clazz)) return PROPERTY;
+        else throw new IllegalArgumentException("Invalid clazz provided: " + clazz);
+    }
+
+    public static ElementCategory getByName(final String name) {
+        for (ElementCategory category : values()) {
+            if (category.toString().equalsIgnoreCase(name)) return category;
+        }
+        throw new IllegalArgumentException("Unrecognized name: " + name);
+    }
+}

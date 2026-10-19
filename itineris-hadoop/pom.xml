@@ -1,0 +1,143 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.forwardmeasure</groupId>
+        <artifactId>itineris</artifactId>
+        <version>1.1.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+    <artifactId>itineris-hadoop</artifactId>
+    <name>Itineris-Hadoop: Module</name>
+    <url>https://itineris.org</url>
+
+    <properties>
+        <top.level.basedir>${basedir}/..</top.level.basedir>
+    </properties>
+
+    <developers>
+        <developer>
+            <name>Marko A. Rodriguez</name>
+            <email>marko@markorodriguez.com</email>
+            <url>https://markorodriguez.com</url>
+        </developer>
+    </developers>
+
+    <contributors>
+        <contributor>
+            <name>Stephen Mallette</name>
+            <email>spmva@genoprime.com</email>
+            <url>https://stephen.genoprime.com</url>
+        </contributor>
+        <contributor>
+            <name>Matthias Broecheler</name>
+            <email>me@matthiasb.com</email>
+            <url>http://matthiasb.com</url>
+        </contributor>
+    </contributors>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.tinkerpop</groupId>
+            <artifactId>tinkergraph-gremlin</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tinkerpop</groupId>
+            <artifactId>hadoop-gremlin</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tinkerpop</groupId>
+            <artifactId>spark-gremlin</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-scala_2.12</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.curator</groupId>
+            <artifactId>curator-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport-native-epoll</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-1.2-api</artifactId>
+        </dependency>
+
+        <!-- JANUSGRAPH -->
+        <dependency>
+            <groupId>com.forwardmeasure</groupId>
+            <artifactId>itineris-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.forwardmeasure</groupId>
+            <artifactId>itineris-backend-testutils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.forwardmeasure</groupId>
+            <artifactId>itineris-inmemory</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.annotation</groupId>
+                    <artifactId>javax.annotation-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>pack-test-jar</id>
+                        <!-- prepare-package instead of package forces it to get signed -->
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+    <profiles>
+        <profile>
+            <id>itineris-release</id>
+            <build>
+                <plugins>
+                    <!-- Redeclare gpg-plugin after jar-plugin to force the test jar to be signed.
+                         gpg-plugin runs in the package phase, same as jar-plugin, so the only
+                         constraint that guarantees the jar will exist when gpg-plugin is
+                         invoked is declaration order in the pom. -->
+                    <plugin>
+                        <artifactId>maven-jar-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

@@ -1,0 +1,160 @@
+// Copyright 2017 Itineris Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.forwardmeasure.itineris.core;
+
+import org.apache.tinkerpop.gremlin.process.traversal.Order;
+import org.apache.tinkerpop.gremlin.structure.Element;
+import com.forwardmeasure.itineris.core.schema.Parameter;
+
+import java.util.stream.Stream;
+
+/**
+ * A GraphQuery that queries for graph elements directly against a particular indexing backend and hence allows this
+ * query mechanism to exploit the full range of features and functionality of the indexing backend.
+ * However, the results returned by this query will not be adjusted to the modifications in a transaction. If there
+ * are no changes in a transaction, this won't matter. If there are, the results of this query may not be consistent
+ * with the transactional state.
+ *
+ * @author Matthias Broecheler (me@matthiasb.com)
+ */
+public interface ItinerisIndexQuery {
+
+    /**
+     * Specifies the maximum number of elements to return
+     *
+     * @param limit
+     * @return
+     */
+    ItinerisIndexQuery limit(int limit);
+
+    /**
+     * Specifies the offset of the query. Query results will be retrieved starting at the given offset.
+     * @param offset
+     * @return
+     */
+    ItinerisIndexQuery offset(int offset);
+
+    /**
+     * Orders the element results of this query according
+     * to their property for the given key in the given order (increasing/decreasing).
+     *
+     * @param key   The key of the properties on which to order
+     * @param order the ordering direction
+     * @return
+     */
+    ItinerisIndexQuery orderBy(String key, Order order);
+
+    /**
+     * Adds the given parameter to the list of parameters of this query.
+     * Parameters are passed right through to the indexing backend to modify the query behavior.
+     * @param para
+     * @return
+     */
+    ItinerisIndexQuery addParameter(Parameter para);
+
+    /**
+     * Adds the given parameters to the list of parameters of this query.
+     * Parameters are passed right through to the indexing backend to modify the query behavior.
+     * @param paras
+     * @return
+     */
+    ItinerisIndexQuery addParameters(Iterable<Parameter> paras);
+
+    /**
+     * Adds the given parameters to the list of parameters of this query.
+     * Parameters are passed right through to the indexing backend to modify the query behavior.
+     * @param paras
+     * @return
+     */
+    ItinerisIndexQuery addParameters(Parameter... paras);
+
+    /**
+     * Sets the element identifier string that is used by this query builder as the token to identifier key references
+     * in the query string.
+     * <p>
+     * For example, in the query 'v.name: Tom' the element identifier is 'v.'
+     *
+     *
+     * @param identifier The element identifier which must not be blank
+     * @return This query builder
+     */
+    ItinerisIndexQuery setElementIdentifier(String identifier);
+
+
+    /**
+     * Returns all vertices that match the query in the indexing backend.
+     *
+     * @return
+     */
+    Stream<Result<ItinerisVertex>> vertexStream();
+
+    /**
+     * Returns all edges that match the query in the indexing backend.
+     *
+     * @return
+     */
+    Stream<Result<ItinerisEdge>> edgeStream();
+
+	/**
+     * Returns all properties that match the query in the indexing backend.
+     *
+     * @return
+     */
+    Stream<Result<ItinerisVertexProperty>> propertyStream();
+
+    /**
+     * Returns total vertices that match the query in the indexing backend ignoring limit and offset.
+     *
+     * @return
+     */
+    Long vertexTotals();
+
+    /**
+     * Returns total edges that match the query in the indexing backend ignoring limit and offset.
+     *
+     * @return
+     */
+    Long edgeTotals();
+
+    /**
+     * Returns total properties that match the query in the indexing backend ignoring limit and offset.
+     *
+     * @return
+     */
+    Long propertyTotals();
+    
+    /**
+     * Container of a query result with its score.
+     * @param <V>
+     */
+    interface Result<V extends Element> {
+
+        /**
+         * Returns the element that matches the query
+         *
+         * @return
+         */
+        V getElement();
+
+        /**
+         * Returns the score of the result with respect to the query (if available)
+         * @return
+         */
+        double getScore();
+
+    }
+
+
+}

@@ -1,0 +1,116 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.forwardmeasure.itineris.graphdb.util;
+
+import com.forwardmeasure.itineris.core.ItinerisElement;
+import com.forwardmeasure.itineris.core.ItinerisException;
+import com.forwardmeasure.itineris.diskstorage.BackendTransaction;
+import com.forwardmeasure.itineris.graphdb.database.IndexSerializer;
+import com.forwardmeasure.itineris.graphdb.query.graph.JointIndexQuery;
+import com.forwardmeasure.itineris.graphdb.query.profile.QueryProfiler;
+import com.forwardmeasure.itineris.graphdb.transaction.StandardItinerisTx;
+import com.forwardmeasure.itineris.graphdb.transaction.subquerycache.SubqueryCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Stream;
+
+/**
+ * @author davidclement90@laposte.net
+ */
+public class SubqueryIterator extends CloseableAbstractIterator<ItinerisElement> {
+    private static final Logger log = LoggerFactory.getLogger(SubqueryIterator.class);
+
+    private final JointIndexQuery.Subquery subQuery;
+
+    private final SubqueryCache indexCache;
+
+    private Iterator<? extends ItinerisElement> elementIterator;
+
+    private List<Object> currentIds;
+
+    private QueryProfiler profiler;
+
+    private boolean isTimerRunning;
+
+    public SubqueryIterator(JointIndexQuery.Subquery subQuery, IndexSerializer indexSerializer,
+                            BackendTransaction backendTx,
+                            StandardItinerisTx tx,
+                            SubqueryCache indexCache, int limit,
+                            Function<Object, ? extends ItinerisElement> function, List<Object> otherResults) {
+        this.subQuery = subQuery;
+        this.indexCache = indexCache;
+        final List<Object> cacheResponse = indexCache.getIfPresent(subQuery);
+        final Stream<?> stream;
+        if (cacheResponse != null) {
+            stream = cacheResponse.stream();
+        } else {
+            try {
+                currentIds = new ArrayList<>();
+                profiler = QueryProfiler.startProfile(subQuery.getProfiler(), subQuery);
+                isTimerRunning = true;
+                stream = indexSerializer.query(subQuery, backendTx, tx).peek(r -> currentIds.add(r));
+            } catch (final Exception e) {
+                throw new ItinerisException("Could not call index", e);
+            }
+        }
+        elementIterator = stream
+                .filter(e -> otherResults == null || otherResults.contains(e))
+                .map(e -> {
+                    ItinerisElement r = function.apply(e);
+                    if (r == null) {
+                        log.warn("Subquery returned invalid element id: {}", e);
+                    }
+                    return r;
+                })
+                .filter(r -> r != null) // ignore invalid elements
+                .limit(limit)
+                .iterator();
+    }
+
+    @Override
+    protected ItinerisElement computeNext() {
+        if (elementIterator.hasNext()) {
+            return elementIterator.next();
+        }
+        close();
+        return endOfData();
+    }
+
+    /**
+     * Close the iterator, stop timer and update profiler.
+     * Put results into cache if the underlying elementIterator is exhausted.
+     */
+    @Override
+    public void close() {
+        if (isTimerRunning) {
+            assert currentIds != null;
+            if (!elementIterator.hasNext()) {
+                indexCache.put(subQuery, currentIds);
+            }
+            profiler.setResultSize(currentIds.size());
+            profiler.stopTimer();
+            isTimerRunning = false;
+        }
+    }
+
+}

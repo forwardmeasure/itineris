@@ -1,0 +1,11 @@
+{
+    "repoOwner": "itineris",
+    "repoName": "itineris",
+    "targetBranchChoices": ["v1.0"],
+    "branchLabelMapping": {
+      "^backport/(.+)$": "$1"
+    },
+    "autoMerge": true,
+    "autoMergeMethod": "rebase",
+    "targetPRLabels": ["backport/skip"]
+}

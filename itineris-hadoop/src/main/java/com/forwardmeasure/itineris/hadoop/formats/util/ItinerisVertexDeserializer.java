@@ -1,0 +1,244 @@
+// Copyright 2017 Itineris Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.forwardmeasure.itineris.hadoop.formats.util;
+
+import com.carrotsearch.hppc.cursors.LongObjectCursor;
+import com.google.common.base.Preconditions;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
+import com.forwardmeasure.itineris.core.PropertyKey;
+import com.forwardmeasure.itineris.core.RelationType;
+import com.forwardmeasure.itineris.core.VertexLabel;
+import com.forwardmeasure.itineris.diskstorage.Entry;
+import com.forwardmeasure.itineris.diskstorage.StaticBuffer;
+import com.forwardmeasure.itineris.graphdb.database.RelationReader;
+import com.forwardmeasure.itineris.graphdb.relations.RelationIdentifier;
+import com.forwardmeasure.itineris.util.IDUtils;
+import com.forwardmeasure.itineris.graphdb.idmanagement.IDManager;
+import com.forwardmeasure.itineris.graphdb.internal.InternalRelationType;
+import com.forwardmeasure.itineris.graphdb.relations.RelationCache;
+import com.forwardmeasure.itineris.graphdb.types.TypeInspector;
+import com.forwardmeasure.itineris.hadoop.formats.util.input.ItinerisHadoopSetup;
+import com.forwardmeasure.itineris.hadoop.formats.util.input.SystemTypeInspector;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Iterator;
+
+public class ItinerisVertexDeserializer implements AutoCloseable {
+
+    private final ItinerisHadoopSetup setup;
+    private final TypeInspector typeManager;
+    private final SystemTypeInspector systemTypes;
+    private final IDManager idManager;
+
+    private static final Logger log =
+            LoggerFactory.getLogger(ItinerisVertexDeserializer.class);
+
+    public ItinerisVertexDeserializer(final ItinerisHadoopSetup setup) {
+        this.setup = setup;
+        this.typeManager = setup.getTypeInspector();
+        this.systemTypes = setup.getSystemTypeInspector();
+        this.idManager = setup.getIDManager();
+    }
+
+    private boolean edgeExists(Vertex vertex, RelationType type, RelationCache possibleDuplicate) {
+        Iterator<Edge> it = vertex.edges(possibleDuplicate.direction, type.name());
+
+        while (it.hasNext()) {
+            Edge edge = it.next();
+
+            if (edge.id().equals(possibleDuplicate.relationId)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Read a single row from the edgestore and create a Vertex corresponding to the row
+    // The neighboring vertices are represented by DetachedVertex instances
+    public Vertex readHadoopVertex(final StaticBuffer key, Iterable<Entry> entries) {
+
+        // Convert key to a vertex ID
+        final Object vertexId = idManager.getKeyID(key);
+        IDUtils.checkId(vertexId);
+
+        // Partitioned vertex handling
+        if (idManager.isPartitionedVertex(vertexId)) {
+            Preconditions.checkState(setup.getFilterPartitionedVertices(),
+                    "Read partitioned vertex (ID=%s), but partitioned vertex filtering is disabled.", vertexId);
+            log.debug("Skipping partitioned vertex with ID {}", vertexId);
+            return null;
+        }
+
+        // Create Vertex
+        StarGraph sg = StarGraph.open();
+        Vertex sv = null;
+
+        // Iterate over edgestore columns to find the vertex's label relation
+        for (final Entry data : entries) {
+            RelationReader relationReader = setup.getRelationReader();
+            final RelationCache relation = relationReader.parseRelation(data, false, typeManager);
+            if (systemTypes.isVertexLabelSystemType(relation.typeId)) {
+                // Found vertex Label
+                long vertexLabelId = ((Number) relation.getOtherVertexId()).longValue();
+                VertexLabel vl = typeManager.getExistingVertexLabel(vertexLabelId);
+                // Create Vertex with this label
+                sv = getOrCreateVertex(vertexId, vl.name(), sg);
+            } else if (systemTypes.isTypeSystemType(relation.typeId)) {
+                log.trace("Vertex {} is a system vertex", vertexId);
+                return null;
+            }
+        }
+
+        // Added this following testing
+        if (null == sv) {
+            sv = getOrCreateVertex(vertexId, null, sg);
+        }
+
+        Preconditions.checkNotNull(sv, "Unable to determine vertex label for vertex with ID %s", vertexId);
+
+        // Iterate over and decode edgestore columns (relations) on this vertex
+        for (final Entry data : entries) {
+            try {
+                RelationReader relationReader = setup.getRelationReader();
+                final RelationCache relation = relationReader.parseRelation(data, false, typeManager);
+
+                if (systemTypes.isSystemType(relation.typeId)) continue; //Ignore system types
+                final RelationType type = typeManager.getExistingRelationType(relation.typeId);
+                if (((InternalRelationType)type).isInvisibleType()) continue; //Ignore hidden types
+
+                // Decode and create the relation (edge or property)
+                if (type.isPropertyKey()) {
+                    // Decode property
+                    Object value = relation.getValue();
+                    Preconditions.checkNotNull(value);
+                    VertexProperty.Cardinality card = getPropertyKeyCardinality(type.name());
+                    VertexProperty<Object> vp = sv.property(card, type.name(), value, T.id, relation.relationId);
+
+                    // Decode meta properties
+                    decodeProperties(relation, vp);
+                } else {
+                    assert type.isEdgeLabel();
+
+                    // Partitioned vertex handling
+                    if (idManager.isPartitionedVertex(relation.getOtherVertexId())) {
+                        Preconditions.checkState(setup.getFilterPartitionedVertices(),
+                                "Read edge incident on a partitioned vertex, but partitioned vertex filtering is disabled.  " +
+                                "Relation ID: %s.  This vertex ID: %s.  Other vertex ID: %s.  Edge label: %s.",
+                                relation.relationId, vertexId, relation.getOtherVertexId(), type.name());
+                        log.debug("Skipping edge with ID {} incident on partitioned vertex with ID {} (and nonpartitioned vertex with ID {})",
+                                relation.relationId, relation.getOtherVertexId(), vertexId);
+                        continue;
+                    }
+
+                    // Decode edge
+                    StarGraph.StarEdge se;
+
+                    // We don't know the label of the other vertex, but one must be provided
+                    Vertex adjacentVertex = getOrCreateVertex(relation.getOtherVertexId(), null, sg);
+
+                    // skip self-loop edges that were already processed, but from a different direction
+                    if (sv.equals(adjacentVertex) && edgeExists(sv, type, relation)) {
+                        continue;
+                    }
+
+                    // assign the edge a unique ID through RelationIdentifier: relationId-outVertexId-typeId-inVertexId
+                    Object inVertexId = null;
+                    Object outVertexId = null;
+                    if (relation.direction.equals(Direction.IN)) {
+                        inVertexId = sv.id();
+                        outVertexId = adjacentVertex.id();
+                    } else if (relation.direction.equals(Direction.OUT)) {
+                        inVertexId = adjacentVertex.id();
+                        outVertexId = sv.id();
+                    } else {
+                        throw new RuntimeException("Direction.BOTH is not supported");
+                    }
+                    RelationIdentifier relationIdentifier = new RelationIdentifier(outVertexId,
+                        typeManager.getRelationType(type.name()).longId(),
+                        relation.relationId,
+                        inVertexId);
+
+                    if (relation.direction.equals(Direction.IN)) {
+                        se = (StarGraph.StarEdge)adjacentVertex.addEdge(type.name(), sv, T.id, relationIdentifier.toString());
+                    } else if (relation.direction.equals(Direction.OUT)) {
+                        se = (StarGraph.StarEdge)sv.addEdge(type.name(), adjacentVertex, T.id, relationIdentifier.toString());
+                    } else {
+                        throw new RuntimeException("Direction.BOTH is not supported");
+                    }
+
+                    decodeProperties(relation, se);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return sv;
+    }
+
+    private void decodeProperties(final RelationCache relation, final Element element) {
+        if (relation.hasProperties()) {
+            // Load relation properties
+            for (final LongObjectCursor<Object> next : relation) {
+                assert next.value != null;
+                RelationType rt = typeManager.getExistingRelationType(next.key);
+                if (rt.isPropertyKey()) {
+                    element.property(rt.name(), next.value);
+                } else {
+                    throw new RuntimeException("Metaedges are not supported");
+                }
+            }
+        }
+    }
+
+    private Vertex getOrCreateVertex(final Object vertexId, final String label, final StarGraph sg) {
+        Vertex sv;
+        Iterator<Vertex> it = sg.vertices(vertexId);
+        if (it.hasNext()) {
+            sv = it.next();
+        } else {
+            if (null != label) {
+                sv = sg.addVertex(T.label, label, T.id, vertexId);
+            } else {
+                sv = sg.addVertex(T.id, vertexId);
+            }
+        }
+        return sv;
+    }
+
+    private VertexProperty.Cardinality getPropertyKeyCardinality(String name) {
+        RelationType rt = typeManager.getRelationType(name);
+        if (null == rt || !rt.isPropertyKey())
+            return VertexProperty.Cardinality.single;
+        PropertyKey pk = typeManager.getExistingPropertyKey(rt.longId());
+        switch (pk.cardinality()) {
+            case SINGLE: return VertexProperty.Cardinality.single;
+            case LIST: return VertexProperty.Cardinality.list;
+            case SET: return VertexProperty.Cardinality.set;
+            default: throw new IllegalStateException("Unknown cardinality " + pk.cardinality());
+        }
+    }
+
+    public void close() {
+        setup.close();
+    }
+}

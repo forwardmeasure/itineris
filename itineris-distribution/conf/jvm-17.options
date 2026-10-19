@@ -1,0 +1,70 @@
+# Copyright 2024 Itineris Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# JVM options for Java 17 — container-aware
+# Read by itineris-server.sh at startup via JAVA_OPTIONS_FILE.
+
+#################
+# HEAP SETTINGS #
+#################
+
+# Container-aware sizing — uses cgroup memory limits automatically.
+# Replaces fixed -Xms/-Xmx from jvm-11.options.
+-XX:+UseContainerSupport
+-XX:MaxRAMPercentage=75.0
+-XX:InitialRAMPercentage=50.0
+
+########################
+# GENERAL JVM SETTINGS #
+########################
+
+-XX:+UseThreadPriorities
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/opt/itineris/heap-dump.hprof
+-XX:+ExitOnOutOfMemoryError
+-Xss256k
+-XX:+AlwaysPreTouch
+-XX:+UseTLAB
+-XX:+ResizeTLAB
+-XX:+UseNUMA
+
+####################
+# GREMLIN SETTINGS #
+####################
+
+-Dgremlin.io.kryoShimService=com.forwardmeasure.itineris.hadoop.serialize.ItinerisKryoShimService
+
+#################
+#  GC SETTINGS  #
+#################
+
+-XX:+UseG1GC
+-XX:G1HeapRegionSize=16m
+-XX:MaxGCPauseMillis=200
+-XX:SurvivorRatio=8
+-XX:MaxTenuringThreshold=1
+
+##################################
+# JDK 17 MODULE OPENS            #
+# Required for Kryo, Spark, etc. #
+##################################
+
+--add-opens=java.base/java.lang=ALL-UNNAMED
+--add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+--add-opens=java.base/java.io=ALL-UNNAMED
+--add-opens=java.base/java.util=ALL-UNNAMED
+--add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+--add-opens=java.base/java.nio=ALL-UNNAMED
+--add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens=java.base/java.net=ALL-UNNAMED
+
+#############
+# SECURITY  #
+#############
+
+-Dlog4j2.formatMsgNoLookups=true

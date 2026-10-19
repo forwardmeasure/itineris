@@ -1,0 +1,536 @@
+// Copyright 2017 Itineris Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.forwardmeasure.itineris.graphdb.database;
+
+import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.tinkerpop.gremlin.process.traversal.Order;
+import com.forwardmeasure.itineris.core.ItinerisElement;
+import com.forwardmeasure.itineris.core.ItinerisRelation;
+import com.forwardmeasure.itineris.core.ItinerisVertex;
+import com.forwardmeasure.itineris.core.ItinerisVertexProperty;
+import com.forwardmeasure.itineris.core.PropertyKey;
+import com.forwardmeasure.itineris.core.SchemaViolationException;
+import com.forwardmeasure.itineris.core.attribute.Geoshape;
+import com.forwardmeasure.itineris.core.schema.Parameter;
+import com.forwardmeasure.itineris.core.schema.SchemaStatus;
+import com.forwardmeasure.itineris.diskstorage.BackendException;
+import com.forwardmeasure.itineris.diskstorage.BackendTransaction;
+import com.forwardmeasure.itineris.diskstorage.Entry;
+import com.forwardmeasure.itineris.diskstorage.EntryList;
+import com.forwardmeasure.itineris.diskstorage.ReadBuffer;
+import com.forwardmeasure.itineris.diskstorage.StaticBuffer;
+import com.forwardmeasure.itineris.diskstorage.configuration.Configuration;
+import com.forwardmeasure.itineris.diskstorage.indexing.IndexEntry;
+import com.forwardmeasure.itineris.diskstorage.indexing.IndexFeatures;
+import com.forwardmeasure.itineris.diskstorage.indexing.IndexInformation;
+import com.forwardmeasure.itineris.diskstorage.indexing.IndexProvider;
+import com.forwardmeasure.itineris.diskstorage.indexing.IndexQuery;
+import com.forwardmeasure.itineris.diskstorage.indexing.RawQuery;
+import com.forwardmeasure.itineris.diskstorage.indexing.StandardKeyInformation;
+import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.KeySliceQuery;
+import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.SliceQuery;
+import com.forwardmeasure.itineris.diskstorage.util.BufferUtil;
+import com.forwardmeasure.itineris.diskstorage.util.EntryArrayList;
+import com.forwardmeasure.itineris.diskstorage.util.HashingUtil;
+import com.forwardmeasure.itineris.graphdb.database.idhandling.IDHandler;
+import com.forwardmeasure.itineris.graphdb.database.index.IndexInfoRetriever;
+import com.forwardmeasure.itineris.graphdb.database.index.IndexMutationType;
+import com.forwardmeasure.itineris.graphdb.database.index.IndexRecords;
+import com.forwardmeasure.itineris.graphdb.database.index.IndexUpdate;
+import com.forwardmeasure.itineris.graphdb.database.index.IndexUpdateContainer;
+import com.forwardmeasure.itineris.graphdb.database.serialize.Serializer;
+import com.forwardmeasure.itineris.graphdb.database.util.IndexAppliesToFunction;
+import com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil;
+import com.forwardmeasure.itineris.graphdb.internal.ElementCategory;
+import com.forwardmeasure.itineris.graphdb.internal.InternalRelation;
+import com.forwardmeasure.itineris.graphdb.internal.InternalRelationType;
+import com.forwardmeasure.itineris.graphdb.internal.InternalVertex;
+import com.forwardmeasure.itineris.graphdb.internal.OrderList;
+import com.forwardmeasure.itineris.graphdb.query.ItinerisPredicate;
+import com.forwardmeasure.itineris.graphdb.query.condition.Condition;
+import com.forwardmeasure.itineris.graphdb.query.condition.ConditionUtil;
+import com.forwardmeasure.itineris.graphdb.query.condition.PredicateCondition;
+import com.forwardmeasure.itineris.graphdb.query.graph.IndexQueryBuilder;
+import com.forwardmeasure.itineris.graphdb.query.graph.JointIndexQuery;
+import com.forwardmeasure.itineris.graphdb.query.graph.MultiKeySliceQuery;
+import com.forwardmeasure.itineris.graphdb.query.index.IndexSelectionUtil;
+import com.forwardmeasure.itineris.graphdb.query.vertex.VertexWithInlineProps;
+import com.forwardmeasure.itineris.graphdb.relations.RelationIdentifier;
+import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.Aggregation;
+import com.forwardmeasure.itineris.graphdb.transaction.StandardItinerisTx;
+import com.forwardmeasure.itineris.graphdb.types.CompositeIndexType;
+import com.forwardmeasure.itineris.graphdb.types.IndexType;
+import com.forwardmeasure.itineris.graphdb.types.MixedIndexType;
+import com.forwardmeasure.itineris.graphdb.types.ParameterIndexField;
+import com.forwardmeasure.itineris.graphdb.types.ParameterType;
+import com.forwardmeasure.itineris.graphdb.types.TypeInspector;
+import com.forwardmeasure.itineris.graphdb.types.indextype.IndexReferenceType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
+
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.INDEX_NAME_MAPPING;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.FULL_INDEX_APPLIES_TO_FILTER;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.INDEX_APPLIES_TO_NO_CONSTRAINTS_FILTER;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.bytebuffer2RelationId;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.element2String;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.getCompositeIndexUpdate;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.getIndexTTL;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.getKeyInformation;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.getKeysOfRecords;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.getMixedIndexUpdate;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.getUpdateType;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.indexAppliesTo;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.indexMatch;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.indexMatches;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.key2Field;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.keyID2Name;
+import static com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil.string2ElementId;
+
+/**
+ * @author Matthias Broecheler (me@matthiasb.com)
+ */
+
+public class IndexSerializer {
+
+    private static final Logger log = LoggerFactory.getLogger(IndexSerializer.class);
+
+    private final EdgeSerializer edgeSerializer;
+    private final Serializer serializer;
+    private final Configuration configuration;
+    private final Map<String, ? extends IndexInformation> mixedIndexes;
+
+    private final boolean hashKeys;
+    private final HashingUtil.HashLength hashLength = HashingUtil.HashLength.SHORT;
+
+    public IndexSerializer(Configuration config,
+                           EdgeSerializer edgeSerializer,
+                           Serializer serializer,
+                           Map<String, ? extends IndexInformation> indexes,
+                           final boolean hashKeys) {
+        this.serializer = serializer;
+        this.edgeSerializer = edgeSerializer;
+        this.configuration = config;
+        this.mixedIndexes = indexes;
+        this.hashKeys=hashKeys;
+        if (hashKeys) log.info("Hashing index keys");
+    }
+
+    /* ################################################
+               Index Information
+    ################################################### */
+
+    public boolean containsIndex(final String indexName) {
+        return mixedIndexes.containsKey(indexName);
+    }
+
+    public String getDefaultFieldName(final PropertyKey key, final Parameter[] parameters, final String indexName) {
+        Preconditions.checkArgument(!ParameterType.MAPPED_NAME.hasParameter(parameters), "A field name mapping has been specified for key: %s",key);
+        Preconditions.checkArgument(containsIndex(indexName), "Unknown backing index: %s", indexName);
+        final String fieldname = configuration.get(INDEX_NAME_MAPPING,indexName)?key.name():keyID2Name(key);
+        return mixedIndexes.get(indexName).mapKey2Field(fieldname,
+            new StandardKeyInformation(key,parameters));
+    }
+
+    public static void clearStore(final MixedIndexType index, final BackendTransaction tx) throws BackendException {
+        tx.getIndexTransaction(index.getBackingIndexName()).clearStore(index.getStoreName());
+    }
+
+    public static void register(final MixedIndexType index, final PropertyKey key, final BackendTransaction tx) throws BackendException {
+        tx.getIndexTransaction(index.getBackingIndexName()).register(index.getStoreName(), key2Field(index,key), getKeyInformation(index.getField(key)));
+    }
+
+    public boolean supports(final MixedIndexType index, final ParameterIndexField field) {
+        return getMixedIndex(index).supports(getKeyInformation(field));
+    }
+
+    public boolean supports(final MixedIndexType index, final ParameterIndexField field, final ItinerisPredicate predicate) {
+        return getMixedIndex(index).supports(getKeyInformation(field),predicate);
+    }
+
+    public boolean supportsExistsQuery(final MixedIndexType index, final ParameterIndexField field) {
+        if (Geoshape.class.equals(getKeyInformation(field).getDataType())) {
+            return getMixedIndex(index).getFeatures().supportsGeoExists();
+        }
+        return true;
+    }
+
+    public IndexFeatures features(final MixedIndexType index) {
+        return getMixedIndex(index).getFeatures();
+    }
+
+    private IndexInformation getMixedIndex(final MixedIndexType index) {
+        final IndexInformation indexinfo = mixedIndexes.get(index.getBackingIndexName());
+        Preconditions.checkArgument(indexinfo != null, "Index is unknown or not configured: %s", index.getBackingIndexName());
+        return indexinfo;
+    }
+
+    public IndexInfoRetriever getIndexInfoRetriever(StandardItinerisTx tx) {
+        return new IndexInfoRetriever(tx);
+    }
+
+    /* ################################################
+               Index Updates
+    ################################################### */
+
+    public Collection<IndexUpdate> getIndexUpdates(InternalRelation relation, TypeInspector typeInspector) {
+        return getIndexUpdates(relation, FULL_INDEX_APPLIES_TO_FILTER, typeInspector);
+    }
+
+    public Stream<IndexUpdate> getIndexUpdates(InternalVertex vertex, Collection<InternalRelation> updatedProperties, TypeInspector typeInspector) {
+        return getIndexUpdates(vertex, updatedProperties, FULL_INDEX_APPLIES_TO_FILTER, typeInspector);
+    }
+
+    public Collection<IndexUpdate> getIndexUpdatesNoConstraints(InternalRelation relation, TypeInspector typeInspector) {
+        return getIndexUpdates(relation, INDEX_APPLIES_TO_NO_CONSTRAINTS_FILTER, typeInspector);
+    }
+
+    public Stream<IndexUpdate> getIndexUpdatesNoConstraints(InternalVertex vertex, Collection<InternalRelation> updatedProperties, TypeInspector typeInspector) {
+        return getIndexUpdates(vertex, updatedProperties, INDEX_APPLIES_TO_NO_CONSTRAINTS_FILTER, typeInspector);
+    }
+
+    public Collection<IndexUpdate> getIndexUpdates(InternalRelation relation, IndexAppliesToFunction indexFilter, TypeInspector typeInspector) {
+        assert relation.isNew() || relation.isRemoved();
+        final Set<IndexUpdate> updates = new HashSet<>();
+        final IndexMutationType updateType = getUpdateType(relation, false);
+        final int ttl = updateType == IndexMutationType.DELETE ? 0: StandardItineris.getTTL(relation);
+        for (final PropertyKey type : relation.getPropertyKeysDirect()) {
+            if (type == null) continue;
+            for (final IndexType index : ((InternalRelationType) type).getKeyIndexes()) {
+                if (!indexFilter.indexAppliesTo(index,relation)) continue;
+                IndexUpdate update;
+                if (index instanceof CompositeIndexType) {
+                    final CompositeIndexType iIndex= (CompositeIndexType) index;
+                    final IndexRecordEntry[] record = indexMatch(relation, iIndex);
+                    if (record==null) continue;
+                    update = getCompositeIndexUpdate(iIndex, updateType, record, relation, serializer, typeInspector, edgeSerializer, hashKeys, hashLength);
+                } else {
+                    assert relation.valueOrNull(type)!=null;
+                    if (((MixedIndexType)index).getField(type).getStatus()== SchemaStatus.DISABLED) continue;
+                    update = getMixedIndexUpdate(relation, type, relation.valueOrNull(type), (MixedIndexType) index, updateType);
+                }
+                if (ttl>0) update.setTTL(ttl);
+                updates.add(update);
+            }
+        }
+        return updates;
+    }
+
+    public Stream<IndexUpdate> getIndexUpdates(InternalVertex vertex,
+                                               Collection<InternalRelation> updatedProperties,
+                                               IndexAppliesToFunction indexFilter,
+                                               TypeInspector typeInspector) {
+
+        if (updatedProperties.isEmpty()) return Stream.empty();
+        final Map<Object, IndexUpdateContainer> updates = new HashMap<>();
+
+        for (final InternalRelation rel : updatedProperties) {
+            assert rel.isProperty();
+            final ItinerisVertexProperty p = (ItinerisVertexProperty)rel;
+            assert rel.isNew() || rel.isRemoved(); assert rel.getVertex(0).equals(vertex);
+
+            for (final IndexReferenceType indexRef : ((InternalRelationType) p.propertyKey()).getKeyIndexesReferences()) {
+                final IndexMutationType updateType = getUpdateType(rel, indexRef.isInlined());
+
+                if (vertex.isRemoved() && indexRef.isInlined()) continue;
+                if (!indexFilter.indexAppliesTo(indexRef.getIndexType(), vertex)) continue;
+
+                if (indexRef.getIndexType().isCompositeIndex()) { //Gather composite indexes
+                    final CompositeIndexType cIndex = (CompositeIndexType) indexRef.getIndexType();
+                    final IndexRecords updateRecords = indexMatches(vertex,cIndex, rel.isRemoved(), p.propertyKey(), new IndexRecordEntry(p));
+                    for (final IndexRecordEntry[] record : updateRecords) {
+                        final IndexUpdate update = getCompositeIndexUpdate(cIndex, updateType, record, vertex, serializer, typeInspector, edgeSerializer, hashKeys, hashLength);
+                        final int ttl = getIndexTTL(vertex, getKeysOfRecords(record));
+                        if (ttl > 0 && updateType != IndexMutationType.DELETE) update.setTTL(ttl);
+                        if (updates.containsKey(update.getKey())) {
+                            updates.get(update.getKey()).add(update);
+                        } else {
+                            updates.put(update.getKey(), new IndexUpdateContainer(update));
+                        }
+                    }
+                } else { //Update mixed indexes
+                    ParameterIndexField field = ((MixedIndexType) indexRef.getIndexType()).getField(p.propertyKey());
+                    if (field == null) {
+                        throw new SchemaViolationException(p.propertyKey() + " is not available in mixed index " + indexRef.getIndexType());
+                    }
+                    if (field.getStatus() == SchemaStatus.DISABLED) continue;
+                    final IndexUpdate update = getMixedIndexUpdate(vertex, p.propertyKey(), p.value(), (MixedIndexType) indexRef.getIndexType(), updateType);
+                    final int ttl = getIndexTTL(vertex, p.propertyKey());
+
+                    if (ttl>0 && updateType != IndexMutationType.DELETE) update.setTTL(ttl);
+                    if (updates.containsKey(update.getKey())) {
+                        updates.get(update.getKey()).add(update);
+                    } else {
+                        updates.put(update.getKey(), new IndexUpdateContainer(update));
+                    }
+                }
+            }
+        }
+
+        return updates.values().stream().flatMap(IndexUpdateContainer::getUpdates);
+    }
+
+    public boolean reindexElement(ItinerisElement element, MixedIndexType index, Map<String,Map<String,List<IndexEntry>>> documentsPerStore) {
+        if (!indexAppliesTo(index, element))
+            return false;
+        final List<IndexEntry> entries = new ArrayList<>();
+        for (final ParameterIndexField field: index.getFieldKeys()) {
+            final PropertyKey key = field.getFieldKey();
+            if (field.getStatus()==SchemaStatus.DISABLED) continue;
+            if (element.properties(key.name()).hasNext()) {
+                element.values(key.name()).forEachRemaining(value->entries.add(new IndexEntry(key2Field(field), value)));
+            }
+        }
+        if (entries.isEmpty())
+            return false;
+        getDocuments(documentsPerStore, index).put(element2String(element), entries);
+        return true;
+    }
+
+    private Map<String,List<IndexEntry>> getDocuments(Map<String,Map<String,List<IndexEntry>>> documentsPerStore, MixedIndexType index) {
+        return documentsPerStore.computeIfAbsent(index.getStoreName(), k -> new HashMap<>());
+    }
+
+    public void removeElement(Object elementId, MixedIndexType index, Map<String,Map<String,List<IndexEntry>>> documentsPerStore) {
+        Preconditions.checkArgument((index.getElement()==ElementCategory.VERTEX && elementId instanceof Long) ||
+            (index.getElement().isRelation() && elementId instanceof RelationIdentifier),"Invalid element id [%s] provided for index: %s",elementId,index);
+        getDocuments(documentsPerStore,index).put(element2String(elementId),new ArrayList<>());
+    }
+
+    public Set<IndexUpdate<StaticBuffer,Entry>> reindexElement(ItinerisElement element, CompositeIndexType index, TypeInspector typeInspector) {
+        final Set<IndexUpdate<StaticBuffer,Entry>> indexEntries = new HashSet<>();
+        if (!indexAppliesTo(index,element)) {
+            return indexEntries;
+        }
+        Iterable<IndexRecordEntry[]> records;
+        if (element instanceof ItinerisVertex) {
+            records = indexMatches((ItinerisVertex)element,index);
+        } else {
+            assert element instanceof ItinerisRelation;
+            final IndexRecordEntry[] record = indexMatch((ItinerisRelation)element,index);
+            records = (record == null) ? Collections.emptyList() : Collections.singletonList(record);
+        }
+        for (final IndexRecordEntry[] record : records) {
+            indexEntries.add(getCompositeIndexUpdate(index, IndexMutationType.ADD, record, element, serializer,
+                typeInspector, edgeSerializer, hashKeys, hashLength));
+        }
+        return indexEntries;
+    }
+
+    /* ################################################
+                Querying
+    ################################################### */
+
+    public Stream<Object> query(final JointIndexQuery.Subquery query, final BackendTransaction tx, StandardItinerisTx standardItinerisTx) {
+        final IndexType index = query.getIndex();
+        if (index.isCompositeIndex()) {
+            Map<String, SliceQuery> inlineQueries = IndexRecordUtil.getInlinePropertiesQueries((CompositeIndexType) index, standardItinerisTx);
+            final MultiKeySliceQuery sq = query.getCompositeQuery();
+            final List<EntryList> rs = sq.execute(tx);
+            final List<Object> results = new ArrayList<>(rs.get(0).size());
+            for (final EntryList r : rs) {
+                for (final java.util.Iterator<Entry> iterator = r.reuseIterator(); iterator.hasNext(); ) {
+                    final Entry entry = iterator.next();
+                    final ReadBuffer readBuffer = entry.asReadBuffer();
+                    readBuffer.movePositionTo(entry.getValuePosition());
+                    switch (index.getElement()) {
+                        case VERTEX:
+                            Object vertexId = IDHandler.readVertexId(readBuffer, true);
+                            results.add(new VertexWithInlineProps(vertexId,
+                                EntryArrayList.of(IndexRecordUtil.readInlineProperties(readBuffer)),
+                                inlineQueries,
+                                standardItinerisTx));
+                            break;
+                        default:
+                            results.add(bytebuffer2RelationId(readBuffer));
+                    }
+                }
+            }
+            return results.stream();
+        } else {
+            return tx.indexQuery(index.getBackingIndexName(), query.getMixedQuery()).map(IndexRecordUtil::string2ElementId);
+        }
+    }
+
+    public Number queryAggregation(final JointIndexQuery.Subquery query, final BackendTransaction tx, final Aggregation aggregation) {
+        final IndexType index = query.getIndex();
+        assert index.isMixedIndex();
+        return tx.indexQueryAggregation(index.getBackingIndexName(), query.getMixedQuery(), aggregation);
+    }
+
+    public MultiKeySliceQuery getQuery(final CompositeIndexType index, List<Object[]> values) {
+        final List<KeySliceQuery> ksqs = new ArrayList<>(values.size());
+        for (final Object[] value : values) {
+            ksqs.add(new KeySliceQuery(IndexRecordUtil.getIndexKey(index, value, serializer, hashKeys, hashLength),
+                BufferUtil.zeroBuffer(1), BufferUtil.oneBuffer(1)));
+        }
+        return new MultiKeySliceQuery(ksqs);
+    }
+
+    public IndexQuery getQuery(final MixedIndexType index, final Condition condition, final OrderList orders) {
+        final Condition newCondition = ConditionUtil.literalTransformation(condition,
+            new Function<Condition<ItinerisElement>, Condition<ItinerisElement>>() {
+                @Nullable
+                @Override
+                public Condition<ItinerisElement> apply(final Condition<ItinerisElement> condition) {
+                    Preconditions.checkArgument(condition instanceof PredicateCondition);
+                    final PredicateCondition pc = (PredicateCondition) condition;
+                    final PropertyKey key = (PropertyKey) pc.getKey();
+                    return new PredicateCondition<>(key2Field(index, key), pc.getPredicate(), pc.getValue());
+                }
+            });
+        ImmutableList<IndexQuery.OrderEntry> newOrders = IndexQuery.NO_ORDER;
+        if (!orders.isEmpty() && IndexSelectionUtil.indexCoversOrder(index,orders)) {
+            final ImmutableList.Builder<IndexQuery.OrderEntry> lb = ImmutableList.builder();
+            for (int i = 0; i < orders.size(); i++) {
+                lb.add(new IndexQuery.OrderEntry(key2Field(index,orders.getKey(i)), orders.getOrder(i), orders.getKey(i).dataType()));
+            }
+            newOrders = lb.build();
+        }
+        return new IndexQuery(index.getStoreName(), newCondition, newOrders);
+    }
+
+
+    /* ################################################
+    	Common code used by executeQuery and executeTotals
+	################################################### */
+    private String createQueryString(IndexQueryBuilder query, final ElementCategory resultType,
+                                     final StandardItinerisTx transaction, MixedIndexType index) {
+        Preconditions.checkArgument(index.getElement()==resultType,"Index is not configured for the desired result type: %s",resultType);
+        final String backingIndexName = index.getBackingIndexName();
+        final IndexProvider indexInformation = (IndexProvider) mixedIndexes.get(backingIndexName);
+
+        final StringBuilder qB = new StringBuilder(query.getQuery());
+        final String prefix = query.getPrefix();
+        Preconditions.checkNotNull(prefix);
+        //Convert query string by replacing
+        int replacements = 0;
+        int pos = 0;
+        while (pos<qB.length()) {
+            pos = qB.indexOf(prefix,pos);
+            if (pos<0) break;
+
+            final int startPos = pos;
+            pos += prefix.length();
+            final StringBuilder keyBuilder = new StringBuilder();
+            final boolean quoteTerminated = qB.charAt(pos)=='"';
+            if (quoteTerminated) pos++;
+            while (pos<qB.length() &&
+                (Character.isLetterOrDigit(qB.charAt(pos))
+                    || (quoteTerminated && qB.charAt(pos)!='"') || qB.charAt(pos) == '*' ) ) {
+                keyBuilder.append(qB.charAt(pos));
+                pos++;
+            }
+            if (quoteTerminated) pos++;
+            final int endPos = pos;
+            final String keyName = keyBuilder.toString();
+            Preconditions.checkArgument(StringUtils.isNotBlank(keyName),
+                "Found reference to empty key at position [%s]",startPos);
+            String replacement;
+            if(keyName.equals("*")) {
+                replacement = indexInformation.getFeatures().getWildcardField();
+            }
+            else if (transaction.containsRelationType(keyName)) {
+                final PropertyKey key = transaction.getPropertyKey(keyName);
+                Preconditions.checkNotNull(key);
+                Preconditions.checkArgument(index.indexesKey(key),
+                    "The used key [%s] is not indexed in the targeted index [%s]",key.name(),query.getIndex());
+                replacement = key2Field(index,key);
+            } else {
+                Preconditions.checkArgument(query.getUnknownKeyName()!=null,
+                    "Found reference to nonexistent property key in query at position [%s]: %s",startPos,keyName);
+                replacement = query.getUnknownKeyName();
+            }
+            Preconditions.checkArgument(StringUtils.isNotBlank(replacement));
+
+            qB.replace(startPos,endPos,replacement);
+            pos = startPos+replacement.length();
+            replacements++;
+        }
+        final String queryStr = qB.toString();
+        if (replacements<=0) log.warn("Could not convert given {} index query: [{}]",resultType, query.getQuery());
+        log.info("Converted query string with {} replacements: [{}] => [{}]",replacements,query.getQuery(),queryStr);
+        return queryStr;
+    }
+
+    private ImmutableList<IndexQuery.OrderEntry> getOrders(IndexQueryBuilder query, final ElementCategory resultType,
+                                                           final StandardItinerisTx transaction, MixedIndexType index){
+        if (query.getOrders() == null) {
+            return ImmutableList.of();
+        }
+        Preconditions.checkArgument(index.getElement()==resultType,"Index is not configured for the desired result type: %s",resultType);
+        List<IndexQuery.OrderEntry> orderReplacement = new ArrayList<>();
+        for (Parameter<Order> order: query.getOrders()) {
+            if (transaction.containsRelationType(order.key())) {
+                final PropertyKey key = transaction.getPropertyKey(order.key());
+                Preconditions.checkNotNull(key);
+                Preconditions.checkArgument(index.indexesKey(key),
+                    "The used key [%s] is not indexed in the targeted index [%s]",key.name(),query.getIndex());
+                orderReplacement.add(new IndexQuery.OrderEntry(key2Field(index,key), com.forwardmeasure.itineris.graphdb.internal.Order.convert(order.value()), key.dataType()));
+            } else {
+                Preconditions.checkArgument(query.getUnknownKeyName()!=null,
+                    "Found reference to nonexistent property key in query orders %s", order.key());
+            }
+        }
+        return ImmutableList.copyOf(orderReplacement);
+    }
+
+    public Stream<RawQuery.Result> executeQuery(IndexQueryBuilder query, final ElementCategory resultType,
+                                                final BackendTransaction backendTx, final StandardItinerisTx transaction) {
+        final MixedIndexType index = IndexRecordUtil.getMixedIndex(query.getIndex(), transaction);
+        final String queryStr = createQueryString(query, resultType, transaction, index);
+        ImmutableList<IndexQuery.OrderEntry> orders = getOrders(query, resultType, transaction, index);
+        final RawQuery rawQuery = new RawQuery(index.getStoreName(),queryStr,orders,query.getParameters());
+        if (query.hasLimit()) rawQuery.setLimit(query.getLimit());
+        rawQuery.setOffset(query.getOffset());
+        return backendTx.rawQuery(index.getBackingIndexName(), rawQuery).map(result ->  new RawQuery.Result(string2ElementId(result.getResult()), result.getScore()));
+    }
+
+    public Long executeTotals(IndexQueryBuilder query, final ElementCategory resultType,
+                              final BackendTransaction backendTx, final StandardItinerisTx transaction) {
+        final MixedIndexType index = IndexRecordUtil.getMixedIndex(query.getIndex(), transaction);
+        final String queryStr = createQueryString(query, resultType, transaction, index);
+        final RawQuery rawQuery = new RawQuery(index.getStoreName(),queryStr,query.getParameters());
+        if (query.hasLimit()) rawQuery.setLimit(query.getLimit());
+        rawQuery.setOffset(query.getOffset());
+        return backendTx.totals(index.getBackingIndexName(), rawQuery);
+    }
+
+    public long getIndexIdFromKey(StaticBuffer key) {
+        return IndexRecordUtil.getIndexIdFromKey(key, hashKeys, hashLength);
+    }
+
+    public boolean isHashKeys() {
+        return hashKeys;
+    }
+
+
+    public HashingUtil.HashLength getHashLength() {
+        return hashLength;
+    }
+}

@@ -1,0 +1,142 @@
+// Copyright 2017 Itineris Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.forwardmeasure.itineris.graphdb.query.vertex;
+
+import com.google.common.base.Preconditions;
+import com.forwardmeasure.itineris.core.ItinerisEdge;
+import com.forwardmeasure.itineris.core.ItinerisRelation;
+import com.forwardmeasure.itineris.core.ItinerisVertex;
+import com.forwardmeasure.itineris.core.ItinerisVertexProperty;
+import com.forwardmeasure.itineris.core.ItinerisVertexQuery;
+import com.forwardmeasure.itineris.core.VertexList;
+import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.SliceQuery;
+import com.forwardmeasure.itineris.graphdb.internal.InternalVertex;
+import com.forwardmeasure.itineris.graphdb.internal.RelationCategory;
+import com.forwardmeasure.itineris.graphdb.query.BackendQueryHolder;
+import com.forwardmeasure.itineris.graphdb.query.QueryProcessor;
+import com.forwardmeasure.itineris.graphdb.query.profile.QueryProfiler;
+
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Implementation of {@link ItinerisVertexQuery} that extends {@link BasicVertexCentricQueryBuilder}
+ * for all the query building and optimization and adds only the execution logic in
+ * {@link #constructQuery(com.forwardmeasure.itineris.graphdb.internal.RelationCategory)}. However, there is
+ * one important special case: If the constructed query is simple 
+ * then we use the {@link SimpleVertexQueryProcessor} to execute the query instead of the generic {@link QueryProcessor}
+ * for performance reasons and we compute the result sets differently to make things faster and more memory efficient.
+ * <p>
+ * The simplified vertex processing only applies to loaded (i.e. non-mutated) vertices. The query can be configured
+ * to only included loaded relations in the result set (which is needed, for instance, when computing index deltas in
+ * {@link com.forwardmeasure.itineris.graphdb.database.IndexSerializer}) via {@link #queryOnlyLoaded()}.
+ * <p>
+ * All other methods just prepare or transform that result set to fit the particular method semantics.
+ *
+ * @author Matthias Broecheler (me@matthiasb.com)
+ */
+public class VertexCentricQueryBuilder extends BasicVertexCentricQueryBuilder<VertexCentricQueryBuilder> implements ItinerisVertexQuery<VertexCentricQueryBuilder> {
+
+    /**
+    The base vertex of this query
+     */
+    private final InternalVertex vertex;
+
+    public VertexCentricQueryBuilder(InternalVertex v) {
+        super(v.tx());
+        Preconditions.checkNotNull(v);
+        this.vertex = v;
+    }
+
+    @Override
+    protected VertexCentricQueryBuilder getThis() {
+        return this;
+    }
+
+    /* ---------------------------------------------------------------
+     * Query Execution
+	 * ---------------------------------------------------------------
+	 */
+
+    protected<Q> Q execute(RelationCategory returnType, ResultConstructor<Q> resultConstructor) {
+        BaseVertexCentricQuery bq = super.constructQuery(returnType);
+        if (bq.isEmpty()) return resultConstructor.emptyResult();
+        boolean prefetchAllVertexProperties = returnType==RelationCategory.PROPERTY && hasSingleType() && !hasQueryOnlyLoaded()
+            && tx.getConfiguration().hasPropertyPrefetching();
+        if (prefetchAllVertexProperties) {
+            //Preload properties
+            vertex.query().properties().iterator().hasNext();
+        }
+
+        if (isPartitionedVertex(vertex)) { //If it's a preloaded vertex we shouldn't preload data explicitly
+            List<InternalVertex> vertices = allRequiredRepresentatives(vertex);
+            profiler.setAnnotation(QueryProfiler.PARTITIONED_VERTEX_ANNOTATION,true);
+            profiler.setAnnotation(QueryProfiler.NUMVERTICES_ANNOTATION,vertices.size());
+            if (vertices.size()>1) {
+                if(bq.getQueries().size() == 1){
+                    BackendQueryHolder<SliceQuery> query = bq.getQueries().get(0);
+                    // if it's just a single query - there is no need to group any queries together.
+                    // Thus, we can execute `executeMultiQuery` instead of `executeMultiSliceMultiQuery`
+                    tx.executeMultiQuery(vertices, query.getBackendQuery(),query.getProfiler());
+                } else {
+                    tx.executeMultiSliceMultiQuery(vertices, bq.getQueries(), profiler);
+                }
+            }
+        } else {
+            profiler.setAnnotation(QueryProfiler.NUMVERTICES_ANNOTATION,1);
+            // in case there are more than 1 slice query expected for the provided vertex
+            // then it still makes sense to pre-fetch vertex data via multi-slice query (all queries in parallel)
+            // instead of executing each separate query sequentially
+            if(!prefetchAllVertexProperties && bq.getQueries().size() > 1){
+                tx.executeMultiSliceMultiQuery(Collections.singletonList(vertex), bq.getQueries(), profiler);
+            }
+        }
+        return resultConstructor.getResult(vertex,bq);
+    }
+
+    //#### RELATIONS
+
+    @Override
+    public Iterable<ItinerisEdge> edges() {
+        return (Iterable)execute(RelationCategory.EDGE,new RelationConstructor());
+    }
+
+    @Override
+    public Iterable<ItinerisVertexProperty> properties() {
+        return (Iterable)(isImplicitKeyQuery(RelationCategory.PROPERTY)?
+                executeImplicitKeyQuery(vertex):
+                execute(RelationCategory.PROPERTY, new RelationConstructor()));
+    }
+
+    @Override
+    public Iterable<ItinerisRelation> relations() {
+        return (Iterable)(isImplicitKeyQuery(RelationCategory.RELATION)?
+                executeImplicitKeyQuery(vertex):
+                execute(RelationCategory.RELATION,new RelationConstructor()));
+    }
+
+    //#### VERTICES
+
+    @Override
+    public Iterable<ItinerisVertex> vertices() {
+        return execute(RelationCategory.EDGE,new VertexConstructor());
+    }
+
+    @Override
+    public VertexList vertexIds() {
+        return execute(RelationCategory.EDGE,new VertexIdConstructor());
+    }
+
+}
