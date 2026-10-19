@@ -4,7 +4,8 @@
 ==============================================================
 
 Itineris is a fork of JanusGraph (https://github.com/JanusGraph/janusgraph),
-taken at release v1.1.0 and kept in sync with it since:
+taken at release v1.1.0 and last merged with JanusGraph master at commit
+1df9cd6a9 (17 Oct 2026). Itineris has been developed independently since.
 
   JanusGraph: Distributed Graph Database
   Copyright 2012 and onwards JanusGraph Authors
