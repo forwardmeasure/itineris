@@ -39,11 +39,12 @@ import java.util.Map;
  */
 public abstract class RelationTypeVertex extends ItinerisSchemaVertex implements InternalRelationType {
 
-    private ConsistencyModifier consistency = null;
-    private Integer ttl = null;
-    private List<IndexType> indexes = null;
-
-    private List<IndexReferenceType> indexesReferences = null;
+    //Built from the definition and the related schema elements on first read and cleared by resetCache(), under the
+    //same rules as the caches of ItinerisSchemaVertex: kept only if no reset overlapped the read, and volatile.
+    private volatile ConsistencyModifier consistency = null;
+    private volatile Integer ttl = null;
+    private volatile List<IndexType> indexes = null;
+    private volatile List<IndexReferenceType> indexesReferences = null;
 
     public RelationTypeVertex(StandardItinerisTx tx, Object id, byte lifecycle) {
         super(tx, id, lifecycle);
@@ -76,18 +77,24 @@ public abstract class RelationTypeVertex extends ItinerisSchemaVertex implements
 
     @Override
     public ConsistencyModifier getConsistencyModifier() {
-        if (consistency==null) {
-            consistency = TypeUtil.getConsistencyModifier(this);
+        ConsistencyModifier result = consistency;
+        if (result == null) {
+            final long resetsBefore = cacheResets();
+            result = TypeUtil.getConsistencyModifier(this);
+            keepUnlessReset(resetsBefore, result, value -> consistency = value);
         }
-        return consistency;
+        return result;
     }
 
     @Override
     public Integer getTTL() {
-        if (null == ttl) {
-            ttl = TypeUtil.getTTL(this);
+        Integer result = ttl;
+        if (result == null) {
+            final long resetsBefore = cacheResets();
+            result = TypeUtil.getTTL(this);
+            keepUnlessReset(resetsBefore, result, value -> ttl = value);
         }
-        return ttl;
+        return result;
     }
 
     @Override
@@ -113,8 +120,9 @@ public abstract class RelationTypeVertex extends ItinerisSchemaVertex implements
     public Iterable<IndexType> getKeyIndexes() {
         List<IndexType> result = indexes;
         if (result == null) {
+            final long resetsBefore = cacheResets();
             result = getIndexes();
-            indexes = result;
+            keepUnlessReset(resetsBefore, result, value -> indexes = value);
         }
         return result;
     }
@@ -123,8 +131,9 @@ public abstract class RelationTypeVertex extends ItinerisSchemaVertex implements
     public Iterable<IndexReferenceType> getKeyIndexesReferences() {
         List<IndexReferenceType> result = indexesReferences;
         if (result == null) {
+            final long resetsBefore = cacheResets();
             result = getIndexesReferences();
-            indexesReferences = result;
+            keepUnlessReset(resetsBefore, result, value -> indexesReferences = value);
         }
         return result;
     }
@@ -161,6 +170,8 @@ public abstract class RelationTypeVertex extends ItinerisSchemaVertex implements
     @Override
     public void resetCache() {
         super.resetCache();
+        consistency = null;
+        ttl = null;
         indexes = null;
         indexesReferences = null;
     }

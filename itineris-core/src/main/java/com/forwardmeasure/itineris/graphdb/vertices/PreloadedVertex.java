@@ -25,6 +25,7 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import com.forwardmeasure.itineris.core.ItinerisEdge;
 import com.forwardmeasure.itineris.core.ItinerisRelation;
 import com.forwardmeasure.itineris.core.ItinerisVertexProperty;
+import com.forwardmeasure.itineris.core.RelationType;
 import com.forwardmeasure.itineris.diskstorage.EntryList;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.SliceQuery;
 import com.forwardmeasure.itineris.graphdb.internal.ElementLifeCycle;
@@ -36,6 +37,7 @@ import com.forwardmeasure.itineris.util.datastructures.Retriever;
 
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Set;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
@@ -73,6 +75,11 @@ public class PreloadedVertex extends CacheVertex {
     }
 
     @Override
+    public Iterable<InternalRelation> getAddedRelations(Set<? extends RelationType> types, Predicate<InternalRelation> query) {
+        return Collections.emptyList();
+    }
+
+    @Override
     public Iterable<InternalRelation> findAddedProperty(Predicate<InternalRelation> query) {
         return Collections.EMPTY_LIST;
     }
@@ -106,6 +113,11 @@ public class PreloadedVertex extends CacheVertex {
     @Override
     public EntryList loadRelations(SliceQuery query, Retriever<SliceQuery, EntryList> lookup) {
         return super.loadRelations(query, accessCheck.retrieveSliceQuery());
+    }
+
+    @Override
+    public EntryList loadRelations(SliceQuery query, Retriever<SliceQuery, EntryList> lookup, long refreshesBefore) {
+        return super.loadRelations(query, accessCheck.retrieveSliceQuery(), refreshesBefore);
     }
 
     @Override

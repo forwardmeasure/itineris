@@ -15,6 +15,9 @@ that keeps those names mechanical, so upstream fixes can be merged with ordinary
 | groupId `org.janusgraph`          | groupId `com.forwardmeasure`          |
 | `JanusGraph`, `janusgraph`, `JANUSGRAPH` in names and text | `Itineris`, `itineris`, `ITINERIS` |
 
+Upstream's project version is replaced by a constant (`PINNED_VERSION` in `rebrand.sh`), so upstream
+version bumps never touch Itineris's poms; the Itineris version is set only on the Itineris side.
+
 Two things are left alone:
 
 - Copyright lines naming the JanusGraph Authors. Apache-2.0 section 4(c) requires derived

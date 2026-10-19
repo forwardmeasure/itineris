@@ -22,6 +22,7 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.io.Io;
+import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONMapper;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONVersion;
 import org.apache.tinkerpop.gremlin.structure.io.gryo.GryoVersion;
 import org.apache.tinkerpop.gremlin.structure.util.AbstractThreadLocalTransaction;
@@ -128,7 +129,13 @@ public abstract class ItinerisBlueprintsGraph implements Itineris {
     @Override
     public <I extends Io> I io(final Io.Builder<I> builder) {
         if (builder.requiresVersion(GryoVersion.V1_0) || builder.requiresVersion(GraphSONVersion.V1_0)) {
-            return (I) builder.graph(this).onMapper(mapper ->  mapper.addRegistry(ItinerisIoRegistryV1d0.instance())).create();
+            return (I) builder.graph(this).onMapper(mapper -> {
+                mapper.addRegistry(ItinerisIoRegistryV1d0.instance());
+                if (mapper instanceof GraphSONMapper.Builder) {
+                    // GraphSON 1.0 embedded types only deserialize explicitly allowed @class type ids (TinkerPop 3.8.2+)
+                    ItinerisIoRegistryV1d0.allowGraphSONTypeIds((GraphSONMapper.Builder) mapper);
+                }
+            }).create();
         } else if (builder.requiresVersion(GraphSONVersion.V2_0)) {
             return (I) builder.graph(this).onMapper(mapper ->  mapper.addRegistry(ItinerisIoRegistry.instance())).create();
         } else {
@@ -344,9 +351,13 @@ public abstract class ItinerisBlueprintsGraph implements Itineris {
 
         @Override
         protected void doClose() {
+            // Snapshot the shared txs reference first: close() may null it out concurrently on another
+            // thread. Capturing it before the calls below keeps the race window minimal so this thread
+            // still removes its own ThreadLocal entry rather than relying on delayed GC-based cleanup.
+            ThreadLocal<ItinerisBlueprintsTransaction> localTxs = txs;
             super.doClose();
             transactionListeners.remove();
-            txs.remove();
+            if (localTxs != null) localTxs.remove();
         }
 
         @Override

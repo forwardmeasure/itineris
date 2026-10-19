@@ -18,10 +18,13 @@ import com.google.common.base.Predicate;
 import com.forwardmeasure.itineris.core.ItinerisRelation;
 import com.forwardmeasure.itineris.core.ItinerisVertex;
 import com.forwardmeasure.itineris.core.PropertyKey;
+import com.forwardmeasure.itineris.core.RelationType;
 import com.forwardmeasure.itineris.diskstorage.EntryList;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.SliceQuery;
 import com.forwardmeasure.itineris.graphdb.query.vertex.VertexCentricQueryBuilder;
 import com.forwardmeasure.itineris.util.datastructures.Retriever;
+
+import java.util.Set;
 
 /**
  * Internal Vertex interface adding methods that should only be used by Itineris
@@ -64,6 +67,19 @@ public interface InternalVertex extends ItinerisVertex, InternalElement {
      * @return
      */
     Iterable<InternalRelation> getAddedRelations(Predicate<InternalRelation> query);
+
+    /**
+     * Returns an iterable over the newly added relations incident on this vertex that match the given predicate,
+     * read only among those of the given types where the vertex keeps them by type. It may hold relations of other
+     * types as well, which a caller that needs only the given types turns away itself.
+     * @param types the types of the relations to read, or null for relations of any type
+     * @param query
+     * @return
+     */
+    default Iterable<InternalRelation> getAddedRelations(Set<? extends RelationType> types,
+                                                         Predicate<InternalRelation> query) {
+        return getAddedRelations(query);
+    }
 
     Iterable<InternalRelation> findPreviousRelation(long id);
 

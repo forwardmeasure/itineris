@@ -19,6 +19,7 @@ import com.forwardmeasure.itineris.core.PropertyKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.Collections;
 
 public class EmptyIndexCache implements IndexCache {
@@ -49,7 +50,19 @@ public class EmptyIndexCache implements IndexCache {
     }
 
     @Override
-    public Iterable<ItinerisVertexProperty> get(final Object value, final PropertyKey key) {
+    public int count(PropertyKey key, Object value, boolean ofNewVertices) {
+        logWarning();
+        return 0;
+    }
+
+    @Override
+    public Collection<ItinerisVertexProperty> get(PropertyKey key, Object value, boolean ofNewVertices) {
+        logWarning();
+        return Collections.emptyList();
+    }
+
+    @Override
+    public Iterable<ItinerisVertexProperty> getAll(PropertyKey key, boolean ofNewVertices) {
         logWarning();
         return Collections.emptyList();
     }

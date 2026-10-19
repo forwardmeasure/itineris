@@ -33,7 +33,9 @@ import com.forwardmeasure.itineris.graphdb.vertices.PreloadedVertex;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
@@ -50,23 +52,31 @@ public class VertexJobConverter extends AbstractScanJob {
 
     protected final VertexScanJob job;
 
+    protected final List<Object> vertexIdsToScan;
+
     protected VertexJobConverter(Itineris graph, VertexScanJob job) {
+        this(graph, job, null);
+    }
+
+    protected VertexJobConverter(Itineris graph, VertexScanJob job, List<Object> vertexIdsToScan) {
         super(graph);
         Preconditions.checkArgument(job!=null);
         this.job = job;
+        this.vertexIdsToScan = vertexIdsToScan;
     }
 
     protected VertexJobConverter(VertexJobConverter copy) {
         super(copy);
         this.job = copy.job.clone();
+        this.vertexIdsToScan = copy.vertexIdsToScan;
     }
 
-    public static ScanJob convert(Itineris graph, VertexScanJob vertexJob) {
-        return new VertexJobConverter(graph,vertexJob);
+    public static ScanJob convert(Itineris graph, VertexScanJob vertexJob, List<Object> vertexIdsToScan) {
+        return new VertexJobConverter(graph, vertexJob, vertexIdsToScan);
     }
 
     public static ScanJob convert(VertexScanJob vertexJob) {
-        return new VertexJobConverter(null,vertexJob);
+        return new VertexJobConverter(null, vertexJob, null);
     }
 
     @Override
@@ -131,6 +141,18 @@ public class VertexJobConverter extends AbstractScanJob {
     }
 
     @Override
+    public List<StaticBuffer> getKeysToScan() {
+        if (this.vertexIdsToScan == null) {
+            return null;
+        } else {
+            return this.vertexIdsToScan
+                .stream()
+                .map(k -> idManager.getKey(k))
+                .collect(Collectors.toList());
+        }
+    }
+
+    @Override
     public Predicate<StaticBuffer> getKeyFilter() {
         return buffer -> !IDManager.VertexIDType.Invisible.is(getVertexId(buffer));
     }
@@ -138,6 +160,32 @@ public class VertexJobConverter extends AbstractScanJob {
     @Override
     public VertexJobConverter clone() {
         return new VertexJobConverter(this);
+    }
+
+    /**
+     * Rolls back each of the given transactions, those still open, and takes them out of the queue; whatever the
+     * rollback of one throws, the others are rolled back too, and the first exception is thrown with the others
+     * suppressed.
+     */
+    protected static void rollbackAll(Queue<StandardItinerisTx> transactions) {
+        RuntimeException failure = null;
+        StandardItinerisTx tx;
+        while ((tx = transactions.poll()) != null) {
+            try {
+                if (tx.isOpen()) {
+                    tx.rollback();
+                }
+            } catch (RuntimeException e) {
+                if (failure == null) {
+                    failure = e;
+                } else {
+                    failure.addSuppressed(e);
+                }
+            }
+        }
+        if (failure != null) {
+            throw failure;
+        }
     }
 
 }

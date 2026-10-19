@@ -15,9 +15,13 @@
 package com.forwardmeasure.itineris.graphdb.query.graph;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.forwardmeasure.itineris.core.ItinerisElement;
 import com.forwardmeasure.itineris.diskstorage.indexing.IndexQuery;
 import com.forwardmeasure.itineris.graphdb.query.BackendQuery;
 import com.forwardmeasure.itineris.graphdb.query.BaseQuery;
+import com.forwardmeasure.itineris.graphdb.query.condition.And;
+import com.forwardmeasure.itineris.graphdb.query.condition.Condition;
 import com.forwardmeasure.itineris.graphdb.query.profile.ProfileObservable;
 import com.forwardmeasure.itineris.graphdb.query.profile.QueryProfiler;
 import com.forwardmeasure.itineris.graphdb.types.CompositeIndexType;
@@ -105,6 +109,38 @@ public class JointIndexQuery extends BaseQuery implements BackendQuery<JointInde
         return queries.toString();
     }
 
+    /**
+     * Returns this query with the condition of its first subquery, which reads a mixed index, narrowed by the given
+     * condition on that index's fields. The subqueries keep their profilers, so that a profile shows the executions of
+     * the narrowed query where it would show this one's.
+     *
+     * @param condition the condition which the first subquery's results have to meet as well
+     * @return the narrowed query, of the same limit
+     */
+    public JointIndexQuery narrowFirst(Condition<ItinerisElement> condition) {
+        final Subquery first = queries.get(0);
+        final IndexQuery mixed = first.getMixedQuery();
+        //The condition joins the conjuncts of a conjunction rather than nesting it, which keeps the index query flat
+        final Condition<ItinerisElement> current = mixed.getCondition();
+        final And<ItinerisElement> narrowedCondition;
+        if (current instanceof And) {
+            narrowedCondition = new And<>(((And<ItinerisElement>) current).size() + 1);
+            current.getChildren().forEach(narrowedCondition::add);
+        } else {
+            narrowedCondition = new And<>(2);
+            narrowedCondition.add(current);
+        }
+        narrowedCondition.add(condition);
+        final IndexQuery narrowed = new IndexQuery(mixed.getStore(), narrowedCondition,
+            ImmutableList.copyOf(mixed.getOrder()), mixed.getLimit());
+        final List<Subquery> subqueries = new ArrayList<>(queries);
+        subqueries.set(0, first.replacedBy(narrowed));
+        final JointIndexQuery jointIndexQuery = new JointIndexQuery(subqueries);
+        jointIndexQuery.profiler = profiler;
+        jointIndexQuery.setLimit(getLimit());
+        return jointIndexQuery;
+    }
+
     @Override
     public JointIndexQuery updateLimit(int newLimit) {
         List<Subquery> subqueries;
@@ -141,6 +177,13 @@ public class JointIndexQuery extends BaseQuery implements BackendQuery<JointInde
 
         public QueryProfiler getProfiler() {
             return profiler;
+        }
+
+        //This subquery's index with the given query in place of its own, observed by this subquery's profiler
+        private Subquery replacedBy(BackendQuery query) {
+            final Subquery subquery = new Subquery(index, query);
+            subquery.profiler = profiler;
+            return subquery;
         }
 
         public IndexType getIndex() {

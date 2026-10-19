@@ -213,7 +213,11 @@ public class BackendTransaction implements LoggableTransaction {
      * @param deletions List of columns to be removed
      */
     public void mutateEdges(StaticBuffer key, List<Entry> additions, List<Entry> deletions) throws BackendException {
-        edgeStore.mutateEntries(key, additions, deletions, storeTx);
+        mutateEdges(key, additions, deletions, false);
+    }
+
+    public void mutateEdges(StaticBuffer key, List<Entry> additions, List<Entry> deletions, boolean wholeRowDeletion) throws BackendException {
+        edgeStore.mutateEntries(key, additions, deletions, wholeRowDeletion, storeTx);
     }
 
     /**
@@ -441,6 +445,40 @@ public class BackendTransaction implements LoggableTransaction {
             }
         });
 
+    }
+
+    /**
+     * Whether {@link #indexStoreMultiQuery(List, SliceQuery)} reads its keys in one call to the storage backend, which
+     * it does for a backend with multi-key queries. Otherwise it reads them one after the other, and a caller which can
+     * stop at a limit is better off reading them one by one itself.
+     */
+    public boolean hasMultiKeyIndexQueries() {
+        return storeFeatures.hasMultiQuery();
+    }
+
+    /**
+     * Reads the same slice of each of the keys from the index store.
+     */
+    public Map<StaticBuffer, EntryList> indexStoreMultiQuery(final List<StaticBuffer> keys, final SliceQuery query) {
+        if (!storeFeatures.hasMultiQuery()) {
+            final Map<StaticBuffer, EntryList> results = new HashMap<>(keys.size());
+            for (StaticBuffer key : keys) {
+                results.put(key, indexQuery(new KeySliceQuery(key, query)));
+            }
+            return results;
+        }
+        return executeRead(new Callable<Map<StaticBuffer, EntryList>>() {
+            @Override
+            public Map<StaticBuffer, EntryList> call() throws Exception {
+                return cacheEnabled ? indexStore.getSlice(keys, query, storeTx) :
+                                      indexStore.getSliceNoCache(keys, query, storeTx);
+            }
+
+            @Override
+            public String toString() {
+                return "MultiIndexStoreQuery";
+            }
+        });
     }
 
 

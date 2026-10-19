@@ -12,29 +12,17 @@
     <url>https://itineris.org</url>
 
     <properties>
+        <vavr.version>1.0.1</vavr.version>
         <test.byteordered>byteordered</test.byteordered>
         <test.murmur>murmur</test.murmur>
         <test.javaagent.opts>-javaagent:${com.github.jbellis:jamm:jar}</test.javaagent.opts>
         <test.extra.jvm.opts>${test.javaagent.opts}</test.extra.jvm.opts>
-        <test.jvm.opts>
-            -Xms256m -Xmx1280m -ea -XX:+HeapDumpOnOutOfMemoryError ${test.extra.jvm.opts}
-            --add-opens=java.base/java.lang=ALL-UNNAMED
-            --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
-            --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
-            --add-opens=java.base/java.io=ALL-UNNAMED
-            --add-opens=java.base/java.net=ALL-UNNAMED
-            --add-opens=java.base/java.nio=ALL-UNNAMED
-            --add-opens=java.base/java.util=ALL-UNNAMED
-            --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
-            --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
-            --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
-            --add-opens=java.base/sun.reflect=ALL-UNNAMED
-            -Djdk.attach.allowAttachSelf=true
-            -javaagent:${org.mockito:mockito-core:jar}
-        </test.jvm.opts>
+        <test.jvm.opts>-Xms256m -Xmx1280m -ea -XX:+HeapDumpOnOutOfMemoryError ${test.extra.jvm.opts} ${test.jdk.jvm.opts} -Djdk.attach.allowAttachSelf=true -javaagent:${org.mockito:mockito-core:jar}</test.jvm.opts>
         <test.excluded.groups>MEMORY_TESTS,PERFORMANCE_TESTS,BRITTLE_TESTS</test.excluded.groups>
         <top.level.basedir>${basedir}/..</top.level.basedir>
-        <test.docker.version.cassandra4>${cassandra-dist.version}</test.docker.version.cassandra4>
+        <test.docker.version.cassandra3>3.11.10</test.docker.version.cassandra3>
+        <test.docker.version.cassandra4>4.0.6</test.docker.version.cassandra4>
+        <test.docker.version.cassandra5>5.0.8</test.docker.version.cassandra5>
         <cassandra.docker.useDefaultConfigFromImage>false</cassandra.docker.useDefaultConfigFromImage>
     </properties>
 
@@ -348,5 +336,70 @@
             </properties>
         </profile>
 
+        <profile>
+            <id>cassandra5-byteordered</id>
+	        <activation>
+	            <activeByDefault>false</activeByDefault>
+	        </activation>
+            <properties>
+                <cassandra.docker.version>${test.docker.version.cassandra5}</cassandra.docker.version>
+                <cassandra.docker.partitioner>${test.byteordered}</cassandra.docker.partitioner>
+                <test.skip.serial>true</test.skip.serial>
+                <test.cql.excludes>${test.excluded.groups},SERIAL_TESTS</test.cql.excludes>
+            </properties>
+        </profile>
+        <profile>
+            <id>cassandra5-murmur</id>
+	        <activation>
+	            <activeByDefault>false</activeByDefault>
+	        </activation>
+            <properties>
+                <cassandra.docker.version>${test.docker.version.cassandra5}</cassandra.docker.version>
+                <cassandra.docker.partitioner>${test.murmur}</cassandra.docker.partitioner>
+                <test.skip.serial>false</test.skip.serial>
+                <test.cql.excludes>${test.excluded.groups},SERIAL_TESTS</test.cql.excludes>
+            </properties>
+        </profile>
+        <profile>
+            <id>cassandra5-murmur-ssl</id>
+	        <activation>
+	            <activeByDefault>false</activeByDefault>
+	        </activation>
+            <properties>
+                <cassandra.docker.version>${test.docker.version.cassandra5}</cassandra.docker.version>
+                <cassandra.docker.partitioner>${test.murmur}</cassandra.docker.partitioner>
+                <cassandra.docker.useSSL>true</cassandra.docker.useSSL>
+                <test.skip.serial>false</test.skip.serial>
+                <test.cql.excludes>${test.excluded.groups},SERIAL_TESTS</test.cql.excludes>
+            </properties>
+        </profile>
+        <profile>
+            <id>cassandra5-murmur-client-auth</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <properties>
+                <cassandra.docker.version>${test.docker.version.cassandra5}</cassandra.docker.version>
+                <cassandra.docker.partitioner>${test.murmur}</cassandra.docker.partitioner>
+                <cassandra.docker.useSSL>true</cassandra.docker.useSSL>
+                <cassandra.docker.enableClientAuth>true</cassandra.docker.enableClientAuth>
+                <test.skip.serial>false</test.skip.serial>
+                <test.cql.excludes>${test.excluded.groups},SERIAL_TESTS</test.cql.excludes>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>scylladb</id>
+            <properties>
+                <cassandra.docker.version>${scylladb.version}</cassandra.docker.version>
+                <cassandra.docker.image>scylladb/scylla</cassandra.docker.image>
+                <cassandra.docker.partitioner>${test.murmur}</cassandra.docker.partitioner>
+                <test.skip.byteordered>true</test.skip.byteordered>
+                <test.skip.murmur>false</test.skip.murmur>
+                <test.skip.serial>false</test.skip.serial>
+                <test.skip.murmur-ssl>false</test.skip.murmur-ssl>
+                <test.cql.excludes>${test.excluded.groups},SERIAL_TESTS</test.cql.excludes>
+            </properties>
+        </profile>
     </profiles>
 </project>

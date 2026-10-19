@@ -33,6 +33,7 @@ import com.forwardmeasure.itineris.core.ItinerisElement;
 import com.forwardmeasure.itineris.core.ItinerisException;
 import com.forwardmeasure.itineris.core.ItinerisFactory;
 import com.forwardmeasure.itineris.core.ItinerisQuery;
+import com.forwardmeasure.itineris.core.ItinerisRelation;
 import com.forwardmeasure.itineris.core.ItinerisTransaction;
 import com.forwardmeasure.itineris.core.ItinerisVertex;
 import com.forwardmeasure.itineris.core.ItinerisVertexProperty;
@@ -72,6 +73,7 @@ import com.forwardmeasure.itineris.graphdb.query.graph.GraphCentricQueryBuilder;
 import com.forwardmeasure.itineris.graphdb.query.profile.QueryProfiler;
 import com.forwardmeasure.itineris.graphdb.query.profile.SimpleQueryProfiler;
 import com.forwardmeasure.itineris.graphdb.query.vertex.BasicVertexCentricQueryBuilder;
+import com.forwardmeasure.itineris.graphdb.relations.RelationComparator;
 import com.forwardmeasure.itineris.graphdb.types.StandardEdgeLabelMaker;
 import com.forwardmeasure.itineris.testutil.TestGraphConfigs;
 import com.forwardmeasure.itineris.util.datastructures.IterablesUtil;
@@ -618,14 +620,15 @@ public abstract class ItinerisBaseTest implements ItinerisBaseStoreFeaturesTest 
         }
         OrderList orders = profiler.getAnnotation(QueryProfiler.ORDERS_ANNOTATION);
 
-        //Check elements and that they are returned in the correct order
+        //Check elements and that they are returned in the correct order, that of a vertex-centric query
         int no = 0;
         ItinerisElement previous = null;
         for (ItinerisElement e : result) {
             assertNotNull(e);
             no++;
             if (previous != null && !orders.isEmpty()) {
-                assertTrue(orders.compare(previous, e) <= 0);
+                assertTrue(RelationComparator.compareOnOrders((ItinerisRelation) previous, (ItinerisRelation) e,
+                    orders) <= 0);
             }
             previous = e;
         }
@@ -747,7 +750,7 @@ public abstract class ItinerisBaseTest implements ItinerisBaseStoreFeaturesTest 
     }
 
     protected ScanMetrics executeScanJob(VertexScanJob job) throws Exception {
-        return executeScanJob(VertexJobConverter.convert(graph,job));
+        return executeScanJob(VertexJobConverter.convert(graph, job, null));
     }
 
     protected ScanMetrics executeScanJob(ScanJob job) throws Exception {

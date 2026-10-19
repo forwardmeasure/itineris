@@ -29,6 +29,10 @@ fi
 SRC=$(cd "$1" && pwd)
 DEST=$2
 
+# Upstream's project version is replaced by this constant, so upstream version bumps never reach
+# Itineris's poms: the version only ever changes on the Itineris side. Never change this value.
+PINNED_VERSION=1.1.0
+
 # Upstream modules kept by Itineris: janusgraph-<m> becomes itineris-<m>.
 MODULES="core cql berkeleyje inmemory driver server grpc hadoop mixed-index-utils test backend-testutils"
 # Upstream paths copied under the same name.
@@ -44,6 +48,9 @@ done
 for p in $VERBATIM; do
     cp -r "$SRC/$p" "$DEST/$p"
 done
+
+UPSTREAM_VERSION=$(perl -0ne 'print $1 if m{<artifactId>janusgraph</artifactId>\s*<version>([^<]+)</version>}' "$SRC/pom.xml")
+find "$DEST" -name pom.xml -print0 | xargs -0 perl -pi -e "s{<version>\Q$UPSTREAM_VERSION\E</version>}{<version>$PINNED_VERSION</version>}g"
 
 # Move Java packages: org/janusgraph -> com/forwardmeasure/itineris
 find "$DEST" -depth -type d -path '*/org/janusgraph' | while read -r d; do

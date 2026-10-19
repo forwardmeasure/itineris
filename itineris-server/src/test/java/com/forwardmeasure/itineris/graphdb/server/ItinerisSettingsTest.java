@@ -39,6 +39,22 @@ public class ItinerisSettingsTest {
     }
 
     @Test
+    public void testGremlinPoolVirtualThreadsDefaultValue() throws Exception {
+        ItinerisSettings settings = ItinerisSettings.read("src/test/resources/itineris-server-without-serializers.yaml");
+
+        assertFalse(settings.isGremlinPoolVirtualThreads());
+    }
+
+    @Test
+    public void testGremlinPoolVirtualThreadsOverwriteDefaultValue() throws Exception {
+        ItinerisSettings settings = ItinerisSettings.read("src/test/resources/itineris-server-with-virtual-threads.yaml");
+
+        assertTrue(settings.isGremlinPoolVirtualThreads());
+        assertEquals(1, settings.gremlinPool);
+        assertEquals(1, settings.maxWorkQueueSize);
+    }
+
+    @Test
     public void testLoadGremlinServerCorrectly() throws Exception {
         ItinerisSettings janusGraphSettings = ItinerisSettings.read("src/test/resources/itineris-server-with-grpc.yaml");
 

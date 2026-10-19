@@ -28,7 +28,7 @@ import com.forwardmeasure.itineris.graphdb.types.system.BaseKey;
 public abstract class AbstractScanJob implements ScanJob {
     protected final GraphProvider graph;
     protected StandardItinerisTx tx;
-    private IDManager idManager;
+    protected IDManager idManager;
 
     public AbstractScanJob(Itineris graph) {
         this.graph = new GraphProvider();

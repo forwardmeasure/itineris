@@ -14,46 +14,80 @@
 
 package com.forwardmeasure.itineris.graphdb.transaction.indexcache;
 
-import com.google.common.collect.HashMultimap;
 import com.forwardmeasure.itineris.core.ItinerisVertexProperty;
 import com.forwardmeasure.itineris.core.PropertyKey;
+import com.forwardmeasure.itineris.graphdb.transaction.addedrelations.AddedRelationsContainer;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
 
 /**
+ * The {@link IndexCache} of a transaction which isn't bound to a thread, as {@code graph.newTransaction()} and
+ * {@code createThreadedTx()} start, and which several threads may use. Lookups return what a key holds at the call,
+ * which the other threads' changes then don't change.
+ * <p>
+ * A key's index is built under this cache's monitor. The transaction adds a relation to its added relations before it
+ * adds the relation here, and removes it from there before it removes it here, so a property which another thread adds
+ * or removes meanwhile ends up indexed or not as the transaction holds it: a property which the build finds among the
+ * added relations and which then reaches this cache is indexed once, as indexing is idempotent. Until a key has been
+ * indexed, adding and removing properties takes no lock: the flag which tells is set before the first build reads the
+ * added relations.
+ *
  * @author Matthias Broecheler (me@matthiasb.com)
  */
+public class ConcurrentIndexCache extends SimpleIndexCache {
 
-public class ConcurrentIndexCache implements IndexCache {
+    private volatile boolean anyIndexed;
 
-    private final HashMultimap<Object,ItinerisVertexProperty> map;
-
-    public ConcurrentIndexCache() {
-        this.map = HashMultimap.create();
+    /**
+     * @param addedRelations the relations which the transaction adds, from which the index of a key starts
+     */
+    public ConcurrentIndexCache(AddedRelationsContainer addedRelations) {
+        super(addedRelations);
     }
 
     @Override
-    public synchronized void add(ItinerisVertexProperty property) {
-        map.put(property.value(),property);
-    }
-
-    @Override
-    public synchronized void remove(ItinerisVertexProperty property) {
-        map.remove(property.value(),property);
-    }
-
-    @Override
-    public synchronized Iterable<ItinerisVertexProperty> get(final Object value, final PropertyKey key) {
-        final List<ItinerisVertexProperty> result = new ArrayList<>(4);
-        for (ItinerisVertexProperty p : map.get(value)) {
-            if (p.propertyKey().equals(key)) result.add(p);
+    public void add(ItinerisVertexProperty property) {
+        if (anyIndexed) {
+            synchronized (this) {
+                super.add(property);
+            }
         }
-        return result;
     }
 
     @Override
-    public void close() {
-        map.clear();
+    public void remove(ItinerisVertexProperty property) {
+        if (anyIndexed) {
+            synchronized (this) {
+                super.remove(property);
+            }
+        }
+    }
+
+    @Override
+    protected void indexed() {
+        anyIndexed = true;
+    }
+
+    @Override
+    public synchronized int count(PropertyKey key, Object value, boolean ofNewVertices) {
+        return super.count(key, value, ofNewVertices);
+    }
+
+    //Taken under the monitor: what the key holds at the call, which the other threads' changes then don't change
+    @Override
+    public synchronized Collection<ItinerisVertexProperty> get(PropertyKey key, Object value, boolean ofNewVertices) {
+        return super.get(key, value, ofNewVertices);
+    }
+
+    //Read after the monitor is released: the elements it returns were written under the monitor before, and no thread
+    //writes them again, as a later property goes after them
+    @Override
+    public synchronized Iterable<ItinerisVertexProperty> getAll(PropertyKey key, boolean ofNewVertices) {
+        return super.getAll(key, ofNewVertices);
+    }
+
+    @Override
+    public synchronized void close() {
+        super.close();
     }
 }

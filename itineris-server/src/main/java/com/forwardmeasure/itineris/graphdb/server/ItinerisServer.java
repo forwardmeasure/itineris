@@ -24,16 +24,18 @@ import com.forwardmeasure.itineris.graphdb.grpc.ItinerisContextHandler;
 import com.forwardmeasure.itineris.graphdb.grpc.ItinerisManagerServiceImpl;
 import com.forwardmeasure.itineris.graphdb.grpc.schema.SchemaManagerImpl;
 import com.forwardmeasure.itineris.graphdb.management.ItinerisManager;
+import com.forwardmeasure.itineris.graphdb.server.util.VirtualThreadGremlinPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 public class ItinerisServer {
     private static final Logger logger = LoggerFactory.getLogger(ItinerisServer.class);
     private GremlinServer gremlinServer = null;
-    private ItinerisSettings itinerisGraphSettings = null;
+    private ItinerisSettings janusGraphSettings = null;
     private final String confPath;
     private CompletableFuture<Void> serverStarted = null;
     private CompletableFuture<Void> serverStopped = null;
@@ -49,10 +51,10 @@ public class ItinerisServer {
     public static void main(final String[] args) {
         printHeader();
         final String file = (args.length > 0) ? args[0] : "conf/itineris-server.yaml";
-        ItinerisServer itinerisGraphServer = new ItinerisServer(file);
-        itinerisGraphServer.start().exceptionally(t -> {
+        ItinerisServer janusGraphServer = new ItinerisServer(file);
+        janusGraphServer.start().exceptionally(t -> {
             logger.error("Itineris Server was unable to start and will now begin shutdown", t);
-            itinerisGraphServer.stop().join();
+            janusGraphServer.stop().join();
             return null;
         }).join();
     }
@@ -62,15 +64,15 @@ public class ItinerisServer {
     }
 
     public ItinerisSettings getItinerisSettings() {
-        return itinerisGraphSettings;
+        return janusGraphSettings;
     }
 
-    private Server createGrpcServer(ItinerisSettings itinerisGraphSettings, GraphManager graphManager) {
-        ItinerisContextHandler itinerisGraphContextHandler = new ItinerisContextHandler(graphManager);
+    private Server createGrpcServer(ItinerisSettings janusGraphSettings, GraphManager graphManager) {
+        ItinerisContextHandler janusGraphContextHandler = new ItinerisContextHandler(graphManager);
         return ServerBuilder
-            .forPort(itinerisGraphSettings.getGrpcServer().getPort())
-            .addService(new ItinerisManagerServiceImpl(itinerisGraphContextHandler))
-            .addService(new SchemaManagerImpl(itinerisGraphContextHandler))
+            .forPort(janusGraphSettings.getGrpcServer().getPort())
+            .addService(new ItinerisManagerServiceImpl(janusGraphContextHandler))
+            .addService(new SchemaManagerImpl(janusGraphContextHandler))
             .build();
     }
 
@@ -81,13 +83,13 @@ public class ItinerisServer {
         serverStarted = new CompletableFuture<>();
         try {
             logger.info("Configuring Itineris Server from {}", confPath);
-            itinerisGraphSettings = ItinerisSettings.read(confPath);
-            gremlinServer = new GremlinServer(itinerisGraphSettings);
+            janusGraphSettings = ItinerisSettings.read(confPath);
+            gremlinServer = createGremlinServer(janusGraphSettings);
             CompletableFuture<Void> grpcServerFuture = CompletableFuture.completedFuture(null);
-            if (itinerisGraphSettings.getGrpcServer().isEnabled()) {
+            if (janusGraphSettings.getGrpcServer().isEnabled()) {
                 grpcServerFuture = CompletableFuture.runAsync(() -> {
                     GraphManager graphManager = gremlinServer.getServerGremlinExecutor().getGraphManager();
-                    grpcServer = createGrpcServer(itinerisGraphSettings, graphManager);
+                    grpcServer = createGrpcServer(janusGraphSettings, graphManager);
                     try {
                         grpcServer.start();
                     } catch (IOException e) {
@@ -102,6 +104,20 @@ public class ItinerisServer {
             serverStarted.completeExceptionally(ex);
         }
         return serverStarted;
+    }
+
+    private static GremlinServer createGremlinServer(ItinerisSettings settings) {
+        if (!settings.isGremlinPoolVirtualThreads()) {
+            // Gremlin Server creates its Gremlin pool of platform threads
+            return new GremlinServer(settings);
+        }
+        ExecutorService gremlinPool = VirtualThreadGremlinPool.create(settings);
+        try {
+            return new GremlinServer(settings, gremlinPool);
+        } catch (RuntimeException | Error e) {
+            gremlinPool.shutdownNow();
+            throw e;
+        }
     }
 
     private static void configure(ServerGremlinExecutor serverGremlinExecutor) {

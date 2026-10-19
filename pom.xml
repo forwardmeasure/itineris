@@ -7,7 +7,6 @@
     <artifactId>itineris</artifactId>
     <version>1.1.0</version>
     <packaging>pom</packaging>
-
     <name>Itineris: Distributed Graph Database</name>
     <url>https://itineris.org</url>
 
@@ -41,179 +40,154 @@
         <connection>scm:git:git@github.com:Itineris/itineris.git</connection>
         <developerConnection>scm:git:git@github.com:Itineris/itineris.git</developerConnection>
         <url>git@github.com:Itineris/itineris.git</url>
-        <tag>v1.1.0</tag>
+        <tag>HEAD</tag>
     </scm>
     <distributionManagement>
         <snapshotRepository>
             <id>ossrh</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
         </snapshotRepository>
-        <repository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
     </distributionManagement>
     <properties>
         <titan.compatible-versions>1.0.0,1.1.0-SNAPSHOT</titan.compatible-versions>
-        <tinkerpop.version>3.8.0</tinkerpop.version>
+        <tinkerpop.version>3.8.2</tinkerpop.version>
         <avro.version>1.12.1</avro.version>
-        <junit-platform.version>1.14.3</junit-platform.version>
+        <junit-platform.version>1.14.4</junit-platform.version>
         <junit.pioneer.version>2.3.0</junit.pioneer.version>
-        <junit.version>5.14.3</junit.version>
-        <mockito.version>5.22.0</mockito.version>
+        <junit.version>5.14.4</junit.version>
+        <mockito.version>5.24.0</mockito.version>
         <jamm.version>0.4.0</jamm.version>
-        <metrics.version>4.2.38</metrics.version>
+        <metrics.version>4.2.40</metrics.version>
         <slf4j.version>2.0.17</slf4j.version>
         <logback.version>1.5.32</logback.version>
         <httpcomponents5.httpclient.version>5.5.2</httpcomponents5.httpclient.version>
         <hadoop.version>3.4.3</hadoop.version>
-        <htrace.version>4.1.7</htrace.version>
-        <bigtable.version>1.24.0</bigtable.version>
-        <!-- align with org.apache.spark:spark-core_2.12 -->
-        <jackson2.version>2.21.1</jackson2.version>
-        <jackson-annotations.version>2.21</jackson-annotations.version>
-        <lucene-solr.version>9.12.3</lucene-solr.version>
+        <htrace.version>4.1.13</htrace.version>
+        <!-- jackson-module-scala_2.12 (used by Spark) only accepts a jackson-databind of its own minor version, which
+             is why it is managed with the same version as the other Jackson 2.x artifacts. -->
+        <jackson2.version>2.22.3</jackson2.version>
+        <!-- Since 2.20 jackson-annotations is released without the patch number (2.20, 2.21, ...). -->
+        <jackson2-annotations.version>2.22</jackson2-annotations.version>
+        <lucene.version>9.12.3</lucene.version>
         <opensearch.version>3.5.0</opensearch.version>
         <reactivestreams.version>1.0.4</reactivestreams.version>
         <commons.beanutils.version>1.11.0</commons.beanutils.version>
         <commons.collections.version>3.2.2</commons.collections.version>
-        <zookeeper.version>3.9.5</zookeeper.version>
+        <zookeeper.version>3.9.6</zookeeper.version>
         <netty4.version>4.2.10.Final</netty4.version>
-        <jna.version>5.18.1</jna.version>
+        <netty4-tcnative.version>2.0.84.Final</netty4-tcnative.version>
+        <jna.version>5.19.1</jna.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <itineris.testdir>${project.build.directory}/itineris-test</itineris.testdir>
         <gpg.skip>false</gpg.skip>
-        <maven.gpg.version>3.2.4</maven.gpg.version>
+        <maven.gpg.version>3.2.8</maven.gpg.version>
         <perf.jvm.opts />
-        <default.test.jvm.opts>
-            -Xms256m -Xmx768m -XX:+HeapDumpOnOutOfMemoryError -ea ${test.extra.jvm.opts}
-            --add-opens=java.base/java.lang=ALL-UNNAMED
-            --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
-            --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
-            --add-opens=java.base/java.io=ALL-UNNAMED
-            --add-opens=java.base/java.net=ALL-UNNAMED
-            --add-opens=java.base/java.nio=ALL-UNNAMED
-            --add-opens=java.base/java.util=ALL-UNNAMED
-            --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
-            --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
-            --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
-            --add-opens=java.base/sun.reflect=ALL-UNNAMED
-        </default.test.jvm.opts>
-        <mem.jvm.opts>-Xms256m -Xmx256m -ea -XX:+HeapDumpOnOutOfMemoryError ${test.extra.jvm.opts}
-            --add-opens=java.base/java.lang=ALL-UNNAMED
-            --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
-            --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
-            --add-opens=java.base/java.io=ALL-UNNAMED
-            --add-opens=java.base/java.net=ALL-UNNAMED
-            --add-opens=java.base/java.nio=ALL-UNNAMED
-            --add-opens=java.base/java.util=ALL-UNNAMED
-            --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
-            --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
-            --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
-            --add-opens=java.base/sun.reflect=ALL-UNNAMED
-        </mem.jvm.opts>
-
+        <default.test.jvm.opts>-Xms256m -Xmx768m -XX:+HeapDumpOnOutOfMemoryError -ea ${test.extra.jvm.opts} ${test.jdk.jvm.opts}</default.test.jvm.opts>
+        <mem.jvm.opts>-Xms256m -Xmx256m -ea -XX:+HeapDumpOnOutOfMemoryError ${test.extra.jvm.opts} ${test.jdk.jvm.opts}</mem.jvm.opts>
         <test.extra.jvm.opts />
+        <!-- JVM options which depend on the JDK running the tests, see the `jdk17-plus-tests` profile -->
+        <test.jdk.jvm.opts />
         <test.skip.default>false</test.skip.default>
         <test.skip.tp>true</test.skip.tp>
         <top.level.basedir>${basedir}</top.level.basedir>
-        <maven.javadoc.version>3.10.0</maven.javadoc.version>
-        <compiler.source>17</compiler.source>
-        <compiler.target>17</compiler.target>
+        <maven.javadoc.version>3.12.0</maven.javadoc.version>
+        <!-- Itineris requires Java 17 (upstream JanusGraph targets Java 11). -->
+        <compiler.release>17</compiler.release>
         <test.excluded.groups>MEMORY_TESTS,PERFORMANCE_TESTS,BRITTLE_TESTS</test.excluded.groups>
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <cassandra.version>5.0.6</cassandra.version>
         <!-- When this version updated please also update sha256 -->
-        <!-- https://downloads.apache.org/cassandra/5.0.6/apache-cassandra-5.0.6-bin.tar.gz.sha256 -->
-        <cassandra-dist.version>5.0.6</cassandra-dist.version>
-        <cassandra-dist.version.sha256>792bde0c306b6a21122eb623a7acd03878d17765121b65dfd06a1fd33d12f8ff</cassandra-dist.version.sha256>
-        <cassandra-driver.version>4.19.2</cassandra-driver.version>
-        <scylla-driver.version>4.18.0.1</scylla-driver.version>
+        <!-- https://downloads.apache.org/cassandra/5.0.9/apache-cassandra-5.0.9-bin.tar.gz.sha256 -->
+        <cassandra-dist.version>5.0.9</cassandra-dist.version>
+        <cassandra-dist.version.sha256>eee1460b47ebe188a29521207230617f22aad7f9e1674f5ea454f10c8f344d61</cassandra-dist.version.sha256>
+        <cassandra-driver.version>4.19.3</cassandra-driver.version>
+        <scylla-driver.version>4.19.2.1</scylla-driver.version>
         <scylladb.version>6.2.0</scylladb.version>
-        <testcontainers.version>2.0.3</testcontainers.version>
+        <testcontainers.version>2.0.5</testcontainers.version>
         <testcontainers.opensearch.version>4.1.0</testcontainers.opensearch.version>
-        <easymock.version>5.4.0</easymock.version>
+        <easymock.version>5.7.0</easymock.version>
         <protobuf.version>4.34.0</protobuf.version>
-        <grpc.version>1.79.0</grpc.version>
+        <grpc.version>1.84.0</grpc.version>
         <protoc.version>4.34.0</protoc.version>
-        <gson.version>2.13.2</gson.version>
+        <gson.version>2.14.0</gson.version>
         <jcabi.version>2.2.0</jcabi.version>
-        <jmh.version>1.33</jmh.version>
+        <jmh.version>1.37</jmh.version>
         <!-- align with org.apache.solr:solr-solrj -->
         <jetty.version>12.1.7</jetty.version>
-        <log4j2.version>2.25.3</log4j2.version>
+        <log4j2.version>2.26.1</log4j2.version>
         <graalvm-nativeimage.version>25.0.2</graalvm-nativeimage.version>
-        <caffeine.version>3.2.3</caffeine.version>
-        <checker-qual.version>3.54.0</checker-qual.version>
+        <caffeine.version>3.3.0</caffeine.version>
+        <checker-qual.version>4.2.3</checker-qual.version>
         <curator.version>5.9.0</curator.version>
-        <apache.rat.plugin.version>0.16.1</apache.rat.plugin.version>
+        <apache.rat.plugin.version>0.17</apache.rat.plugin.version>
         <apiguardian.version>1.1.2</apiguardian.version>
-        <asm.version>9.9.1</asm.version>
-        <byte.buddy.version>1.18.7</byte.buddy.version>
+        <asm.version>9.10.1</asm.version>
+        <byte.buddy.version>1.18.14</byte.buddy.version>
         <cdi.api.version>2.0</cdi.api.version>
-        <checkstyle.version>9.3</checkstyle.version>
-        <commons.cli.version>1.9.0</commons.cli.version>
-        <commons.codec.version>1.21.0</commons.codec.version>
+        <checkstyle.version>10.26.1</checkstyle.version>
+        <commons.cli.version>1.11.0</commons.cli.version>
+        <commons.codec.version>1.22.1</commons.codec.version>
         <commons.compress.version>1.28.0</commons.compress.version>
         <commons.configuration.version>1.10</commons.configuration.version>
-        <commons.configuration2.version>2.10.1</commons.configuration2.version>
+        <commons.configuration2.version>2.15.1</commons.configuration2.version>
         <commons.httpclient.version>3.1</commons.httpclient.version>
-        <commons.io.version>2.21.0</commons.io.version>
+        <commons.io.version>2.22.0</commons.io.version>
         <commons.lang3.version>3.20.0</commons.lang3.version>
-        <commons.logging.version>1.3.6</commons.logging.version>
+        <commons.logging.version>1.4.0</commons.logging.version>
         <commons.math.version>2.2</commons.math.version>
         <commons.math3.version>3.6.1</commons.math3.version>
-        <commons.net.version>3.11.1</commons.net.version>
+        <commons.net.version>3.13.0</commons.net.version>
         <commons.text.version>1.15.0</commons.text.version>
-        <cyclonedx.maven.plugin.version>2.8.1</cyclonedx.maven.plugin.version>
-        <error.prone.version>2.48.0</error.prone.version>
-        <exec.maven.plugin.version>3.6.3</exec.maven.plugin.version>
-        <guava.version>33.5.0-jre</guava.version>
+        <cyclonedx.maven.plugin.version>2.9.3</cyclonedx.maven.plugin.version>
+        <error.prone.version>2.50.0</error.prone.version>
+        <exec.maven.plugin.version>3.6.4</exec.maven.plugin.version>
+        <guava.version>33.7.1-jre</guava.version>
         <hdrhistogram.version>2.2.2</hdrhistogram.version>
-        <hppc.version>0.9.1</hppc.version>
-        <jacoco.ant.version>0.8.12</jacoco.ant.version>
-        <jacoco.maven.plugin.version>0.8.12</jacoco.maven.plugin.version>
-        <javassist.version>3.30.2-GA</javassist.version>
+        <hppc.version>0.10.0</hppc.version>
+        <jacoco.ant.version>0.8.15</jacoco.ant.version>
+        <jacoco.maven.plugin.version>0.8.15</jacoco.maven.plugin.version>
+        <javassist.version>3.33.0-GA</javassist.version>
         <javax.activation.version>1.1.1</javax.activation.version>
         <javax.servlet.api.version>4.0.1</javax.servlet.api.version>
         <javax.validation.version>2.0.1.Final</javax.validation.version>
         <jaxb.api.version>2.3.1</jaxb.api.version>
-        <jctools.version>4.0.5</jctools.version>
+        <jctools.version>4.0.7</jctools.version>
         <json.simple.version>1.1.1</json.simple.version>
-        <json.version>2025122024</json.version>
+        <json.version>20260814</json.version>
         <jsr305.version>3.0.2</jsr305.version>
-        <jts.version>1.17.0</jts.version>
+        <jts.version>1.18.0</jts.version>
         <junit4.version>4.13.2</junit4.version>
-        <lombok.version>1.18.42</lombok.version>
+        <lombok.version>1.18.48</lombok.version>
         <maven.antrun.plugin.version>3.2.0</maven.antrun.plugin.version>
         <maven.assembly.plugin.version>3.8.0</maven.assembly.plugin.version>
         <maven.checkstyle.plugin.version>3.6.0</maven.checkstyle.plugin.version>
         <maven.clean.plugin.version>3.5.0</maven.clean.plugin.version>
-        <maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
-        <maven.dependency.plugin.version>3.10.0</maven.dependency.plugin.version>
-        <maven.deploy.plugin.version>3.1.4</maven.deploy.plugin.version>
-        <maven.enforcer.plugin.version>3.6.2</maven.enforcer.plugin.version>
-        <maven.failsafe.plugin.version>3.5.5</maven.failsafe.plugin.version>
-        <maven.jar.plugin.version>3.4.2</maven.jar.plugin.version>
+        <maven.compiler.plugin.version>3.16.0</maven.compiler.plugin.version>
+        <maven.dependency.plugin.version>3.11.0</maven.dependency.plugin.version>
+        <maven.deploy.plugin.version>3.2.0</maven.deploy.plugin.version>
+        <maven.enforcer.plugin.version>3.6.3</maven.enforcer.plugin.version>
+        <maven.failsafe.plugin.version>3.5.6</maven.failsafe.plugin.version>
+        <maven.jar.plugin.version>3.5.1</maven.jar.plugin.version>
         <maven.release.plugin.version>3.3.1</maven.release.plugin.version>
         <maven.resources.plugin.version>3.5.0</maven.resources.plugin.version>
         <maven.source.plugin.version>3.4.0</maven.source.plugin.version>
-        <maven.surefire.plugin.version>3.5.5</maven.surefire.plugin.version>
-        <nexus.staging.maven.plugin.version>1.7.0</nexus.staging.maven.plugin.version>
-        <nimbus.jose.jwt.version>10.8</nimbus.jose.jwt.version>
-        <objenesis.version>3.5</objenesis.version>
+        <maven.surefire.plugin.version>3.5.6</maven.surefire.plugin.version>
+        <nimbus.jose.jwt.version>10.10</nimbus.jose.jwt.version>
+        <objenesis.version>3.6</objenesis.version>
         <osgi.core.version>6.0.0</osgi.core.version>
         <reflections8.version>0.11.7</reflections8.version>
         <rerunner.jupiter.version>2.1.6</rerunner.jupiter.version>
-        <snakeyaml.version>2.6</snakeyaml.version>
+        <snakeyaml.version>2.7</snakeyaml.version>
         <snappy.java.version>1.1.10.8</snappy.java.version>
         <spatial4j.version>0.8</spatial4j.version>
-        <stax2.api.version>4.2.2</stax2.api.version>
+        <stax2.api.version>4.3.1</stax2.api.version>
         <stream.analytics.version>2.9.8</stream.analytics.version>
-        <woodstox.core.version>7.1.1</woodstox.core.version>
+        <woodstox.core.version>7.3.0</woodstox.core.version>
         <xml.apis.version>2.0.2</xml.apis.version>
         <vavr.version>1.0.1</vavr.version>
+        <autoPublish>false</autoPublish>
+        <waitUntil>validated</waitUntil>
     </properties>
     <modules>
         <module>itineris-core</module>
@@ -340,41 +314,48 @@
                 </executions>
                 <configuration>
                     <excludeSubProjects>false</excludeSubProjects>
-                    <excludes>
-                        <exclude>**/target/**</exclude>
-                        <exclude>**/.classpath</exclude>
-                        <exclude>**/.project</exclude>
-                        <exclude>**/.factorypath</exclude>
-                        <exclude>**/.settings/**</exclude>
-                        <exclude>**/src/main/resources/META-INF/services/**</exclude>
-                        <exclude>**/src/test/resources/META-INF/services/**</exclude>
-                        <exclude>**/*.iml</exclude>
-                        <exclude>**/*.json</exclude>
-                        <exclude>**/*.xml</exclude>
-                        <exclude>**/*.xml.releaseBackup</exclude>
-                        <exclude>docs/**</exclude>
-                        <exclude>**/*.md</exclude>
-                        <exclude>**/*.txt</exclude>
-                        <exclude>**/*.log</exclude>
-                        <exclude>**/*.patch</exclude>
-                        <exclude>**/*.crt</exclude>
-                        <exclude>**/*.key</exclude>
-                        <exclude>**/*.sysconfig</exclude>
-                        <exclude>**/*.csv</exclude>
-                        <exclude>**/*.id</exclude>
-                        <exclude>**/*.gz</exclude>
-                        <exclude>.editorconfig</exclude>
-                        <exclude>.github/dependabot.yml</exclude>
-                        <exclude>CC-BY-4.0.txt</exclude>
-                        <exclude>**/cqlshrc</exclude>
-                        <exclude>**/regionservers</exclude>
-                        <exclude>**/jaas_keytab.conf</exclude>
-                        <exclude>**/src/test/resources/excludes</exclude>
-                        <exclude>**/src/test/resources/longTests1</exclude>
-                        <exclude>**/src/test/resources/longTests2</exclude>
-                        <exclude>**/src/test/resources/mockito-extensions/**</exclude>
-                        <exclude>**/src/test/resources/com/forwardmeasure/itineris/hadoop/formats/edgelist/rdf/**</exclude>
-                    </excludes>
+                    <!-- Since 0.17 RAT fails when it finds no license at all, which is the case for the modules without
+                         any file to check (e.g. itineris-bigtable only has an excluded pom.xml). -->
+                    <counterMins>
+                        <counterMin>LICENSE_CATEGORIES:0</counterMin>
+                        <counterMin>LICENSE_NAMES:0</counterMin>
+                        <counterMin>STANDARDS:0</counterMin>
+                    </counterMins>
+                    <inputExcludes>
+                        <inputExclude>**/target/**</inputExclude>
+                        <inputExclude>**/.classpath</inputExclude>
+                        <inputExclude>**/.project</inputExclude>
+                        <inputExclude>**/.factorypath</inputExclude>
+                        <inputExclude>**/.settings/**</inputExclude>
+                        <inputExclude>**/src/main/resources/META-INF/services/**</inputExclude>
+                        <inputExclude>**/src/test/resources/META-INF/services/**</inputExclude>
+                        <inputExclude>**/*.iml</inputExclude>
+                        <inputExclude>**/*.json</inputExclude>
+                        <inputExclude>**/*.xml</inputExclude>
+                        <inputExclude>**/*.xml.releaseBackup</inputExclude>
+                        <inputExclude>docs/**</inputExclude>
+                        <inputExclude>**/*.md</inputExclude>
+                        <inputExclude>**/*.txt</inputExclude>
+                        <inputExclude>**/*.log</inputExclude>
+                        <inputExclude>**/*.patch</inputExclude>
+                        <inputExclude>**/*.crt</inputExclude>
+                        <inputExclude>**/*.key</inputExclude>
+                        <inputExclude>**/*.sysconfig</inputExclude>
+                        <inputExclude>**/*.csv</inputExclude>
+                        <inputExclude>**/*.id</inputExclude>
+                        <inputExclude>**/*.gz</inputExclude>
+                        <inputExclude>.editorconfig</inputExclude>
+                        <inputExclude>.github/dependabot.yml</inputExclude>
+                        <inputExclude>CC-BY-4.0.txt</inputExclude>
+                        <inputExclude>**/cqlshrc</inputExclude>
+                        <inputExclude>**/regionservers</inputExclude>
+                        <inputExclude>**/jaas_keytab.conf</inputExclude>
+                        <inputExclude>**/src/test/resources/excludes</inputExclude>
+                        <inputExclude>**/src/test/resources/longTests1</inputExclude>
+                        <inputExclude>**/src/test/resources/longTests2</inputExclude>
+                        <inputExclude>**/src/test/resources/mockito-extensions/**</inputExclude>
+                        <inputExclude>**/src/test/resources/com/forwardmeasure/itineris/hadoop/formats/edgelist/rdf/**</inputExclude>
+                    </inputExcludes>
                 </configuration>
             </plugin>
             <plugin>
@@ -470,13 +451,10 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>${maven.compiler.plugin.version}</version>
                     <configuration>
-                        <release>17</release>
-                        <source>${compiler.source}</source>
-                        <target>${compiler.target}</target>
-                        <compilerArguments>
-                            <Xmaxerrs>500</Xmaxerrs>
-                        </compilerArguments>
+                        <release>${compiler.release}</release>
                         <compilerArgs>
+                            <arg>-Xmaxerrs</arg>
+                            <arg>500</arg>
                             <arg>-Xlint:unchecked</arg>
                         </compilerArgs>
                     </configuration>
@@ -512,6 +490,12 @@
                             </goals>
                             <phase>test</phase>
                             <configuration combine.self="override">
+                                <!-- combine.self="override" discards the default surefire configuration, so this
+                                     execution never used default.test.jvm.opts (heap sizing, -ea, coverage agent) and
+                                     intentionally still does not, to leave the TinkerPop suites' JVM unchanged. Only
+                                     the JDK dependent options (e.g. the module opens needed by Kryo/Gryo on Java 17+)
+                                     are passed, they are empty on Java 11. -->
+                                <argLine>${test.jdk.jvm.opts}</argLine>
                                 <reuseForks>false</reuseForks>
                                 <forkCount>1</forkCount>
                                 <parallel>none</parallel>
@@ -777,7 +761,7 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-annotations</artifactId>
-                <version>${jackson-annotations.version}</version>
+                <version>${jackson2-annotations.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.module</groupId>
@@ -794,6 +778,12 @@
                 <groupId>com.fasterxml.jackson.module</groupId>
                 <artifactId>jackson-module-paranamer</artifactId>
                 <version>${jackson2.version}</version>
+            </dependency>
+            <dependency>
+                <!-- align with com.fasterxml.jackson.module:jackson-module-scala_2.12 -->
+                <groupId>com.thoughtworks.paranamer</groupId>
+                <artifactId>paranamer</artifactId>
+                <version>2.8.3</version>
             </dependency>
             <dependency>
                 <groupId>com.google.code.findbugs</groupId>
@@ -869,13 +859,26 @@
                 <groupId>org.apache.zookeeper</groupId>
                 <artifactId>zookeeper</artifactId>
                 <version>${zookeeper.version}</version>
+                <exclusions>
+                    <!-- Since 3.9.4 ZooKeeper declares SLF4J 2.x, but it only uses the SLF4J 1.x API (Logger,
+                         LoggerFactory and MDC). Itineris stays on SLF4J 1.7 because Spark 3.3 (spark-gremlin)
+                         requires an SLF4J 1.x binding (org.slf4j.impl.StaticLoggerBinder). -->
+                    <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>slf4j-api</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.apache.zookeeper</groupId>
                 <artifactId>zookeeper-jute</artifactId>
                 <version>${zookeeper.version}</version>
             </dependency>
-
+            <dependency>
+                <groupId>org.apache.yetus</groupId>
+                <artifactId>audience-annotations</artifactId>
+                <version>0.15.1</version>
+            </dependency>
             <dependency>
                 <groupId>org.apache.avro</groupId>
                 <artifactId>avro</artifactId>
@@ -968,10 +971,38 @@
                 <artifactId>netty-transport-native-epoll</artifactId>
                 <version>${netty4.version}</version>
             </dependency>
+            <!-- ZooKeeper (e.g. via solr-solrj-zookeeper) declares the x86_64 native transport -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-transport-native-epoll</artifactId>
+                <version>${netty4.version}</version>
+                <classifier>linux-x86_64</classifier>
+            </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-transport-native-unix-common</artifactId>
                 <version>${netty4.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-transport-classes-epoll</artifactId>
+                <version>${netty4.version}</version>
+            </dependency>
+            <!-- netty-tcnative has to match the Netty version: e.g. cassandra-all 4.1.7 (itineris-cdc tests) pins
+                 2.0.36, which throws NoSuchMethodError for
+                 io.netty.internal.tcnative.SSLContext.setCurvesList(long, String[]) when OpenSSL initializes on Linux
+                 (on Apple Silicon macOS the native is absent so netty silently falls back to the JDK provider,
+                 hiding it).
+                 ZooKeeper brings it in as well. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-tcnative-boringssl-static</artifactId>
+                <version>${netty4-tcnative.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-tcnative-classes</artifactId>
+                <version>${netty4-tcnative.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.objenesis</groupId>
@@ -1053,6 +1084,12 @@
                 <version>${error.prone.version}</version>
             </dependency>
             <dependency>
+                <!-- align with com.google.guava:guava and com.github.ben-manes.caffeine:caffeine -->
+                <groupId>org.jspecify</groupId>
+                <artifactId>jspecify</artifactId>
+                <version>1.0.1</version>
+            </dependency>
+            <dependency>
                 <groupId>commons-codec</groupId>
                 <artifactId>commons-codec</artifactId>
                 <version>${commons.codec.version}</version>
@@ -1070,7 +1107,10 @@
                 <version>${spatial4j.version}</version>
             </dependency>
 
-            <!-- Java Topology Suite (JTS) -->
+            <!-- Java Topology Suite (JTS). 1.18.1 changed the return type of
+                 org.locationtech.jts.io.InStream.read(byte[]), which spatial4j 0.8 (the latest release) implements to
+                 deserialize JTS geometries (JtsBinaryCodec), so newer JTS versions fail with an AbstractMethodError
+                 there until a spatial4j release built against JTS 1.18.1+ is available. -->
             <dependency>
                 <groupId>org.locationtech.jts</groupId>
                 <artifactId>jts-core</artifactId>
@@ -1122,6 +1162,15 @@
                 <groupId>io.dropwizard.metrics</groupId>
                 <artifactId>metrics-graphite</artifactId>
                 <version>${metrics.version}</version>
+                <exclusions>
+                    <!-- Since 5.27.0 amqp-client (only used by the GraphiteRabbitMQ sender) depends on Netty 4.2 for
+                         its opt-in Netty frame handler. The default socket based frame handler doesn't need Netty,
+                         so keep the Netty 4.1 line which TinkerPop and the Cassandra driver are built with. -->
+                    <exclusion>
+                        <groupId>io.netty</groupId>
+                        <artifactId>*</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>io.dropwizard.metrics</groupId>
@@ -1232,6 +1281,22 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-cassandra</artifactId>
+                <version>${testcontainers.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.datastax.cassandra</groupId>
+                        <artifactId>cassandra-driver-core</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-junit-jupiter</artifactId>
+                <version>${testcontainers.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.easymock</groupId>
                 <artifactId>easymock</artifactId>
                 <version>${easymock.version}</version>
@@ -1310,26 +1375,56 @@
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-server</artifactId>
                 <version>${jetty.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>slf4j-api</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-util</artifactId>
                 <version>${jetty.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>slf4j-api</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-http</artifactId>
                 <version>${jetty.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>slf4j-api</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-io</artifactId>
                 <version>${jetty.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>slf4j-api</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-client</artifactId>
                 <version>${jetty.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>slf4j-api</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>com.github.ben-manes.caffeine</groupId>
@@ -1351,6 +1446,19 @@
             <dependency>
                 <groupId>org.apache.hadoop</groupId>
                 <artifactId>hadoop-auth</artifactId>
+                <version>${hadoop.version}</version>
+            </dependency>
+            <!-- Spark 3.3.x pulls in the Hadoop 3.3.2 client artifacts, which still use Subject.getSubject() and
+                 therefore fail on Java 24+ (UnsupportedOperationException: getSubject is not supported), e.g. when the
+                 HBase client resolves the current user. Keep them on the same version as the other Hadoop artifacts. -->
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-client-api</artifactId>
+                <version>${hadoop.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-client-runtime</artifactId>
                 <version>${hadoop.version}</version>
             </dependency>
             <dependency>
@@ -1503,6 +1611,11 @@
                 <version>${woodstox.core.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.apache.hbase.thirdparty</groupId>
+                <artifactId>hbase-noop-htrace</artifactId>
+                <version>${htrace.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.json</groupId>
                 <artifactId>json</artifactId>
                 <version>${json.version}</version>
@@ -1545,10 +1658,31 @@
 
     <profiles>
         <profile>
-            <id>java-11</id>
+            <!-- Java 17 and newer enforce strong encapsulation of the JDK internals. Some of the libraries used by the
+                 tests (most notably Kryo/Gryo, Hadoop and Netty) still rely on deep reflection, so open the same set of
+                 modules TinkerPop opens for its own test suites on JDK 17, 21 and 25. -->
+            <id>jdk17-plus-tests</id>
+            <activation>
+                <jdk>[17,)</jdk>
+            </activation>
             <properties>
-                <compiler.source>11</compiler.source>
-                <compiler.target>11</compiler.target>
+                <test.jdk.jvm.opts>
+                    -XX:+IgnoreUnrecognizedVMOptions
+                    --add-exports=java.base/sun.nio.ch=ALL-UNNAMED
+                    --add-exports=java.base/sun.security.x509=ALL-UNNAMED
+                    --add-exports=java.base/sun.security.action=ALL-UNNAMED
+                    --add-opens=java.base/java.io=ALL-UNNAMED
+                    --add-opens=java.base/java.nio=ALL-UNNAMED
+                    --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
+                    --add-opens=java.base/java.lang=ALL-UNNAMED
+                    --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+                    --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+                    --add-opens=java.base/java.util=ALL-UNNAMED
+                    --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+                    --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+                    --add-opens=java.base/java.net=ALL-UNNAMED
+                    --enable-native-access=ALL-UNNAMED
+                </test.jdk.jvm.opts>
             </properties>
         </profile>
 
@@ -1613,24 +1747,17 @@
                             </execution>
                         </executions>
                     </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <profile>
-            <id>itineris-commit-release</id>
-            <build>
-                <plugins>
                     <plugin>
-                        <groupId>org.sonatype.plugins</groupId>
-                        <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>${nexus.staging.maven.plugin.version}</version>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.11.0</version>
                         <extensions>true</extensions>
                         <configuration>
-                            <!-- The Base URL of Nexus instance where we want to stage -->
-                            <nexusUrl>https://oss.sonatype.org</nexusUrl>
                             <!-- The server "id" element from settings to use authentication from -->
-                            <serverId>ossrh</serverId>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>${autoPublish}</autoPublish>
+                            <waitUntil>${waitUntil}</waitUntil>
+                            <waitMaxTime>3600</waitMaxTime>
                         </configuration>
                     </plugin>
                 </plugins>

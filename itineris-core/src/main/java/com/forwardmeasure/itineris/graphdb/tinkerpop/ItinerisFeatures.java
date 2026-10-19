@@ -17,6 +17,7 @@ package com.forwardmeasure.itineris.graphdb.tinkerpop;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import com.forwardmeasure.itineris.core.ItinerisTransaction;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.StoreFeatures;
 import com.forwardmeasure.itineris.graphdb.database.StandardItineris;
 import com.forwardmeasure.itineris.graphdb.transaction.StandardItinerisTx;
@@ -34,12 +35,20 @@ public class ItinerisFeatures implements Graph.Features {
     private final EdgeFeatures edgeFeatures;
 
     private final StandardItineris graph;
+    private final StoreFeatures storageFeatures;
+    /**
+     * The transaction schema dependent features (such as {@link VertexFeatures#getCardinality(String)}) are resolved
+     * against, or {@code null} if these are the graph-level features which have to open their own transaction.
+     */
+    private final ItinerisTransaction tx;
 
-    private ItinerisFeatures(StandardItineris graph, StoreFeatures storageFeatures) {
+    private ItinerisFeatures(StandardItineris graph, StoreFeatures storageFeatures, ItinerisTransaction tx) {
         graphFeatures = new ItinerisGeneralFeatures(storageFeatures.supportsPersistence());
         vertexFeatures = new ItinerisVertexFeatures();
         edgeFeatures = new ItinerisEdgeFeatures();
         this.graph = graph;
+        this.storageFeatures = storageFeatures;
+        this.tx = tx;
     }
 
     @Override
@@ -63,7 +72,16 @@ public class ItinerisFeatures implements Graph.Features {
     }
 
     public static ItinerisFeatures getFeatures(StandardItineris graph, StoreFeatures storageFeatures) {
-        return new ItinerisFeatures(graph,storageFeatures);
+        return new ItinerisFeatures(graph, storageFeatures, null);
+    }
+
+    /**
+     * Returns a view of these features which resolves schema dependent features, such as the cardinality of a
+     * property key, against the given transaction so that schema elements created (but not yet committed) in that
+     * transaction are taken into account.
+     */
+    public ItinerisFeatures forTransaction(ItinerisTransaction tx) {
+        return new ItinerisFeatures(graph, storageFeatures, tx);
     }
 
     private static class ItinerisDataTypeFeatures implements DataTypeFeatures {
@@ -159,17 +177,30 @@ public class ItinerisFeatures implements Graph.Features {
 
         @Override
         public VertexProperty.Cardinality getCardinality(final String key) {
+            // Prefer the transaction these features are bound to: it sees property keys which were created in it
+            // but are not committed yet and it saves opening a transaction per lookup. TinkerPop resolves the
+            // cardinality of every property(key, value) mutation through this method since 3.8.
+            final ItinerisTransaction boundTx = ItinerisFeatures.this.tx;
+            if (boundTx instanceof StandardItinerisTx && boundTx.isOpen()) {
+                return getCardinality((StandardItinerisTx) boundTx, key);
+            }
             StandardItinerisTx tx = (StandardItinerisTx)ItinerisFeatures.this.graph.buildTransaction()
                 .dirtyVertexSize(0)
                 .vertexCacheSize(0)
                 .readOnly()
                 .start();
             try {
-                if (!tx.containsPropertyKey(key)) return tx.getConfiguration().getAutoSchemaMaker().defaultPropertyCardinality(key).convert();
-                return tx.getPropertyKey(key).cardinality().convert();
+                return getCardinality(tx, key);
             } finally {
                 tx.rollback();
             }
+        }
+
+        private VertexProperty.Cardinality getCardinality(final StandardItinerisTx tx, final String key) {
+            if (!tx.containsPropertyKey(key)) {
+                return tx.getConfiguration().getAutoSchemaMaker().defaultPropertyCardinality(key).convert();
+            }
+            return tx.getPropertyKey(key).cardinality().convert();
         }
 
         @Override

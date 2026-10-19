@@ -66,9 +66,9 @@ public class ItinerisPropertyMapStep<K, E> extends PropertyMapStep<K, E> impleme
         tokens = originalStep.getIncludedTokens();
         withIdsFetching = includeToken(WithOptions.ids);
         withLabelsFetching = includeToken(WithOptions.labels);
-        // Replace traversalRing with valueTraversal
-        Traversal.Admin<K, E> valueTraversal = originalStep.getValueTraversal();
-        if(valueTraversal != null) {this.modulateBy(valueTraversal.clone());
+        final Traversal.Admin<K, E> originalValueTraversal = originalStep.getValueTraversal();
+        if (originalValueTraversal != null) {
+            this.valueTraversal = this.integrateChild(originalValueTraversal);
         }
         parameters = originalStep.getParameters();
         parameters.getTraversals().forEach(this::integrateChild);

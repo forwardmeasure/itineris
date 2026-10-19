@@ -30,6 +30,7 @@ import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.MultiQueryPosition
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisMultiQueryStep;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.MultiQueriable;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisNoOpBarrierVertexOnlyStep;
+import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisRepeatStep;
 import com.forwardmeasure.itineris.graphdb.transaction.StandardItinerisTx;
 
 import java.util.Arrays;
@@ -92,6 +93,15 @@ public class ItinerisMultiQueryStrategy extends AbstractTraversalStrategy<Traver
             default: throw new IllegalStateException("Unimplemented `repeat` step mode "+repeatStepMode.getConfigName());
         }
 
+        if (limitedBatch) {
+            // The barrier steps inserted below must not switch `repeat()` into TinkerPop's mode for repeat traversals
+            // with barriers, which adds all start traversers to the repeat traversal at once instead of batching them.
+            // Nested repeat steps are replaced as well (their own traversal level would do it too when the strategies
+            // are applied to it, this just doesn't rely on that order); ItinerisRepeatSteps are skipped.
+            TraversalHelper.getStepsOfAssignableClassRecursively(RepeatStep.class, traversal).stream()
+                .filter(repeatStep -> repeatStep.getClass() == RepeatStep.class)
+                .forEach(repeatStep -> ItinerisRepeatStep.replace(repeatStep, repeatStep.getTraversal()));
+        }
         insertMultiQuerySteps(traversal, limitedBatch, limitedBatchSize);
         configureMultiQueriables(traversal, limitedBatch, limitedBatchSize, multiNestedRepeatEligible, multiNestedRepeatNextIterationEligible);
     }

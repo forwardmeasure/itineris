@@ -15,6 +15,7 @@
 package com.forwardmeasure.itineris.graphdb.database.management;
 
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.collections.CollectionUtils;
 import com.forwardmeasure.itineris.core.ItinerisManagerUtility;
 import com.forwardmeasure.itineris.core.ItinerisTransaction;
@@ -26,6 +27,7 @@ import com.forwardmeasure.itineris.diskstorage.log.Message;
 import com.forwardmeasure.itineris.diskstorage.log.MessageReader;
 import com.forwardmeasure.itineris.diskstorage.util.time.Timer;
 import com.forwardmeasure.itineris.diskstorage.util.time.TimestampProvider;
+import com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration;
 import com.forwardmeasure.itineris.graphdb.database.StandardItineris;
 import com.forwardmeasure.itineris.graphdb.database.cache.SchemaCache;
 import com.forwardmeasure.itineris.graphdb.database.idhandling.VariableLong;
@@ -37,13 +39,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.forwardmeasure.itineris.graphdb.database.management.GraphCacheEvictionAction.DO_NOT_EVICT;
 import static com.forwardmeasure.itineris.graphdb.database.management.GraphCacheEvictionAction.EVICT;
@@ -57,7 +65,10 @@ public class ManagementLogger implements MessageReader {
             LoggerFactory.getLogger(ManagementLogger.class);
 
     private static final Duration SLEEP_INTERVAL = Duration.ofMillis(100L);
-    private static final Duration MAX_WAIT_TIME = Duration.ofSeconds(60L);
+    //How long the thread which sends the acknowledgements waits for more work before it ends
+    private static final long ACK_THREAD_KEEP_ALIVE_SECONDS = 60;
+    //The id of an eviction which nobody waits for. Acknowledged evictions take theirs from nextEvictionId(), never this
+    private static final long UNACKNOWLEDGED_EVICTION_ID = 0;
 
     private final StandardItineris graph;
     private final SchemaCache schemaCache;
@@ -68,15 +79,90 @@ public class ManagementLogger implements MessageReader {
      */
     private final TimestampProvider times;
 
-    private final AtomicInteger evictionTriggerCounter = new AtomicInteger(0);
+    private final AtomicLong evictionTriggerCounter = new AtomicLong(0);
     private final ConcurrentMap<Long,EvictionTrigger> evictionTriggerMap = new ConcurrentHashMap<>();
 
+    private final Duration ackTimeout;
+    //How long the acknowledgement of an eviction waits for the transactions which were open when it arrived to close
+    private final Duration txCloseWaitTime;
+    /**
+     * How long one write of the log may take, which {@link #close()} waits for an acknowledgement being sent
+     */
+    private final Duration writeTime;
+    private final boolean autoCloseStaleInstances;
+
+    //Sends the acknowledgements of the evictions this instance receives, each once the transactions which were open
+    //when its eviction arrived have closed, on one thread for all of them
+    private final ScheduledThreadPoolExecutor ackExecutor;
+    //The acknowledgements of evictions of the graph from the ItinerisManager which have yet to remove it there
+    private final AtomicInteger pendingGraphEvictions = new AtomicInteger();
+
     public ManagementLogger(StandardItineris graph, Log sysLog, SchemaCache schemaCache, TimestampProvider times) {
+        this(graph, sysLog, schemaCache, times, Duration.ofSeconds(120), true);
+    }
+
+    public ManagementLogger(StandardItineris graph, Log sysLog, SchemaCache schemaCache, TimestampProvider times,
+                            Duration ackTimeout, boolean autoCloseStaleInstances) {
+        this(graph, sysLog, schemaCache, times, ackTimeout, autoCloseStaleInstances,
+            GraphDatabaseConfiguration.MANAGEMENT_TX_CLOSE_WAIT_TIME.getDefaultValue());
+    }
+
+    /**
+     * @param txCloseWaitTime how long the acknowledgement of an eviction waits for the transactions which were open
+     *                        when it arrived to close
+     */
+    public ManagementLogger(StandardItineris graph, Log sysLog, SchemaCache schemaCache, TimestampProvider times,
+                            Duration ackTimeout, boolean autoCloseStaleInstances, Duration txCloseWaitTime) {
         this.graph = graph;
         this.schemaCache = schemaCache;
         this.sysLog = sysLog;
         this.times = times;
+        this.ackTimeout = ackTimeout;
+        this.autoCloseStaleInstances = autoCloseStaleInstances;
+        this.txCloseWaitTime = Preconditions.checkNotNull(txCloseWaitTime);
+        this.writeTime = graph.getConfiguration().getMaxWriteTime();
         Preconditions.checkNotNull(times);
+        ackExecutor = new ScheduledThreadPoolExecutor(1, new ThreadFactoryBuilder()
+            .setDaemon(true)
+            .setNameFormat("ManagementLogger-ack-%d")
+            .build());
+        ackExecutor.setKeepAliveTime(ACK_THREAD_KEEP_ALIVE_SECONDS, TimeUnit.SECONDS);
+        ackExecutor.allowCoreThreadTimeOut(true);
+        //close() drops the acknowledgements which wait for transactions
+        ackExecutor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+    }
+
+    /**
+     * Stops acknowledging evictions, as the graph does when it closes, after it has removed itself from the open
+     * instances, which no longer wait for its acknowledgements then. An acknowledgement which is being sent is waited
+     * for, as long as one write of the log may take, so that the graph closes its backend after it; the
+     * acknowledgements which wait for transactions to close are dropped, and the thread which sends them ends. An
+     * eviction of the graph from the ItinerisManager among them still removes it there. Evictions which arrive
+     * later are still applied to the caches, but not acknowledged.
+     */
+    public void close() {
+        //Drops the delayed re-checks, and lets a task which is running finish
+        ackExecutor.shutdown();
+        try {
+            if (!ackExecutor.awaitTermination(writeTime.toMillis(), TimeUnit.MILLISECONDS)) {
+                log.warn("An acknowledgement of an eviction did not finish within {}; it goes on while the graph closes",
+                    writeTime);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Interrupted while waiting for an acknowledgement of an eviction to finish");
+        }
+        if (pendingGraphEvictions.get() > 0) {
+            removeGraphFromItinerisManager();
+        }
+    }
+
+    private void removeGraphFromItinerisManager() {
+        final ItinerisManager jgm = ItinerisManagerUtility.getInstance();
+        if (null != jgm) {
+            jgm.removeGraph(graph.getGraphName());
+            log.debug("Graph {} has been removed from the ItinerisManager graph cache.", graph.getGraphName());
+        }
     }
 
     @Override
@@ -94,19 +180,38 @@ public class ManagementLogger implements MessageReader {
                     long typeId = VariableLong.readPositive(in);
                     schemaCache.expireSchemaElement(typeId);
                     for (ItinerisTransaction tx : graph.getOpenTransactions()) {
-                        tx.expireSchemaElement(typeId);
+                        //Expiring an element reloads its definition, which can fail like any read; the other elements
+                        //and transactions of the message must not be left stale for it
+                        try {
+                            tx.expireSchemaElement(typeId);
+                        } catch (RuntimeException e) {
+                            log.warn("Could not expire schema element {} in transaction {}; it is reloaded when the "
+                                + "transaction next uses it", typeId, tx, e);
+                        }
                     }
                 }
                 final GraphCacheEvictionAction action = serializer.readObjectNotNull(in, GraphCacheEvictionAction.class);
                 Preconditions.checkNotNull(action);
-                final Thread ack = new Thread(new SendAckOnTxClose(evictionId, senderId, graph.getOpenTransactions(), action, graph.getGraphName()));
-                ack.setDaemon(true);
-                ack.start();
+                if (evictionId == UNACKNOWLEDGED_EVICTION_ID) {
+                    //Nobody waits for an acknowledgement of this one
+                    break;
+                }
+                final SendAckOnTxClose ack = new SendAckOnTxClose(evictionId, senderId, graph.getOpenTransactions(), action, graph.getGraphName());
+                try {
+                    ackExecutor.execute(ack);
+                } catch (RejectedExecutionException e) {
+                    log.debug("Did not acknowledge eviction [{}] from {}: the graph is closing", evictionId, senderId);
+                    ack.dropped();
+                }
                 break;
             }
             case CACHED_TYPE_EVICTION_ACK: {
                 String receiverId = serializer.readObjectNotNull(in, String.class);
                 long evictionId = VariableLong.readPositive(in);
+                if (evictionId == UNACKNOWLEDGED_EVICTION_ID) {
+                    //Instances of earlier versions acknowledge every eviction, this kind included: nothing waits for it
+                    break;
+                }
                 if (receiverId.equals(graph.getConfiguration().getUniqueGraphId())) {
                     //Acknowledgements targeted at this instance
                     EvictionTrigger evictTrigger = evictionTriggerMap.get(evictionId);
@@ -124,12 +229,19 @@ public class ManagementLogger implements MessageReader {
 
     }
 
+    //From 1 up, never UNACKNOWLEDGED_EVICTION_ID: the counter starts over at 1 rather than go negative, as the int
+    //counter before it did after overflowing, and a long takes 2^63 evictions to get there, so an id is never handed
+    //out again while the trigger it went to may still be waiting for acknowledgements
+    private long nextEvictionId() {
+        return evictionTriggerCounter.updateAndGet(id -> id == Long.MAX_VALUE ? 1 : id + 1);
+    }
+
     public void sendCacheEviction(Set<ItinerisSchemaVertex> updatedTypes,
                                              final boolean evictGraphFromCache,
                                              List<Callable<Boolean>> updatedTypeTriggers,
                                              Set<String> openInstances) {
         Preconditions.checkArgument(CollectionUtils.isNotEmpty(openInstances), "openInstances cannot be null or empty");
-        long evictionId = evictionTriggerCounter.incrementAndGet();
+        long evictionId = nextEvictionId();
         evictionTriggerMap.put(evictionId,new EvictionTrigger(evictionId,updatedTypeTriggers,graph));
         DataOutput out = graph.getDataSerializer().getDataOutput(128);
         out.writeObjectNotNull(MgmtLogType.CACHED_TYPE_EVICTION);
@@ -144,6 +256,32 @@ public class ManagementLogger implements MessageReader {
         } else {
             out.writeObjectNotNull(DO_NOT_EVICT);
         }
+        sysLog.add(out.getStaticBuffer());
+    }
+
+    /**
+     * Tells every instance, this one included, to expire the given schema elements from its schema cache and open
+     * transactions, without anything waiting for acknowledgements. This is for the definition edges no management
+     * eviction covers: constraints auto-created under schema.constraints=true, and connections and properties added
+     * through addConnection and addProperties. An acknowledged eviction would register an eviction trigger for every
+     * such commit, which opens a management transaction to list the open instances and waits for each of them to
+     * acknowledge once its open transactions have closed, and with graph.management-auto-close-stale-instances it
+     * could get an instance with a long-running transaction force-closed for an ordinary write. The message is the one
+     * {@link #sendCacheEviction} sends, with the elements to expire and never an eviction of the graph itself, so
+     * instances of earlier versions process it as well; they acknowledge it, and the acknowledgement is ignored.
+     *
+     * @param schemaIds the ids of the schema elements to expire
+     */
+    public void sendUnacknowledgedCacheEviction(Collection<Long> schemaIds) {
+        Preconditions.checkArgument(!schemaIds.isEmpty(), "Nothing to evict");
+        DataOutput out = graph.getDataSerializer().getDataOutput(64);
+        out.writeObjectNotNull(MgmtLogType.CACHED_TYPE_EVICTION);
+        VariableLong.writePositive(out, UNACKNOWLEDGED_EVICTION_ID);
+        VariableLong.writePositive(out, schemaIds.size());
+        for (long schemaId : schemaIds) {
+            VariableLong.writePositive(out, schemaId);
+        }
+        out.writeObjectNotNull(DO_NOT_EVICT);
         sysLog.add(out.getStaticBuffer());
     }
 
@@ -163,11 +301,13 @@ public class ManagementLogger implements MessageReader {
         final List<Callable<Boolean>> updatedTypeTriggers;
         final StandardItineris graph;
         final Set<String> instancesToBeAcknowledged;
+        final long createdAtMillis;
 
         private EvictionTrigger(long evictionId, List<Callable<Boolean>> updatedTypeTriggers, StandardItineris graph) {
             this.graph = graph;
             this.evictionId = evictionId;
             this.updatedTypeTriggers = updatedTypeTriggers;
+            this.createdAtMillis = System.currentTimeMillis();
             final ItinerisManagement mgmt = graph.openManagement();
             this.instancesToBeAcknowledged = ConcurrentHashMap.newKeySet();
             instancesToBeAcknowledged.addAll(((ManagementSystem) mgmt).getOpenInstancesInternal());
@@ -204,10 +344,41 @@ public class ManagementLogger implements MessageReader {
             final String instanceRemovedMsg = "Instance [{}] was removed list of open instances and therefore dropped from list of instances to be acknowledged.";
             instancesToBeAcknowledged.stream().filter(it -> !updatedInstances.contains(it)).filter(instancesToBeAcknowledged::remove).forEach(it -> log.debug(instanceRemovedMsg, it));
             mgmt.rollback();
+
+            if (autoCloseStaleInstances && !instancesToBeAcknowledged.isEmpty()
+                    && (System.currentTimeMillis() - createdAtMillis) > ackTimeout.toMillis()) {
+                log.warn("ACK timeout ({}s) exceeded for eviction [{}]. Force-closing unresponsive instances: {}",
+                        ackTimeout.getSeconds(), evictionId, instancesToBeAcknowledged);
+                forceCloseStaleInstances(new HashSet<>(instancesToBeAcknowledged));
+                instancesToBeAcknowledged.clear();
+            }
+
             return instancesToBeAcknowledged.size();
+        }
+
+        private void forceCloseStaleInstances(Set<String> staleInstances) {
+            try {
+                final ItinerisManagement mgmt = graph.openManagement();
+                for (String instanceId : staleInstances) {
+                    try {
+                        mgmt.forceCloseInstance(instanceId);
+                        log.warn("Force-closed stale instance [{}]", instanceId);
+                    } catch (IllegalArgumentException e) {
+                        log.debug("Could not force-close instance [{}]: {}", instanceId, e.getMessage());
+                    }
+                }
+                mgmt.commit();
+            } catch (Exception e) {
+                log.error("Failed to force-close stale instances", e);
+            }
         }
     }
 
+    /**
+     * Sends the acknowledgement of an eviction once the transactions which were open when it arrived have closed. Each
+     * run checks them once, and runs again {@link #SLEEP_INTERVAL} later while one is open, for up to
+     * {@code graph.management-tx-close-wait-time}.
+     */
     private class SendAckOnTxClose implements Runnable {
 
         private final long evictionId;
@@ -215,6 +386,7 @@ public class ManagementLogger implements MessageReader {
         private final String originId;
         private final GraphCacheEvictionAction action;
         private final String graphName;
+        private final Timer t;
 
         private SendAckOnTxClose(long evictionId,
                                  String originId,
@@ -226,61 +398,101 @@ public class ManagementLogger implements MessageReader {
             this.originId = originId;
             this.action = action;
             this.graphName = graphName;
+            this.t = times.getTimer().start();
+            if (EVICT.equals(action)) {
+                pendingGraphEvictions.incrementAndGet();
+            }
         }
 
         @Override
         public void run() {
-//            long startTime = Timestamps.MICRO.getTime();
-            Timer t = times.getTimer().start();
-            while (true) {
-                boolean txStillOpen = false;
-                Iterator<? extends ItinerisTransaction> iterator = openTx.iterator();
-                while (iterator.hasNext()) {
-                    if (iterator.next().isClosed()) {
-                        iterator.remove();
-                    } else {
-                        txStillOpen = true;
-                    }
+            //shutdown() drops the delayed re-checks, but a task queued at no delay still runs after it, and must not
+            //touch the closing graph
+            if (ackExecutor.isShutdown()) {
+                dropped();
+                return;
+            }
+            boolean runsAgain = false;
+            try {
+                runsAgain = acknowledgeOnceTransactionsClosed();
+            } catch (Throwable e) {
+                //Thrown out of the task, it would only be stored in the task's future, which nothing reads
+                log.error("Could not acknowledge eviction [{}]", getId(), e);
+            } finally {
+                if (!runsAgain) {
+                    finished();
                 }
-                final ItinerisManager jgm = ItinerisManagerUtility.getInstance();
-                final boolean janusGraphManagerIsInBadState = null == jgm && action.equals(EVICT);
-                if (!txStillOpen && janusGraphManagerIsInBadState) {
-                    log.error("ItinerisManager should be instantiated on this server, but it is not. " +
-                              "Please restart with proper server settings. " +
-                              "As a result, we could not evict graph {} from the cache.", graphName);
-                    break;
+            }
+        }
+
+        private void finished() {
+            if (EVICT.equals(action)) {
+                pendingGraphEvictions.decrementAndGet();
+            }
+        }
+
+        //The graph is closing and the acknowledgement never runs: an eviction of the graph from the ItinerisManager
+        //still removes it there
+        private void dropped() {
+            if (EVICT.equals(action)) {
+                removeGraphFromItinerisManager();
+            }
+            finished();
+        }
+
+        //Returns whether it runs again, to check the transactions once more
+        private boolean acknowledgeOnceTransactionsClosed() {
+            boolean txStillOpen = false;
+            Iterator<? extends ItinerisTransaction> iterator = openTx.iterator();
+            while (iterator.hasNext()) {
+                if (iterator.next().isClosed()) {
+                    iterator.remove();
+                } else {
+                    txStillOpen = true;
                 }
-                else if (!txStillOpen) {
-                    //Send ack and finish up
-                    DataOutput out = graph.getDataSerializer().getDataOutput(64);
-                    out.writeObjectNotNull(MgmtLogType.CACHED_TYPE_EVICTION_ACK);
-                    out.writeObjectNotNull(originId);
-                    VariableLong.writePositive(out,evictionId);
-                    if (null != jgm && action.equals(EVICT)) {
-                        jgm.removeGraph(graphName);
-                        log.debug("Graph {} has been removed from the ItinerisManager graph cache.", graphName);
-                    }
-                    try {
-                        sysLog.add(out.getStaticBuffer());
-                        log.debug("Sent {}: evictionID={} originID={}", MgmtLogType.CACHED_TYPE_EVICTION_ACK, evictionId, originId);
-                    } catch (ResourceUnavailableException e) {
-                        //During shutdown, this event may be triggered but the log is already closed. The failure to send the acknowledgement
-                        //can then be ignored
-                        log.warn("System log has already shut down. Did not sent {}: evictionID={} originID={}",MgmtLogType.CACHED_TYPE_EVICTION_ACK,evictionId,originId);
-                    }
-                    break;
-                }
-                if (MAX_WAIT_TIME.compareTo(t.elapsed()) < 0) {
-                    //Break out if waited too long
-                    log.error("Evicted [{}] from cache but waiting too long for transactions to close. Stale transaction alert on: {}",getId(),openTx);
-                    break;
+            }
+            final ItinerisManager jgm = ItinerisManagerUtility.getInstance();
+            final boolean janusGraphManagerIsInBadState = null == jgm && action.equals(EVICT);
+            if (!txStillOpen && janusGraphManagerIsInBadState) {
+                log.error("ItinerisManager should be instantiated on this server, but it is not. " +
+                          "Please restart with proper server settings. " +
+                          "As a result, we could not evict graph {} from the cache.", graphName);
+                return false;
+            }
+            else if (!txStillOpen) {
+                //Send ack and finish up
+                DataOutput out = graph.getDataSerializer().getDataOutput(64);
+                out.writeObjectNotNull(MgmtLogType.CACHED_TYPE_EVICTION_ACK);
+                out.writeObjectNotNull(originId);
+                VariableLong.writePositive(out,evictionId);
+                if (null != jgm && action.equals(EVICT)) {
+                    jgm.removeGraph(graphName);
+                    log.debug("Graph {} has been removed from the ItinerisManager graph cache.", graphName);
                 }
                 try {
-                    times.sleepPast(times.getTime().plus(SLEEP_INTERVAL));
-                } catch (InterruptedException e) {
-                    log.error("Interrupted eviction ack thread for "+getId(),e);
-                    break;
+                    sysLog.add(out.getStaticBuffer());
+                    log.debug("Sent {}: evictionID={} originID={}", MgmtLogType.CACHED_TYPE_EVICTION_ACK, evictionId, originId);
+                } catch (ResourceUnavailableException e) {
+                    //During shutdown, this event may be triggered but the log is already closed. The failure to send the acknowledgement
+                    //can then be ignored
+                    log.warn("System log has already shut down. Did not send {}: evictionID={} originID={}",MgmtLogType.CACHED_TYPE_EVICTION_ACK,evictionId,originId);
                 }
+                return false;
+            }
+            if (txCloseWaitTime.compareTo(t.elapsed()) < 0) {
+                //Break out if waited too long
+                log.error("Evicted [{}] from cache but waiting too long for transactions to close. Stale transaction alert on: {}",getId(),openTx);
+                return false;
+            }
+            try {
+                ackExecutor.schedule(this, SLEEP_INTERVAL.toNanos(), TimeUnit.NANOSECONDS);
+                return true;
+            } catch (RejectedExecutionException e) {
+                log.debug("Did not acknowledge eviction [{}]: the graph is closing", getId());
+                if (EVICT.equals(action)) {
+                    removeGraphFromItinerisManager();
+                }
+                return false;
             }
         }
 

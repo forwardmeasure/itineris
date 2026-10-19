@@ -73,8 +73,11 @@ import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.strategy.ItinerisL
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.strategy.ItinerisUnusedMultiQueryRemovalStrategy;
 import com.forwardmeasure.itineris.graphdb.util.MultiSliceQueriesGroupingUtil;
 import com.forwardmeasure.itineris.util.IDUtils;
+import com.forwardmeasure.itineris.util.stats.MetricManager;
 import com.forwardmeasure.itineris.graphdb.database.index.IndexInfoRetriever;
 import com.forwardmeasure.itineris.graphdb.database.index.IndexUpdate;
+import com.forwardmeasure.itineris.graphdb.database.util.IndexAppliesToFunction;
+import com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil;
 import com.forwardmeasure.itineris.graphdb.database.log.LogTxStatus;
 import com.forwardmeasure.itineris.graphdb.database.log.TransactionLogHeader;
 import com.forwardmeasure.itineris.graphdb.database.management.ManagementLogger;
@@ -85,8 +88,11 @@ import com.forwardmeasure.itineris.graphdb.internal.InternalRelation;
 import com.forwardmeasure.itineris.graphdb.internal.InternalRelationType;
 import com.forwardmeasure.itineris.graphdb.internal.InternalVertex;
 import com.forwardmeasure.itineris.graphdb.internal.InternalVertexLabel;
+import com.forwardmeasure.itineris.graphdb.olap.computer.FulgoraGraphComputer;
 import com.forwardmeasure.itineris.graphdb.query.QueryUtil;
 import com.forwardmeasure.itineris.graphdb.query.index.IndexSelectionStrategy;
+import com.forwardmeasure.itineris.graphdb.query.vertex.BasicVertexCentricQueryUtil;
+import com.forwardmeasure.itineris.graphdb.query.vertex.MultiVertexCentricQueryBuilder;
 import com.forwardmeasure.itineris.graphdb.relations.EdgeDirection;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.ItinerisBlueprintsGraph;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.ItinerisFeatures;
@@ -103,8 +109,11 @@ import com.forwardmeasure.itineris.graphdb.transaction.StandardItinerisTx;
 import com.forwardmeasure.itineris.graphdb.transaction.StandardTransactionBuilder;
 import com.forwardmeasure.itineris.graphdb.transaction.TransactionConfiguration;
 import com.forwardmeasure.itineris.graphdb.types.CompositeIndexType;
+import com.forwardmeasure.itineris.graphdb.types.IndexType;
 import com.forwardmeasure.itineris.graphdb.types.MixedIndexType;
+import com.forwardmeasure.itineris.graphdb.types.indextype.IndexReferenceType;
 import com.forwardmeasure.itineris.graphdb.types.system.BaseKey;
+import com.forwardmeasure.itineris.graphdb.types.system.BaseLabel;
 import com.forwardmeasure.itineris.graphdb.types.system.BaseRelationType;
 import com.forwardmeasure.itineris.graphdb.types.vertices.ItinerisSchemaVertex;
 import com.forwardmeasure.itineris.graphdb.util.ExceptionFactory;
@@ -115,8 +124,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -127,13 +138,18 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import javax.script.Bindings;
 import javax.script.ScriptException;
 
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.MANAGEMENT_ACK_TIMEOUT;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.MANAGEMENT_AUTO_CLOSE_STALE_INSTANCES;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.MANAGEMENT_TX_CLOSE_WAIT_TIME;
 import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.REGISTRATION_TIME;
 import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.REPLACE_INSTANCE_IF_EXISTS;
 import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCRIPT_EVAL_ENABLED;
@@ -169,8 +185,37 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
     }
 
     private final GraphDatabaseConfiguration config;
+    /** Backing index names configured as cdc-only (index.[X].cdc.enabled=true and cdc.synchronous=false):
+     *  their mixed-index mutations are skipped on the synchronous commit path and applied asynchronously
+     *  by the CDC pipeline (itineris-cdc worker) instead. */
+    private final Set<String> cdcOnlyBackingIndexes;
+    /** The index filter used when generating commit-time index updates for ADDED relations and mutated properties:
+     *  standard applicability ({@link IndexRecordUtil#FULL_INDEX_APPLIES_TO_FILTER}) minus the mixed indexes on
+     *  cdc-only backends -- their updates are filtered out at GENERATION (not just skipped at write time) so the hot
+     *  commit path never pays for serializing entries that would only be discarded. Composite indexes are never
+     *  filtered. Reindex/repair jobs and transaction recovery use their own filters and are unaffected -- they still
+     *  write cdc-only indexes. */
+    private final IndexAppliesToFunction commitIndexAppliesToFilter;
+    /** The index filter for DELETED relations whose documents the CDC stream cannot identify (see
+     *  {@link #cdcCanIdentifyDeletedRelation}, which selects between this and {@link #commitIndexAppliesToFilter}
+     *  per deleted relation). Like {@link #commitIndexAppliesToFilter}, but relation-element (edge / meta-property)
+     *  mixed indexes on cdc-only backends are NOT filtered: those document DELETIONS stay synchronous even in
+     *  cdc-only mode. The CDC pipeline can always rebuild ADDED/updated documents from the element's current state,
+     *  but it cannot identify a deleted relation's document when no change event carries the relation identity --
+     *  Cassandra tombstones carry no value bytes (constrained-multiplicity edge ids and meta-property ids live in
+     *  the value region), and a whole-row vertex removal ({@code storage.drop-whole-row-on-vertex-removal}) emits
+     *  one partition-level delete with no per-edge identity at all (self-loops, unidirected edges, and edges whose
+     *  both endpoints are removed in one transaction have no surviving mirror event either). Those identities only
+     *  exist HERE, at commit time, so this is where their document removals are issued; a removal is idempotent
+     *  under the CDC applier's reindex-from-current-state, so late CDC events for the same relation converge to the
+     *  same result. Deleted relations whose id is re-added by the same transaction (updates) are exempt from the
+     *  synchronous removal -- their document id stays live and the worker rewrites it from current state, and a
+     *  synchronous whole-document delete could otherwise land after that rewrite (e.g. a delayed index write) and
+     *  erase the fresh document with no later event to restore it. */
+    private final IndexAppliesToFunction commitDeletionIndexAppliesToFilter;
     private final Backend backend;
     private final IDManager idManager;
+    private final boolean wholeRowDeletionEnabled;
     private final VertexIDAssigner idAssigner;
     private final TimestampProvider times;
     private final CacheInvalidationService cacheInvalidationService;
@@ -188,6 +233,11 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
 
     //Log
     private final ManagementLogger managementLogger;
+    //Runs the jobs of the graph's computers, created idle with the graph
+    private final ThreadPoolExecutor computerJobs;
+
+    //The graph's claims on the Metrics reporters which its configuration asks for
+    private final Map<MetricManager.GraphReporter, Object> metricsReporterClaims;
 
     //Shutdown hook
     private volatile ShutdownThread shutdownHook;
@@ -199,6 +249,12 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
     private final GremlinScriptEngine scriptEngine;
 
     private volatile boolean isOpen;
+    /**
+     * Whether the graph's close, through {@link #close()} or the shutdown hook, has begun. The graph is closed to the
+     * outside from then on: no transaction begins to open while it tears down, so a job or a repair which starts
+     * meanwhile fails at once instead of racing the backend's close.
+     */
+    private volatile boolean closing;
     private final AtomicLong txCounter;
 
     private final Set<StandardItinerisTx> openTransactions;
@@ -208,12 +264,36 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
     public StandardItineris(GraphDatabaseConfiguration configuration) {
 
         this.config = configuration;
+        this.cdcOnlyBackingIndexes =
+            GraphDatabaseConfiguration.getCdcBackingIndexNames(configuration.getConfiguration(), true);
+        this.commitIndexAppliesToFilter = cdcOnlyBackingIndexes.isEmpty()
+            ? IndexRecordUtil.FULL_INDEX_APPLIES_TO_FILTER
+            : (index, element) -> IndexRecordUtil.indexAppliesTo(index, element) && !isCdcOnlyMixedIndex(index);
+        this.commitDeletionIndexAppliesToFilter = cdcOnlyBackingIndexes.isEmpty()
+            ? IndexRecordUtil.FULL_INDEX_APPLIES_TO_FILTER
+            : (index, element) -> IndexRecordUtil.indexAppliesTo(index, element)
+                && (!isCdcOnlyMixedIndex(index) || index.getElement().isRelation());
+        if (!cdcOnlyBackingIndexes.isEmpty()) {
+            // There is no way to validate from here that a capture pipeline (e.g. Cassandra CDC + Debezium + Kafka +
+            // the itineris-cdc worker) is actually running, so make the trade-off loud: with cdc-only configured and
+            // no pipeline, mixed indexes silently stop being maintained (and the WAL records these transactions as
+            // fully successful, so transaction recovery will not repair them either).
+            log.warn("Mixed index backend(s) {} are configured cdc-only (index.[X].cdc.enabled=true and "
+                + "index.[X].cdc.synchronous=false): synchronous index additions are SKIPPED for them (only "
+                + "relation-document deletions that CDC events cannot identify are still written synchronously). "
+                + "Ensure the external CDC pipeline and the itineris-cdc worker (running with "
+                + "index.[X].cdc.enabled=true for these backends) are running, otherwise these indexes will not be "
+                + "updated.",
+                cdcOnlyBackingIndexes);
+        }
         this.backend = configuration.getBackend();
 
         this.name = configuration.getGraphName();
 
         this.idAssigner = config.getIDAssigner(backend);
         this.idManager = idAssigner.getIDManager();
+        this.wholeRowDeletionEnabled = configuration.getDropWholeRowOnVertexRemoval()
+            && backend.getStoreFeatures().hasOptimizedWholeRowDeletion();
 
         this.cacheInvalidationService = new KCVSCacheInvalidationService(
             backend.getEdgeStoreCache(), backend.getIndexStoreCache(), idManager);
@@ -241,6 +321,13 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
         txCounter = new AtomicLong(0);
         openTransactions = Collections.newSetFromMap(new ConcurrentHashMap<>(100, 0.75f, 1));
 
+        //Before the instance registers, so that an invalid option fails the open without leaving the instance among the
+        //open ones; the executor starts without threads
+        computerJobs = FulgoraGraphComputer.newJobExecutor(configuration.getConfiguration());
+        Duration ackTimeout = configuration.getConfiguration().get(MANAGEMENT_ACK_TIMEOUT);
+        boolean autoCloseStaleInstances = configuration.getConfiguration().get(MANAGEMENT_AUTO_CLOSE_STALE_INSTANCES);
+        Duration txCloseWaitTime = configuration.getConfiguration().get(MANAGEMENT_TX_CLOSE_WAIT_TIME);
+
         //Register instance and ensure uniqueness
         String uniqueInstanceId = configuration.getUniqueGraphId();
         ModifiableConfiguration globalConfig = getGlobalSystemConfig(backend);
@@ -254,11 +341,21 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
         globalConfig.set(REGISTRATION_TIME, times.getTime(), uniqueInstanceId);
 
         Log managementLog = backend.getSystemMgmtLog();
-        managementLogger = new ManagementLogger(this, managementLog, schemaCache, this.times);
+        managementLogger = new ManagementLogger(this, managementLog, schemaCache, this.times, ackTimeout, autoCloseStaleInstances,
+            txCloseWaitTime);
         managementLog.registerReader(ReadMarker.fromNow(), managementLogger);
 
-        shutdownHook = new ShutdownThread(this);
-        Runtime.getRuntime().addShutdownHook(shutdownHook);
+        //Last, so that a graph which fails to open holds no claim; one which opens gives them back when it closes.
+        //A failure from here on, a reporter which can't start or a shutdown hook refused by a JVM which is shutting
+        //down, closes what the graph has opened, as no one else can
+        try {
+            metricsReporterClaims = configuration.startMetricsReporters();
+            shutdownHook = new ShutdownThread(this);
+            Runtime.getRuntime().addShutdownHook(shutdownHook);
+        } catch (RuntimeException | Error e) {
+            closeInternal();
+            throw e;
+        }
         log.debug("Installed shutdown hook {}", shutdownHook, new Throwable("Hook creation trace"));
     }
 
@@ -299,7 +396,7 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
 
     @Override
     public boolean isOpen() {
-        return isOpen;
+        return isOpen && !closing;
     }
 
     @Override
@@ -309,6 +406,7 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
 
     @Override
     public synchronized void close() throws ItinerisException {
+        closing = true;
         try {
             closeInternal();
         } finally {
@@ -337,14 +435,21 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
             } catch (Exception e) {
                 log.warn("Unable to remove graph instance uniqueid {}", uniqueId, e);
             }
+            //The other instances stop waiting for this one's acknowledgements once it has left the open instances, so
+            //those which wait for the transactions closed below are dropped
+            try {
+                managementLogger.close();
+            } catch (Exception e) {
+                log.warn("Unable to close the management logger", e);
+            }
 
-            /* Assuming a couple of properties about openTransactions:
-             * 1. no concurrent modifications during graph shutdown
-             * 2. all contained txs are open
+            /* Other threads may close the open transactions meanwhile, such as the reader of the management log, which
+             * opens and closes transactions of its own until the backend closes the log below: only the rollback of a
+             * transaction which closes before this rolls it back is skipped, as its close does nothing to a closed one.
              */
             for (StandardItinerisTx otx : openTransactions) {
                 try {
-                    otx.rollback();
+                    otx.rollbackIfOpen();
                     otx.close();
                 } catch (RuntimeException e) {
                     // Catch and store these exceptions, but proceed wit the loop
@@ -356,6 +461,9 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
 
             super.close();
 
+            //Jobs which run or wait go on until they find the graph closed, jobs submitted from now on fail, and the
+            //threads end once idle
+            computerJobs.shutdown();
             IOUtils.closeQuietly(idAssigner);
             IOUtils.closeQuietly(backend);
             IOUtils.closeQuietly(queryCache);
@@ -365,6 +473,10 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
             }
         } finally {
             isOpen = false;
+            //null for a graph whose reporters failed to start, which released them itself
+            if (metricsReporterClaims != null) {
+                MetricManager.INSTANCE.releaseGraphReporters(metricsReporterClaims);
+            }
         }
 
         // Throw an exception if at least one transaction failed to close
@@ -409,6 +521,13 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
 
     public IndexSelectionStrategy getIndexSelector() {
         return indexSelector;
+    }
+
+    /**
+     * @return the executor which runs the jobs of the graph's computers
+     */
+    public Executor getComputerJobExecutor() {
+        return computerJobs;
     }
 
     public Backend getBackend() {
@@ -467,7 +586,7 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
     }
 
     public StandardItinerisTx newTransaction(final TransactionConfiguration configuration) {
-        if (!isOpen) ExceptionFactory.graphShutdown();
+        if (!isOpen()) ExceptionFactory.graphShutdown();
         try {
             StandardItinerisTx tx = new StandardItinerisTx(this, configuration);
             tx.setBackendTransaction(openBackendTransaction(tx));
@@ -713,7 +832,14 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
         if (isBigDataSetLoggingEnabled) {
             logForPrepareCommit.debug("1. Collect deleted edges and their index updates and acquire edge locks");
         }
-        prepareCommitDeletes(deletedRelations, filter, mutator, tx, acquireLocks, mutations, mutatedProperties, indexUpdates);
+        // Ids of the relations added in this same transaction: a deleted relation whose id is re-added is an
+        // UPDATE (the replacement keeps the relation id unless the type has ConsistencyModifier.FORK), meaning its
+        // index document id stays live. Only computed when cdc-only indexes exist -- it feeds the per-relation
+        // deletion-filter choice below.
+        final Set<Long> replacedRelationIds = cdcOnlyBackingIndexes.isEmpty() || deletedRelations.isEmpty()
+            ? Collections.emptySet() : collectRelationIds(addedRelations);
+        prepareCommitDeletes(deletedRelations, replacedRelationIds, filter, mutator, tx, acquireLocks, mutations,
+            mutatedProperties, indexUpdates);
 
         if (isBigDataSetLoggingEnabled) {
             logForPrepareCommit.debug("2. Collect added edges and their index updates and acquire edge locks");
@@ -751,6 +877,7 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
      * Collect deleted edges and their index updates and acquire edge locks
      */
     private void prepareCommitDeletes(final Collection<InternalRelation> deletedRelations,
+                                      final Set<Long> replacedRelationIds,
                                       final Predicate<InternalRelation> filter,
                                       final BackendTransaction mutator,
                                       final StandardItinerisTx tx,
@@ -774,8 +901,80 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
                     mutator.acquireEdgeLock(idManager.getKey(vertex.id()), entry);
                 }
             }
-            indexUpdates.addAll(indexSerializer.getIndexUpdates(del, tx));
+            // The widened deletion filter (synchronous cdc-only relation-document removals) is applied only when the
+            // CDC stream cannot identify this relation's document. When a surviving endpoint's row keeps an ordinary
+            // column tombstone carrying the full edge identity (the "mirror" copy), the CDC worker performs the
+            // removal instead and the commit path stays free of redundant index deletes -- for a super-node removal
+            // with surviving neighbors that is the difference between zero synchronous index operations and one per
+            // incident edge. A deleted relation whose id this same transaction RE-ADDS (an update; the replacement
+            // keeps the relation id unless the type is ConsistencyModifier.FORK) must not be deleted synchronously
+            // either: its document id stays live, and the worker rewrites that document from current state -- a
+            // synchronous whole-document delete could land AFTER the worker's rewrite (e.g. a delayed index write)
+            // and erase it with no later event to restore it. Skipping leaves the document briefly stale (ordinary
+            // CDC lag) instead of indefinitely missing.
+            final IndexAppliesToFunction deletionFilter =
+                cdcOnlyBackingIndexes.isEmpty() || cdcCanIdentifyDeletedRelation(del, tx)
+                    || replacedRelationIds.contains(del.longId())
+                    ? commitIndexAppliesToFilter : commitDeletionIndexAppliesToFilter;
+            indexUpdates.addAll(indexSerializer.getIndexUpdates(del, deletionFilter, tx));
         }
+    }
+
+    /** The assigned ids of the given relations (used to recognize deleted relations that are re-added -- i.e.
+     *  updated -- within the same transaction). */
+    private static Set<Long> collectRelationIds(final Collection<InternalRelation> relations) {
+        if (relations.isEmpty()) {
+            return Collections.emptySet();
+        }
+        final Set<Long> ids = new HashSet<>(relations.size() * 2);
+        for (InternalRelation relation : relations) {
+            if (relation.hasId()) {
+                ids.add(relation.longId());
+            }
+        }
+        return ids;
+    }
+
+    /**
+     * Whether the CDC pipeline will be able to identify this deleted relation's index document from the change
+     * events this transaction produces: true iff at least one storage copy of the relation is removed via a
+     * per-column tombstone whose <em>column</em> carries the full relation identity. That holds only for
+     * non-constrained (MULTI-multiplicity) edges with at least one incident vertex that is not itself fully removed
+     * in this transaction -- the surviving vertex's row receives an ordinary column tombstone for the edge (its
+     * mirror copy), from which the CDC decoder reconstructs the exact {@code RelationIdentifier}. Everything else
+     * produces no identifying event and needs the synchronous document removal: vertex properties and
+     * constrained-multiplicity edges keep their relation id in the <em>value</em> region (absent from tombstones);
+     * unidirected edges store no mirror; and when every copy-holding endpoint is fully removed, its row is either
+     * whole-row-deleted (one partition tombstone, no columns) or its column tombstones are indistinguishable noise
+     * behind the same removal.
+     *
+     * <p>Deliberately independent of {@link #wholeRowDeletionEnabled}: with whole-row deletion off, fully-removed
+     * vertices do emit per-column tombstones and the synchronous removal is merely redundant (idempotent under the
+     * worker's reindex-from-current-state) -- preferred over coupling the index guarantee to a storage feature flag.</p>
+     */
+    private boolean cdcCanIdentifyDeletedRelation(final InternalRelation del, final StandardItinerisTx tx) {
+        if (!del.isEdge()) {
+            return false;
+        }
+        final InternalRelationType type = (InternalRelationType) del.getType();
+        if (type.multiplicity().isConstrained()) {
+            return false;
+        }
+        for (int pos = 0; pos < del.getArity(); pos++) {
+            // Same predicate the mutation writer uses: a storage copy exists at this position iff the type covers
+            // its direction (normal edges store a copy at both endpoints; unidirected ones only at the out-vertex).
+            if (!type.isUnidirected(Direction.BOTH) && !type.isUnidirected(EdgeDirection.fromPosition(pos))) {
+                continue;
+            }
+            final Object vertexId = del.getVertex(pos).id();
+            final Object canonicalId = idManager.isPartitionedVertex(vertexId)
+                ? idManager.getCanonicalVertexId(((Number) vertexId).longValue())
+                : vertexId;
+            if (!tx.isVertexFullyRemoved(canonicalId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -805,7 +1004,7 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
                     mutator.acquireEdgeLock(idManager.getKey(vertex.id()), entry.getColumn());
                 }
             }
-            indexUpdates.addAll(indexSerializer.getIndexUpdates(add, tx));
+            indexUpdates.addAll(indexSerializer.getIndexUpdates(add, commitIndexAppliesToFilter, tx));
         }
     }
 
@@ -815,9 +1014,64 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
     private void prepareCommitVertexIndexUpdates(final ListMultimap<InternalVertex, InternalRelation> mutatedProperties,
                                                  final StandardItinerisTx tx,
                                                  final List<IndexUpdate> indexUpdates) {
+        //The transaction's multi-query setting decides, as it does for a composite index lookup of several values,
+        //whether the labels are read together; a store without multi-key queries reads them one key at a time anyway
+        if (tx.getConfiguration().useMultiQuery() && backend.getStoreFeatures().hasMultiQuery()) {
+            loadLabelsCheckedByIndexes(mutatedProperties, tx, config.maxKeysPerRead());
+        }
         indexUpdates.addAll(mutatedProperties.keySet().parallelStream()
-            .flatMap(v -> indexSerializer.getIndexUpdates(v, mutatedProperties.get(v), tx))
+            .flatMap(v -> indexSerializer.getIndexUpdates(v, mutatedProperties.get(v), commitIndexAppliesToFilter, tx))
             .collect(Collectors.toList()));
+    }
+
+    /**
+     * Loads the labels which the index updates of the changed vertices check, with multi-queries of up to
+     * {@code query.batch.max-keys-per-read} vertices each. An index restricted to a vertex label applies to a vertex
+     * only if it has that label, and the check reads the label of an existing vertex which the transaction hasn't
+     * loaded - as one which changes vertices it looked up by id hasn't - with a query of its own. New vertices hold
+     * their labels, and removed ones are left to the check as before; a single vertex reads its label with a query of
+     * its own either way.
+     */
+    private static void loadLabelsCheckedByIndexes(
+        final ListMultimap<InternalVertex, InternalRelation> mutatedProperties, final StandardItinerisTx tx,
+        final int maxKeysPerRead) {
+        List<ItinerisVertex> vertices = null;
+        for (InternalVertex vertex : mutatedProperties.keySet()) {
+            if (!vertex.isNew() && !vertex.isRemoved() && checksLabel(vertex, mutatedProperties.get(vertex))) {
+                if (vertices == null) {
+                    vertices = new ArrayList<>();
+                }
+                vertices.add(vertex);
+            }
+        }
+        if (vertices == null || vertices.size() < 2) {
+            return;
+        }
+        for (int from = 0; from < vertices.size(); from += maxKeysPerRead) {
+            final List<ItinerisVertex> chunk =
+                vertices.subList(from, Math.min(vertices.size(), from + maxKeysPerRead));
+            //The query vertexLabel() makes, which then finds the label in the vertex's cache. A vertex whose label is
+            //loaded already is not read again
+            final MultiVertexCentricQueryBuilder labels = new MultiVertexCentricQueryBuilder(tx, chunk.size());
+            labels.addAllVertices(chunk);
+            BasicVertexCentricQueryUtil.withLabelVertices(labels).vertices();
+        }
+    }
+
+    //Whether an index of a changed property is one the vertex's label decides on: an index of vertices restricted to a
+    //label, which the index updates ask the vertex's label about
+    private static boolean checksLabel(final InternalVertex vertex, final List<InternalRelation> changedProperties) {
+        for (InternalRelation property : changedProperties) {
+            final InternalRelationType key = (InternalRelationType) property.getType();
+            for (IndexReferenceType indexRef : key.getKeyIndexesReferences()) {
+                final IndexType index = indexRef.getIndexType();
+                if (index.hasSchemaTypeConstraint()
+                    && IndexRecordUtil.indexAppliesToWithoutConstraints(index, vertex)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -851,8 +1105,18 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
         for (Object vertexId : mutations.keySet()) {
             IDUtils.checkId(vertexId);
             final List<InternalRelation> edges = mutations.get(vertexId);
-            final List<Entry> additions = new ArrayList<>(edges.size());
-            final List<Entry> deletions = new ArrayList<>(Math.max(10, edges.size() / 10));
+
+            final Object canonicalId = idManager.isPartitionedVertex(vertexId)
+                ? idManager.getCanonicalVertexId(((Number) vertexId).longValue())
+                : vertexId;
+            final boolean wholeRowDeletion = wholeRowDeletionEnabled && tx.isVertexFullyRemoved(canonicalId);
+
+            // When the whole row is deleted, per-column deletions are skipped and a fully-removed
+            // vertex has no additions, so both lists stay empty. Avoid preallocating large backing
+            // arrays sized to edges.size() for super-node removals.
+            final List<Entry> additions = new ArrayList<>(wholeRowDeletion ? 0 : edges.size());
+            final List<Entry> deletions = new ArrayList<>(wholeRowDeletion ? 0 : Math.max(10, edges.size() / 10));
+
             for (final InternalRelation edge : edges) {
                 final InternalRelationType baseType = (InternalRelationType) edge.getType();
                 assert baseType.getBaseType()==null;
@@ -863,11 +1127,18 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
                         if (!type.isUnidirected(Direction.BOTH) && !type.isUnidirected(EdgeDirection.fromPosition(pos)))
                             continue; //Directionality is not covered
                         if (edge.getVertex(pos).id().equals(vertexId)) {
-                            StaticArrayEntry entry = edgeSerializer.writeRelation(edge, type, pos, tx);
                             if (edge.isRemoved()) {
-                                deletions.add(entry);
+                                // Skip serializing per-column deletions entirely when a whole-row delete will be issued:
+                                // writeRelation() is not called, so removing a super-node avoids serializing every incident
+                                // edge (CPU + allocations) only to discard the result. wholeRowDeletion is true only when the
+                                // backend advertises the capability, so backends without it always serialize the full
+                                // per-column deletions list (no data loss).
+                                if (!wholeRowDeletion) {
+                                    deletions.add(edgeSerializer.writeRelation(edge, type, pos, tx));
+                                }
                             } else {
                                 Preconditions.checkArgument(edge.isNew());
+                                StaticArrayEntry entry = edgeSerializer.writeRelation(edge, type, pos, tx);
                                 int ttl = getTTL(edge);
                                 if (ttl > 0) {
                                     entry.setMetaData(EntryMetaData.TTL, ttl);
@@ -880,8 +1151,13 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
             }
 
             StaticBuffer vertexKey = idManager.getKey(vertexId);
-            mutator.mutateEdges(vertexKey, additions, deletions);
+            mutator.mutateEdges(vertexKey, additions, deletions, wholeRowDeletion);
         }
+    }
+
+    /** Whether this is a mixed index on a cdc-only backend, i.e. one whose synchronous updates are not generated. */
+    private boolean isCdcOnlyMixedIndex(IndexType index) {
+        return index.isMixedIndex() && cdcOnlyBackingIndexes.contains(((MixedIndexType) index).getBackingIndexName());
     }
 
     /**
@@ -901,6 +1177,9 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
                     mutator.mutateIndex(update.getKey(), KeyColumnValueStore.NO_ADDITIONS, Collections.singletonList(update.getEntry()));
             } else {
                 final IndexUpdate<String,IndexEntry> update = indexUpdate;
+                // cdc-only mixed indexes reach this loop only for relation-document DELETIONS (see
+                // commitDeletionIndexAppliesToFilter); their additions/refreshes were excluded at generation and are
+                // applied asynchronously by the CDC worker instead.
                 has2iMods = true;
                 IndexTransaction itx = mutator.getIndexTransaction(update.getIndex().getBackingIndexName());
                 String indexStore = ((MixedIndexType)update.getIndex()).getStoreName();
@@ -908,6 +1187,18 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
                     itx.add(indexStore, update.getKey(), update.getEntry(), update.getElement().isNew());
                 else
                     itx.delete(indexStore,update.getKey(),update.getEntry().field,update.getEntry().value,update.getElement().isRemoved());
+                //The document of an existing element may turn out to be missing from the index. Hand the provider the
+                //element's complete indexed content once, so that it recreates the document whole rather than from the
+                //touched fields. Whether the document is an existing one is the pending mutation's to say, not the
+                //element's: a property change on an edge or a vertex property replaces the relation, so its deletion
+                //arrives from a removed element and its addition from a new one, while the mutation they add up to is
+                //an update of the existing document. Read here, while the transaction can still read: the index
+                //commit runs after the storage commit. A cdc-only index writes its documents asynchronously and takes
+                //none
+                if (!isCdcOnlyMixedIndex(update.getIndex()) && itx.needsCompleteDocument(indexStore, update.getKey())) {
+                    itx.registerCompleteDocument(indexStore, update.getKey(),
+                        indexSerializer.getCompleteDocument(update.getElement(), (MixedIndexType) update.getIndex()));
+                }
             }
         }
 
@@ -942,6 +1233,7 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
         final KCVSLog txLog = logTransaction?backend.getSystemTxLog():null;
         final TransactionLogHeader txLogHeader = new TransactionLogHeader(transactionId,txTimestamp, times);
         ModificationSummary commitSummary;
+        final ChangedSchemaVertices changedSchemaVertices = ChangedSchemaVertices.of(addedRelations, deletedRelations);
 
         try {
             //3.1 Log transaction (write-ahead log) if enabled
@@ -984,6 +1276,13 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
                 } catch (Throwable e) {
                     //[FAILURE] Primary persistence failed => abort and escalate exception, nothing should have been persisted
                     log.error("Could not commit transaction ["+transactionId+"] due to storage exception in system-commit",e);
+                    //The failed commit, which may have failed on the expected value of a lock, still holds the locks of
+                    //the schema transaction: in this JVM's lock mediator until they expire, and in the lock store
+                    try {
+                        schemaMutator.rollback();
+                    } catch (Throwable e2) {
+                        log.error("Could not roll-back the system-commit of transaction ["+transactionId+"]",e2);
+                    }
                     throw e;
                 }
             }
@@ -1075,6 +1374,98 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
                 log.error("Could not roll-back transaction ["+transactionId+"] after failure due to exception",e2);
             }
             throw e;
+        } finally {
+            //4. Definition edges which no management eviction covers (constraints auto-created under
+            //   schema.constraints=true, connections and properties added through addConnection and addProperties,
+            //   by a transaction or by ManagementSystem) leave the schema caches stale. Expire the local schema cache
+            //   entries of the schema vertices they touch so this instance re-reads them, and those vertices in
+            //   the other open transactions, as ManagementSystem does, so that a transaction which was open during
+            //   this commit does not keep acting on the definition edges it had loaded. The committing transaction
+            //   is left out: it wrote the edges itself and is finishing. So are the vertices it removed, which have
+            //   no definition left to reload. The open transactions are only listed once the graph-level entries
+            //   are gone, so that a transaction which is not on the list can only load the new definition edges.
+            //   A management commit which changes definition edges gets the same from ManagementSystem.commit once
+            //   more, at the cost of a re-read...
+            if (!changedSchemaVertices.all.isEmpty()) {
+                for (Long schemaId : changedSchemaVertices.all) {
+                    schemaCache.expireSchemaElement(schemaId);
+                }
+                for (ItinerisTransaction other : getOpenTransactions()) {
+                    if (other != tx && other.isOpen()) expireSchemaElements(other, changedSchemaVertices.kept);
+                }
+            }
+            //5. ...and tell the other instances to expire those it did not remove, with an eviction which nothing
+            //   waits to see acknowledged. Every instance expires them when it reads it, this one included, which so
+            //   expires them once more. A removed one (say the old modifier vertex of a consistency which the commit
+            //   replaced) has no definition left for anyone to reload, and nothing looks it up once the types it
+            //   belonged to are reloaded. A management commit which changes definition edges and has management
+            //   evictions of its own sends both.
+            if (!changedSchemaVertices.kept.isEmpty()) {
+                tellInstancesToExpire(changedSchemaVertices.kept);
+            }
+        }
+    }
+
+    //Runs in the finally block of a commit, so a failure is logged instead of thrown, where it would replace the
+    //outcome of the commit. Expiring an element reloads its definition, which can fail like any read; the element's
+    //caches are cleared by then, and it is reloaded when the transaction next uses it.
+    private static void expireSchemaElements(ItinerisTransaction transaction, Set<Long> schemaIds) {
+        for (Long schemaId : schemaIds) {
+            try {
+                transaction.expireSchemaElement(schemaId);
+            } catch (RuntimeException e) {
+                log.warn("Could not expire schema element {} in transaction {}; it is reloaded when the transaction "
+                    + "next uses it", schemaId, transaction, e);
+            }
+        }
+    }
+
+    //The instances only need to re-read what they had cached, so nothing waits for them to confirm it, and a failure
+    //to tell them does not fail the commit, which has persisted everything it could by now (and runs this after a
+    //failure as well, since a backend without transaction isolation may have committed its schema part): they catch
+    //up when the elements are evicted next, or when they restart. The management log writes synchronously, so a
+    //struggling backend can hold the commit here for up to its max-write-time.
+    private void tellInstancesToExpire(final Set<Long> schemaIds) {
+        try {
+            managementLogger.sendUnacknowledgedCacheEviction(schemaIds);
+        } catch (Exception e) {
+            log.warn("Could not tell the other instances to expire the schema elements {}, whose definition edges "
+                + "this transaction changed. They keep what they had cached until these are evicted again.",
+                schemaIds, e);
+        }
+    }
+
+    /**
+     * The schema vertices at the ends of the definition edges a transaction wrote: all of them, whose graph-level
+     * cache entries are expired, and those the transaction did not remove, which the other open transactions reload
+     * and the other instances are told to expire. A removed one has no definition left to reload.
+     */
+    private static final class ChangedSchemaVertices {
+        private Set<Long> all = Collections.emptySet();
+        private Set<Long> kept = Collections.emptySet();
+
+        private static ChangedSchemaVertices of(final Collection<InternalRelation> addedRelations,
+                                                final Collection<InternalRelation> deletedRelations) {
+            final ChangedSchemaVertices changed = new ChangedSchemaVertices();
+            for (Collection<InternalRelation> relations : Arrays.asList(addedRelations, deletedRelations)) {
+                for (InternalRelation relation : relations) {
+                    if (relation.getType() != BaseLabel.SchemaDefinitionEdge) continue;
+                    for (int pos = 0; pos < relation.getArity(); pos++) {
+                        InternalVertex vertex = relation.getVertex(pos);
+                        if (vertex instanceof ItinerisSchemaVertex) changed.add((ItinerisSchemaVertex) vertex);
+                    }
+                }
+            }
+            return changed;
+        }
+
+        private void add(ItinerisSchemaVertex vertex) {
+            if (all.isEmpty()) {
+                all = new HashSet<>();
+                kept = new HashSet<>();
+            }
+            all.add(vertex.longId());
+            if (!vertex.isRemoved()) kept.add(vertex.longId());
         }
     }
 
@@ -1090,6 +1481,7 @@ public class StandardItineris extends ItinerisBlueprintsGraph {
         public void start() {
             log.debug("Shutting down graph {} using shutdown hook {}", graph, this);
 
+            graph.closing = true;
             graph.closeInternal();
             graph.shutdownHook = null;
         }

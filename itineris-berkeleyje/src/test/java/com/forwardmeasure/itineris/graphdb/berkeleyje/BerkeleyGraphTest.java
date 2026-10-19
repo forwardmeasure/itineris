@@ -18,9 +18,12 @@ import com.google.common.base.Preconditions;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 import com.sleepycat.je.LockMode;
+import com.sleepycat.je.dbi.DbEnvPool;
 import com.forwardmeasure.itineris.BerkeleyStorageSetup;
+import com.forwardmeasure.itineris.core.Itineris;
 import com.forwardmeasure.itineris.core.ItinerisException;
 import com.forwardmeasure.itineris.core.ItinerisFactory;
+import com.forwardmeasure.itineris.core.ItinerisTransaction;
 import com.forwardmeasure.itineris.diskstorage.Backend;
 import com.forwardmeasure.itineris.diskstorage.BackendException;
 import com.forwardmeasure.itineris.diskstorage.berkeleyje.BerkeleyJEStoreManager;
@@ -30,6 +33,7 @@ import com.forwardmeasure.itineris.diskstorage.configuration.ConfigOption;
 import com.forwardmeasure.itineris.diskstorage.configuration.ModifiableConfiguration;
 import com.forwardmeasure.itineris.diskstorage.configuration.WriteConfiguration;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.keyvalue.OrderedKeyValueStoreManagerAdapter;
+import com.forwardmeasure.itineris.diskstorage.locking.PermanentLockingException;
 import com.forwardmeasure.itineris.graphdb.ItinerisTest;
 import com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration;
 import org.junit.jupiter.api.Disabled;
@@ -37,12 +41,15 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_SETTING_VERTEX_ID;
 import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_CUSTOM_VERTEX_ID_TYPES;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_DIRECTORY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -133,12 +140,6 @@ public class BerkeleyGraphTest extends ItinerisTest {
     public void testVertexTTLWithCompositeIndex() {
     }
 
-    @Override
-    @Test
-    @Disabled("TODO: Figure out why this is failing in BerkeleyDB!!")
-    public void testConcurrentConsistencyEnforcement() {
-    }
-
     @Disabled("Unable to run on GitHub Actions.")
     @Test
     public void testIDBlockAllocationTimeout() throws BackendException {
@@ -159,6 +160,32 @@ public class BerkeleyGraphTest extends ItinerisTest {
         assertEquals(0L, (long)graph.traversal().V().count().next());
     }
 
+    /**
+     * Graph instances which open the same directory share its BerkeleyJE environment, and with it the locks of its
+     * keys.
+     */
+    @Test
+    public void testGraphInstancesOfOneDirectoryShareTheLocksOfItsKeys() throws Exception {
+        makeLockedUniqueName();
+        final Itineris other = ItinerisFactory.open(config.copy());
+        try {
+            //A transaction of one instance fails to commit a value which a transaction of the other committed
+            final ItinerisTransaction late = other.newTransaction();
+            late.addVertex("name", "first");
+            tx.addVertex("name", "first");
+            newTx();
+            final ItinerisException failure = assertThrows(ItinerisException.class, late::commit);
+            assertTrue(failure.isCausedBy(PermanentLockingException.class), failure::toString);
+
+            //Of the transactions of both instances which commit the same value at once, one adds it
+            assertEquals(1, addVerticesAtOnce(Arrays.asList(graph, other), 8, "same"));
+            newTx();
+            assertEquals(1, verticesNamed(tx, "same").size());
+        } finally {
+            other.close();
+        }
+    }
+
     @Override
     public void clopenForStaleIndex(){
         // We set LOCK_MODE to READ_UNCOMMITTED here to mitigate an issue with deadlock problem described in
@@ -171,6 +198,9 @@ public class BerkeleyGraphTest extends ItinerisTest {
         ItinerisException ex = assertThrows(ItinerisException.class,
             () -> clopen(option(ALLOW_SETTING_VERTEX_ID), true, option(ALLOW_CUSTOM_VERTEX_ID_TYPES), true));
         assertEquals("allow-custom-vid-types is not supported for OrderedKeyValueStore", ex.getMessage());
+        //The failed open closed the environment it opened. One left open would keep its files, which the next test
+        //deletes, so BerkeleyJE would fail that test once it noticed.
+        assertFalse(DbEnvPool.getInstance().isOpen(new File(readConfig.get(STORAGE_DIRECTORY))));
     }
 
     @Test

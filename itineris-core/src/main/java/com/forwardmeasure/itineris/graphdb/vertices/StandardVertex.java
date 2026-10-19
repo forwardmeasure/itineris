@@ -21,6 +21,7 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import com.forwardmeasure.itineris.core.ItinerisRelation;
 import com.forwardmeasure.itineris.core.ItinerisVertexProperty;
 import com.forwardmeasure.itineris.core.PropertyKey;
+import com.forwardmeasure.itineris.core.RelationType;
 import com.forwardmeasure.itineris.core.VertexLabel;
 import com.forwardmeasure.itineris.diskstorage.EntryList;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.SliceQuery;
@@ -35,6 +36,7 @@ import com.forwardmeasure.itineris.graphdb.types.system.BaseLabel;
 import com.forwardmeasure.itineris.util.datastructures.Retriever;
 
 import java.util.Iterator;
+import java.util.Set;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
@@ -109,6 +111,12 @@ public class StandardVertex extends AbstractVertex {
     }
 
     @Override
+    public Iterable<InternalRelation> getAddedRelations(Set<? extends RelationType> types,
+                                                        Predicate<InternalRelation> query) {
+        return addedRelations.getView(types, query);
+    }
+
+    @Override
     public Iterable<InternalRelation> findPreviousRelation(long id) {
         return addedRelations.getViewOfPreviousRelations(id);
     }
@@ -162,13 +170,20 @@ public class StandardVertex extends AbstractVertex {
     @Override
     public synchronized void remove() {
         super.remove();
-        ((StandardVertex) it()).updateLifeCycle(ElementLifeCycle.Event.REMOVED);
+        // Resolve the current-transaction vertex once. Calling it() again after the lifecycle is
+        // flipped to REMOVED would re-resolve via getNextTx().getVertex(id) and throw "was removed"
+        // when this reference originated in an already-closed transaction.
+        final StandardVertex vertex = (StandardVertex) it();
+        vertex.updateLifeCycle(ElementLifeCycle.Event.REMOVED);
+        tx().recordRemovedVertex(vertex);
     }
 
     @Override
     public synchronized void remove(Iterable<ItinerisRelation> loadedRelations) {
         super.remove(loadedRelations);
-        ((StandardVertex) it()).updateLifeCycle(ElementLifeCycle.Event.REMOVED);
+        final StandardVertex vertex = (StandardVertex) it();
+        vertex.updateLifeCycle(ElementLifeCycle.Event.REMOVED);
+        tx().recordRemovedVertex(vertex);
     }
 
     @Override

@@ -16,11 +16,13 @@ package com.forwardmeasure.itineris.graphdb.transaction.addedrelations;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
+import com.forwardmeasure.itineris.core.RelationType;
 import com.forwardmeasure.itineris.graphdb.internal.InternalRelation;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
@@ -45,6 +47,12 @@ public class ConcurrentAddedRelations extends SimpleAddedRelations {
     @Override
     public synchronized Iterable<InternalRelation> getView(final Predicate<InternalRelation> filter) {
         return copyView(super.getView(filter));
+    }
+
+    @Override
+    public synchronized Iterable<InternalRelation> getView(final Set<? extends RelationType> types,
+                                                           final Predicate<InternalRelation> filter) {
+        return copyView(super.getView(types, filter));
     }
 
     @Override

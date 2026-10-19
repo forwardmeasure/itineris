@@ -32,6 +32,8 @@ import com.forwardmeasure.itineris.diskstorage.configuration.Configuration;
 import com.forwardmeasure.itineris.diskstorage.configuration.ModifiableConfiguration;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.KeyRangeQuery;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.SliceQuery;
+import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.KeyColumnValueStore;
+import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.KeyColumnValueStoreManager;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.StandardStoreFeatures;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.StoreFeatures;
 import com.forwardmeasure.itineris.diskstorage.util.BufferUtil;
@@ -46,13 +48,13 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -78,12 +80,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)
 @Testcontainers
@@ -322,41 +324,41 @@ public class CQLStoreTest extends KeyColumnValueStoreTest {
 
     @Test
     @FeatureFlag(feature = ItinerisFeature.UnorderedScan)
-    public void testGetKeysWithoutOrderedScan() throws Exception {
-        StandardStoreFeatures features = new StandardStoreFeatures.Builder(manager.getFeatures()).orderedScan(false)
-                .unorderedScan(true)
-                .build();
-        Field featuresField = CQLStoreManager.class
-            .getDeclaredField("storeFeatures");
-        featuresField.setAccessible(true);
-        featuresField.set(manager, features);
-        Exception ex = assertThrows(PermanentBackendException.class, () -> store.getKeys(
+    public void testGetKeysWithoutOrderedScan() throws BackendException {
+        // support unordered scan but not ordered scan
+        final StoreFeatures features = new StandardStoreFeatures.Builder(manager.getFeatures()).orderedScan(false).build();
+        final KeyColumnValueStore storeWithFeatures = openStoreWithFeatures(features, "testGetKeysWithoutOrderedScan");
+        Exception ex = assertThrows(PermanentBackendException.class, () -> storeWithFeatures.getKeys(
             new KeyRangeQuery(BufferUtil.getLongBuffer(1), BufferUtil.getLongBuffer(1000), BufferUtil.getLongBuffer(1),
                 BufferUtil.getLongBuffer(1000)), tx));
         assertEquals("This operation is only allowed when the byteorderedpartitioner is used.", ex.getMessage());
-        assertDoesNotThrow(() -> store.getKeys(
+        assertDoesNotThrow(() -> storeWithFeatures.getKeys(
             new SliceQuery(BufferUtil.zeroBuffer(1), BufferUtil.oneBuffer(4)), tx));
     }
 
     @Test
     @FeatureFlag(feature = ItinerisFeature.OrderedScan)
-    public void testGetKeysWithoutUnorderedScan() throws Exception {
-        // Build features with unorderedScan=false using the copy constructor builder
-        StandardStoreFeatures features = new StandardStoreFeatures.Builder(manager.getFeatures()).unorderedScan(false)
-                .orderedScan(true)
-                .build();
-
-        // Inject the new features into the manager
-        Field featuresField = manager.getClass()
-            .getDeclaredField("storeFeatures");
-        featuresField.setAccessible(true);
-        featuresField.set(manager, features);
-        Exception ex = assertThrows(PermanentBackendException.class, () -> store.getKeys(
+    public void testGetKeysWithoutUnorderedScan() throws BackendException {
+        // support ordered scan but not unordered scan
+        final StoreFeatures features = new StandardStoreFeatures.Builder(manager.getFeatures()).unorderedScan(false).build();
+        final KeyColumnValueStore storeWithFeatures = openStoreWithFeatures(features, "testGetKeysWithoutUnorderedScan");
+        Exception ex = assertThrows(PermanentBackendException.class, () -> storeWithFeatures.getKeys(
             new SliceQuery(BufferUtil.zeroBuffer(1), BufferUtil.oneBuffer(4)), tx));
         assertEquals("This operation is only allowed when partitioner supports unordered scan", ex.getMessage());
-        assertDoesNotThrow(() -> store.getKeys(
+        assertDoesNotThrow(() -> storeWithFeatures.getKeys(
             new KeyRangeQuery(BufferUtil.getLongBuffer(1), BufferUtil.getLongBuffer(1000), BufferUtil.getLongBuffer(1),
                 BufferUtil.getLongBuffer(1000)), tx));
+    }
+
+    /**
+     * Opens a dedicated store whose manager reports the given features. The store consults its manager's features on
+     * every scan, so it is opened from a spy of the manager which returns the given features (the store keeps the spy
+     * as its manager). The features of {@link StandardStoreFeatures} are final, so they cannot be changed in place.
+     */
+    private KeyColumnValueStore openStoreWithFeatures(final StoreFeatures features, final String storeName) throws BackendException {
+        final KeyColumnValueStoreManager managerWithFeatures = Mockito.spy(manager);
+        Mockito.doReturn(features).when(managerWithFeatures).getFeatures();
+        return managerWithFeatures.openDatabase(storeName);
     }
 
     @Override

@@ -55,7 +55,8 @@ public abstract class OpenSearchItinerisIndexTest extends ItinerisIndexTest {
     protected static ItinerisOpenSearchContainer container = new ItinerisOpenSearchContainer();
 
     public OpenSearchItinerisIndexTest() {
-        super(true, true, true);
+        // OpenSearchIndex does not support ordering by list properties yet (upstream added it to the ES backend).
+        super(true, true, true, false);
     }
 
     @Override

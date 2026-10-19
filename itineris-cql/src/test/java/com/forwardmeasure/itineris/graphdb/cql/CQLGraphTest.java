@@ -240,19 +240,43 @@ public class CQLGraphTest extends ItinerisTest {
     public void testHasTTL() {
         assertTrue(features.hasCellTTL());
     }
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
+
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/1457
+    // The parameterized variant of rerunner-jupiter's retry annotation does not work with JUnit 5.13+, so the
+    // parameterized test of the base class is overridden without a test annotation (which excludes it from this
+    // class) and its two parameter values are expanded into the dedicated repeatable tests below.
     @Override
     public void simpleLogTest(boolean useStringId) throws InterruptedException {
         super.simpleLogTest(useStringId);
     }
 
+    @RepeatedIfExceptionsTest(repeats = 3)
+    public void simpleLogTestWithLongId() throws InterruptedException {
+        simpleLogTest(false);
+    }
+
+    @RepeatedIfExceptionsTest(repeats = 3)
+    public void simpleLogTestWithStringId() throws InterruptedException {
+        simpleLogTest(true);
+    }
+
     // flaky test: https://github.com/JanusGraph/janusgraph/issues/1457
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
+    // The parameterized variant of rerunner-jupiter's retry annotation does not work with JUnit 5.13+, so the
+    // parameterized test of the base class is overridden without a test annotation (which excludes it from this
+    // class) and its two parameter values are expanded into the dedicated repeatable tests below.
     @Override
     public void simpleLogTestWithFailure(boolean useStringId) throws InterruptedException {
         super.simpleLogTestWithFailure(useStringId);
+    }
+
+    @RepeatedIfExceptionsTest(repeats = 3)
+    public void simpleLogTestWithFailureWithLongId() throws InterruptedException {
+        simpleLogTestWithFailure(false);
+    }
+
+    @RepeatedIfExceptionsTest(repeats = 3)
+    public void simpleLogTestWithFailureWithStringId() throws InterruptedException {
+        simpleLogTestWithFailure(true);
     }
 
     // flaky test: https://github.com/JanusGraph/janusgraph/issues/1497

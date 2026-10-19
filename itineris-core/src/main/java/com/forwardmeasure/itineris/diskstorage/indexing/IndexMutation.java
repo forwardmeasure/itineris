@@ -20,7 +20,13 @@ import com.forwardmeasure.itineris.diskstorage.EntryMetaData;
 import com.forwardmeasure.itineris.diskstorage.Mutation;
 
 import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -37,6 +43,15 @@ public class IndexMutation extends Mutation<IndexEntry,IndexEntry> {
     private final KeyInformation.StoreRetriever storeRetriever;
     private final boolean isNew;
     private boolean isDeleted;
+    //The complete indexed content of the element this mutation belongs to, when the caller which knows the element
+    //supplied it, so that a provider which finds the document missing can recreate it whole rather than from the
+    //fields the mutation touches. Only an update of an existing document carries one. It is supplied once, from the
+    //element's state at commit, so it may be empty: an element with nothing indexed leaves nothing to recreate a missing
+    //document from, and a provider then goes on as without one. Reading the element again would read the same state
+    private List<IndexEntry> completeDocument;
+    //The values of collection fields which the mutation both deleted and added, as when a vertex property is replaced
+    //by one of the same value: consolidate() drops those deletions, so the document still holds the values added
+    private Map<String, Set<Object>> reAdditions = Collections.emptyMap();
 
     private final Function<IndexEntry, Object> entryConversionFunction =
             indexEntry -> isCollection(indexEntry.field) ?
@@ -66,6 +81,11 @@ public class IndexMutation extends Mutation<IndexEntry,IndexEntry> {
         Preconditions.checkArgument(isNew == m.isNew,"Incompatible new status");
         Preconditions.checkArgument(isDeleted == m.isDeleted,"Incompatible delete status");
         super.merge(m);
+        //Both can only hold a snapshot of the same element; the one merged in was supplied later and stands
+        if (m.completeDocument != null) {
+            completeDocument = m.completeDocument;
+        }
+        m.reAdditions.forEach((field, values) -> values.forEach(value -> addReAddition(field, value)));
     }
 
     public boolean isNew() {
@@ -80,6 +100,21 @@ public class IndexMutation extends Mutation<IndexEntry,IndexEntry> {
         isDeleted=false;
     }
 
+    public void setCompleteDocument(List<IndexEntry> completeDocument) {
+        this.completeDocument = Collections.unmodifiableList(new ArrayList<>(completeDocument));
+    }
+
+    //Whether a complete document has been supplied, which includes an empty one
+    public boolean hasCompleteDocument() {
+        return completeDocument != null;
+    }
+
+    //Every indexed value of the element, as a restore would write the document
+    public List<IndexEntry> getCompleteDocument() {
+        Preconditions.checkState(completeDocument != null, "No complete document has been supplied");
+        return completeDocument;
+    }
+
     private boolean isCollection(String field) {
         KeyInformation keyInformation = storeRetriever.get(field);
         return keyInformation != null && keyInformation.getCardinality() != Cardinality.SINGLE;
@@ -87,7 +122,34 @@ public class IndexMutation extends Mutation<IndexEntry,IndexEntry> {
 
     @Override
     public void consolidate() {
+        if (hasDeletions() && hasAdditions()) {
+            final Set<Object> deleted = new HashSet<>();
+            for (final IndexEntry deletion : getDeletions()) {
+                if (isCollection(deletion.field)) {
+                    deleted.add(entryConversionFunction.apply(deletion));
+                }
+            }
+            for (final IndexEntry addition : getAdditions()) {
+                if (deleted.contains(entryConversionFunction.apply(addition))) {
+                    addReAddition(addition.field, addition.value);
+                }
+            }
+        }
         super.consolidate(entryConversionFunction, entryConversionFunction);
+    }
+
+    //Whether the addition, of a collection field, puts back a value which the mutation deleted too: consolidate()
+    //dropped that deletion, so the document still holds the value
+    public boolean isReAddition(IndexEntry addition) {
+        final Set<Object> values = reAdditions.get(addition.field);
+        return values != null && values.contains(addition.value);
+    }
+
+    private void addReAddition(String field, Object value) {
+        if (reAdditions.isEmpty()) {
+            reAdditions = new HashMap<>();
+        }
+        reAdditions.computeIfAbsent(field, f -> new HashSet<>()).add(value);
     }
 
     @Override

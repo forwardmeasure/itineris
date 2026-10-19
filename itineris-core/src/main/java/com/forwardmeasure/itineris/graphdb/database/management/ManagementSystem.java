@@ -16,6 +16,8 @@ package com.forwardmeasure.itineris.graphdb.database.management;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -35,6 +37,7 @@ import com.forwardmeasure.itineris.core.Multiplicity;
 import com.forwardmeasure.itineris.core.PropertyKey;
 import com.forwardmeasure.itineris.core.RelationType;
 import com.forwardmeasure.itineris.core.VertexLabel;
+import com.forwardmeasure.itineris.core.schema.CompositeIndexInfo;
 import com.forwardmeasure.itineris.core.schema.ConsistencyModifier;
 import com.forwardmeasure.itineris.core.schema.EdgeLabelMaker;
 import com.forwardmeasure.itineris.core.schema.Index;
@@ -51,6 +54,7 @@ import com.forwardmeasure.itineris.core.schema.SchemaAction;
 import com.forwardmeasure.itineris.core.schema.SchemaStatus;
 import com.forwardmeasure.itineris.core.schema.VertexLabelMaker;
 import com.forwardmeasure.itineris.diskstorage.BackendException;
+import com.forwardmeasure.itineris.diskstorage.StaticBuffer;
 import com.forwardmeasure.itineris.diskstorage.configuration.BasicConfiguration;
 import com.forwardmeasure.itineris.diskstorage.configuration.ConfigOption;
 import com.forwardmeasure.itineris.diskstorage.configuration.ModifiableConfiguration;
@@ -62,6 +66,8 @@ import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.scan.ScanJobFuture
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.scan.ScanMetrics;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.scan.StandardScanner;
 import com.forwardmeasure.itineris.diskstorage.log.Log;
+import com.forwardmeasure.itineris.diskstorage.util.StaticArrayBuffer;
+import com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration;
 import com.forwardmeasure.itineris.graphdb.database.IndexSerializer;
 import com.forwardmeasure.itineris.graphdb.database.StandardItineris;
 import com.forwardmeasure.itineris.graphdb.database.cache.SchemaCache;
@@ -75,6 +81,8 @@ import com.forwardmeasure.itineris.graphdb.olap.VertexJobConverter;
 import com.forwardmeasure.itineris.graphdb.olap.job.GhostVertexRemover;
 import com.forwardmeasure.itineris.graphdb.olap.job.IndexRemoveJob;
 import com.forwardmeasure.itineris.graphdb.olap.job.IndexRepairJob;
+import com.forwardmeasure.itineris.graphdb.olap.job.MixedIndexStaleEntryRemover;
+import com.forwardmeasure.itineris.graphdb.olap.job.StaleIndexEntryRemoveJob;
 import com.forwardmeasure.itineris.graphdb.query.QueryUtil;
 import com.forwardmeasure.itineris.graphdb.transaction.StandardItinerisTx;
 import com.forwardmeasure.itineris.graphdb.types.CompositeIndexType;
@@ -106,6 +114,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -262,7 +271,10 @@ public class ManagementSystem implements ItinerisManagement {
     public synchronized void rollback() {
         ensureOpen();
         transactionalConfig.rollback();
-        transaction.rollback();
+        //A commit which failed, or the graph's close, has closed the transaction already
+        if (transaction.isOpen()) {
+            transaction.rollback();
+        }
         close();
     }
 
@@ -545,6 +557,28 @@ public class ManagementSystem implements ItinerisManagement {
         return this.printIndexes(true);
     }
 
+    @Override
+    public Object getVertexId(String hexString) throws DecoderException {
+        return this.graph.getIDManager().getKeyID(StaticArrayBuffer.of(Hex.decodeHex(hexString)));
+    }
+
+    @Override
+    public String getVertexKey(Object vertexId) {
+        return Hex.encodeHexString(graph.getIDManager().getKey(vertexId).asByteBuffer());
+    }
+
+    @Override
+    public String getIndexKey(String indexName, Map<String, Object> fieldValues) {
+        StaticBuffer staticBuffer = transaction.getCompositeIndexKey(indexName, fieldValues);
+        return Hex.encodeHexString(staticBuffer.asByteBuffer());
+    }
+
+    @Override
+    public CompositeIndexInfo getIndexInfo(String hexString) throws DecoderException {
+        StaticArrayBuffer indexKey = StaticArrayBuffer.of(Hex.decodeHex(hexString));
+        return transaction.getCompositeIndexInfo(indexKey);
+    }
+
     private String printIndexes(boolean calledDirectly) {
         StringBuilder sb = new StringBuilder();
         String pattern = "%-30s | %-11s | %-9s | %-14s | %-10s %10s |%n";
@@ -694,10 +728,26 @@ public class ManagementSystem implements ItinerisManagement {
         Preconditions.checkArgument(getGraphIndex(indexName) == null, "An index with name '%s' has already been defined", indexName);
     }
 
+    //An index backend derives its own index name from the Itineris index name case-insensitively (Elasticsearch
+    //lowercases it, Lucene names a directory after it), so two mixed indexes on the same backing index whose names
+    //differ only in case would share one backend index, and with it each other's documents and mappings.
+    private void checkMixedIndexNameDistinctIgnoringCase(String indexName, String backingIndex) {
+        for (ItinerisIndex index : getGraphIndexes(Element.class)) {
+            if (index.isMixedIndex() && backingIndex.equals(index.getBackingIndex())
+                && indexName.equalsIgnoreCase(index.name())) {
+                throw new IllegalArgumentException(String.format("Cannot create mixed index '%s' on backing index "
+                    + "'%s': mixed index '%s' is already defined there, and mixed index names on one backing index must "
+                    + "differ in more than case, because the backing index derives its own index name from them "
+                    + "case-insensitively.", indexName, backingIndex, index.name()));
+            }
+        }
+    }
+
     private ItinerisIndex createMixedIndex(String indexName, ElementCategory elementCategory,
                                              ItinerisSchemaType constraint, String backingIndex) {
         Preconditions.checkArgument(graph.getIndexSerializer().containsIndex(backingIndex), "Unknown external index backend: %s", backingIndex);
         checkIndexName(indexName);
+        checkMixedIndexNameDistinctIgnoringCase(indexName, backingIndex);
 
         TypeDefinitionMap def = new TypeDefinitionMap();
         def.setValue(TypeDefinitionCategory.INTERNAL_INDEX, false);
@@ -914,11 +964,20 @@ public class ManagementSystem implements ItinerisManagement {
      --------------- */
     @Override
     public ScanJobFuture updateIndex(Index index, SchemaAction updateAction) {
-        return updateIndex(index, updateAction, Runtime.getRuntime().availableProcessors());
+        return updateIndex(index, updateAction, null, Runtime.getRuntime().availableProcessors());
     }
 
     @Override
     public ScanJobFuture updateIndex(Index index, SchemaAction updateAction, int numOfThreads) {
+        return updateIndex(index, updateAction, null, numOfThreads);
+    }
+
+    @Override
+    public ScanJobFuture updateIndex(Index index, SchemaAction updateAction, List<Object> vertexOnly) {
+        return updateIndex(index, updateAction, vertexOnly, Runtime.getRuntime().availableProcessors());
+    }
+
+    private ScanJobFuture updateIndex(Index index, SchemaAction updateAction, List<Object> vertexOnly, int numOfThreads) {
         Preconditions.checkArgument(index != null, "Need to provide an index");
         Preconditions.checkArgument(updateAction != null, "Need to provide update action");
 
@@ -946,6 +1005,15 @@ public class ManagementSystem implements ItinerisManagement {
                     if (applicableStatus.contains(field.getStatus()))
                         keySubset.add((PropertyKeyVertex) field.getFieldKey());
                 }
+                //A mixed index keeps a status per field instead of one status on the index, so this is the
+                //equivalent of the isApplicableStatus check the composite branch makes above. Without it an action
+                //which matches no field reaches setStatusVertex, whose precondition is guaranteed to fail for a
+                //mixed index and carries no message at all, so the caller is left with a bare
+                //IllegalArgumentException saying nothing about the real problem
+                Preconditions.checkArgument(!keySubset.isEmpty(),
+                    "Update action [%s] cannot be invoked for index [%s] because none of its fields has one of the" +
+                        " applicable statuses %s. The current status of each field is %s", updateAction, index.name(),
+                    orderedStatuses(applicableStatus), fieldStatuses(mixedIndexType));
 
                 dependentTypes.addAll(keySubset);
             }
@@ -964,15 +1032,51 @@ public class ManagementSystem implements ItinerisManagement {
                 break;
             case REINDEX:
                 builder = graph.getBackend().buildEdgeScanJob();
-                builder.setFinishJob(indexId.getIndexJobFinisher(graph, SchemaAction.ENABLE_INDEX));
+                configureMixedIndexReindexBatching(index, builder);
+                if (isWriteOnlyEnabled(index, schemaVertex)) {
+                    //An explicitly write-only index keeps its status after reindexing instead of being
+                    //automatically enabled for queries
+                    builder.setFinishJob(indexId.getIndexJobFinisher());
+                } else {
+                    builder.setFinishJob(indexId.getIndexJobFinisher(graph, SchemaAction.ENABLE_INDEX));
+                }
                 builder.setJobId(indexId);
                 builder.setNumProcessingThreads(numOfThreads);
-                builder.setJob(VertexJobConverter.convert(graph, new IndexRepairJob(indexId.indexName, indexId.relationTypeName)));
+                builder.setJob(VertexJobConverter.convert(graph, new IndexRepairJob(indexId.indexName, indexId.relationTypeName), vertexOnly));
                 try {
                     future = builder.execute();
                 } catch (BackendException e) {
                     throw new ItinerisException(e);
                 }
+                break;
+            case REMOVE_STALE_ENTRIES:
+                if (index instanceof RelationTypeIndex) {
+                    throw new UnsupportedOperationException("Stale index entry removal is not supported for" +
+                        " vertex-centric indexes: " + index.name());
+                }
+                if (((ItinerisIndex) index).isMixedIndex()) {
+                    //Stale document deletions are flushed through the same bulk restore() calls as reindex
+                    //document restores, so the reindex batch size option governs both
+                    future = MixedIndexStaleEntryRemover.submit(graph, indexId.indexName,
+                        graph.getConfiguration().getConfiguration().get(GraphDatabaseConfiguration.MIXED_INDEX_REINDEX_BATCH_SIZE));
+                } else {
+                    builder = graph.getBackend().buildGraphIndexScanJob();
+                    builder.setFinishJob(indexId.getIndexJobFinisher());
+                    builder.setJobId(indexId);
+                    builder.setNumProcessingThreads(numOfThreads);
+                    builder.setJob(new StaleIndexEntryRemoveJob(graph, indexId.indexName, indexId.relationTypeName));
+                    try {
+                        future = builder.execute();
+                    } catch (BackendException e) {
+                        throw new ItinerisException(e);
+                    }
+                }
+                break;
+            case ENABLE_WRITE_ONLY:
+                setStatus(schemaVertex, SchemaStatus.WRITE_ONLY_ENABLED, keySubset);
+                updatedTypes.add(schemaVertex);
+                if (!keySubset.isEmpty()) updatedTypes.addAll(dependentTypes);
+                future = new EmptyScanJobFuture();
                 break;
             case ENABLE_INDEX:
                 setStatus(schemaVertex, SchemaStatus.ENABLED, keySubset);
@@ -1033,6 +1137,32 @@ public class ManagementSystem implements ItinerisManagement {
                 throw new UnsupportedOperationException("Update action not supported: " + updateAction);
         }
         return future;
+    }
+
+    private void configureMixedIndexReindexBatching(Index index, StandardScanner.Builder builder) {
+        if (index instanceof ItinerisIndex && ((ItinerisIndex) index).isMixedIndex()
+                && graph.getConfiguration().getConfiguration().get(GraphDatabaseConfiguration.MIXED_INDEX_REINDEX_BATCH_ENABLED)) {
+            builder.setWorkBlockSize(graph.getConfiguration().getConfiguration().get(GraphDatabaseConfiguration.MIXED_INDEX_REINDEX_BATCH_SIZE));
+        }
+    }
+
+    /**
+     * Determines whether the given index is explicitly enabled for writes only. A mixed index counts as
+     * write-only if any of its field keys has the {@link SchemaStatus#WRITE_ONLY_ENABLED} status because
+     * such a status can only be reached through an explicit {@link SchemaAction#ENABLE_WRITE_ONLY} request.
+     */
+    private static boolean isWriteOnlyEnabled(Index index, ItinerisSchemaVertex schemaVertex) {
+        if (index instanceof RelationTypeIndex) {
+            return schemaVertex.getStatus() == SchemaStatus.WRITE_ONLY_ENABLED;
+        }
+        IndexType indexType = schemaVertex.asIndexType();
+        if (indexType.isCompositeIndex()) {
+            return schemaVertex.getStatus() == SchemaStatus.WRITE_ONLY_ENABLED;
+        }
+        for (ParameterIndexField field : ((MixedIndexType) indexType).getFieldKeys()) {
+            if (field.getStatus() == SchemaStatus.WRITE_ONLY_ENABLED) return true;
+        }
+        return false;
     }
 
     /**
@@ -1100,9 +1230,32 @@ public class ManagementSystem implements ItinerisManagement {
                 ItinerisVertex vertex = management.transaction.getVertex(schemaVertexId);
                 Preconditions.checkArgument(vertex != null && vertex instanceof ItinerisSchemaVertex);
                 ItinerisSchemaVertex schemaVertex = (ItinerisSchemaVertex) vertex;
+                //Only complete the pending status handshake for schema elements which are still INSTALLED:
+                //a concurrent status change (e.g. DISABLE_INDEX) supersedes the pending status update
                 Set<PropertyKeyVertex> keys = new HashSet<>(propertyKeys.size());
-                for (Long keyId : propertyKeys) {
-                    keys.add((PropertyKeyVertex) management.transaction.getVertex(keyId));
+                if (propertyKeys.isEmpty()) {
+                    if (schemaVertex.getStatus() != SchemaStatus.INSTALLED) {
+                        log.info("Skipping status update to {} on schema element (ID#{}) because its status" +
+                                " is no longer INSTALLED", newStatus, schemaVertexId);
+                        management.rollback();
+                        return true;
+                    }
+                } else {
+                    MixedIndexType indexType = (MixedIndexType) schemaVertex.asIndexType();
+                    for (Long keyId : propertyKeys) {
+                        PropertyKeyVertex key = (PropertyKeyVertex) management.transaction.getVertex(keyId);
+                        ParameterIndexField field = indexType.getField(key);
+                        if (field != null && field.getStatus() == SchemaStatus.INSTALLED) {
+                            keys.add(key);
+                        } else {
+                            log.info("Skipping status update to {} for property key (ID#{}) on schema element (ID#{})" +
+                                    " because its status is no longer INSTALLED", newStatus, keyId, schemaVertexId);
+                        }
+                    }
+                    if (keys.isEmpty()) {
+                        management.rollback();
+                        return true;
+                    }
                 }
                 management.setStatus(schemaVertex, newStatus, keys);
                 management.updatedTypes.addAll(keys);
@@ -1149,6 +1302,20 @@ public class ManagementSystem implements ItinerisManagement {
 
     private void setUpdateTrigger(Callable<Boolean> trigger) {
         updatedTypeTriggers.add(trigger);
+    }
+
+    //Renders statuses in the natural order of the enum, which the JLS defines as the order they are declared in, so
+    //that a user facing message does not inherit the iteration order of whatever collection happens to hold them -
+    //the applicable statuses of an action reach this as an unordered Set
+    private static String orderedStatuses(Collection<SchemaStatus> statuses) {
+        return statuses.stream().sorted().map(SchemaStatus::name).collect(Collectors.joining(", ", "[", "]"));
+    }
+
+    //Reports the status of every field of a mixed index, so that a rejected update action can say why it was rejected
+    private static String fieldStatuses(MixedIndexType index) {
+        return Arrays.stream(index.getFieldKeys())
+            .map(field -> field.getFieldKey().name() + "=" + field.getStatus().name())
+            .collect(Collectors.joining(", ", "[", "]"));
     }
 
     private void setStatus(ItinerisSchemaVertex vertex, SchemaStatus status, Set<PropertyKeyVertex> keys) {

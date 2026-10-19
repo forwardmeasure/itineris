@@ -15,6 +15,7 @@
 package com.forwardmeasure.itineris.graphdb.query;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 import com.forwardmeasure.itineris.core.EdgeLabel;
 import com.forwardmeasure.itineris.core.ItinerisEdge;
 import com.forwardmeasure.itineris.core.ItinerisElement;
@@ -34,11 +35,13 @@ import com.forwardmeasure.itineris.graphdb.query.condition.MultiCondition;
 import com.forwardmeasure.itineris.graphdb.query.condition.Not;
 import com.forwardmeasure.itineris.graphdb.query.condition.Or;
 import com.forwardmeasure.itineris.graphdb.query.condition.PredicateCondition;
+import com.forwardmeasure.itineris.graphdb.query.condition.RelationTypeCondition;
 import com.forwardmeasure.itineris.graphdb.transaction.StandardItinerisTx;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -163,6 +166,54 @@ public class QueryUtil {
     }
 
     /**
+     * The types one of which every relation that matches the condition has, or null when the condition doesn't tell:
+     * the type of a {@link RelationTypeCondition}, the types of a disjunction of conditions which each tell theirs, and
+     * the types which all of the children of a conjunction that tell theirs have in common.
+     *
+     * @param condition a condition on relations, or null for no condition
+     * @return the types of the relations which may match the condition, or null for relations of any type
+     */
+    public static Set<RelationType> getRelationTypes(Condition<?> condition) {
+        if (condition == null) {
+            return null;
+        }
+        if (condition instanceof RelationTypeCondition) {
+            return Collections.singleton(((RelationTypeCondition<?>) condition).getRelationType());
+        }
+        if (condition instanceof Or) {
+            //A disjunction without children holds for every relation
+            if (!condition.hasChildren()) return null;
+            final Set<RelationType> types = new HashSet<>();
+            for (final Condition<?> child : condition.getChildren()) {
+                final Set<RelationType> childTypes = getRelationTypes(child);
+                if (childTypes == null) return null;
+                types.addAll(childTypes);
+            }
+            return types;
+        }
+        if (condition instanceof And) {
+            //The types of the one child that tells them, as is: a vertex-centric query's condition has a single one
+            Set<RelationType> types = null;
+            boolean copied = false;
+            for (final Condition<?> child : condition.getChildren()) {
+                final Set<RelationType> childTypes = getRelationTypes(child);
+                if (childTypes == null) continue;
+                if (types == null) {
+                    types = childTypes;
+                } else {
+                    if (!copied) {
+                        types = new HashSet<>(types);
+                        copied = true;
+                    }
+                    types.retainAll(childTypes);
+                }
+            }
+            return types;
+        }
+        return null;
+    }
+
+    /**
      * Prepares the constraints from the query builder into a QNF compliant condition.
      * If the condition is invalid or trivially false, it returns null.
      *
@@ -207,8 +258,7 @@ public class QueryUtil {
                 final Collection values = (Collection) value;
                 if (predicate == Contain.NOT_IN) {
                     if (values.isEmpty()) continue; //Simply ignore since trivially satisfied
-                    for (final Object inValue : values)
-                        addConstraint(type, Cmp.NOT_EQUAL, inValue, conditions, tx);
+                    addConstraints(type, Cmp.NOT_EQUAL, values, conditions, tx);
                 } else {
                     Preconditions.checkArgument(predicate == Contain.IN);
                     if (values.isEmpty()) {
@@ -217,8 +267,7 @@ public class QueryUtil {
                         addConstraint(type, Cmp.EQUAL, values.iterator().next(), conditions, tx);
                     } else {
                         final Or<E> nested = new Or<>(values.size());
-                        for (final Object invalue : values)
-                            addConstraint(type, Cmp.EQUAL, invalue, nested, tx);
+                        addConstraints(type, Cmp.EQUAL, values, nested, tx);
                         conditions.add(nested);
                     }
                 }
@@ -249,8 +298,7 @@ public class QueryUtil {
                 final Collection childValues = (Collection) values.get(i);
                 if (janusGraphPredicate == Contain.NOT_IN) {
                     if (childValues.isEmpty()) continue; //Simply ignore since trivially satisfied
-                    for (final Object inValue : childValues)
-                        addConstraint(type, Cmp.NOT_EQUAL, inValue, and, tx);
+                    addConstraints(type, Cmp.NOT_EQUAL, childValues, and, tx);
                 } else {
                     Preconditions.checkArgument(janusGraphPredicate == Contain.IN);
                     if (childValues.isEmpty()) {
@@ -260,8 +308,7 @@ public class QueryUtil {
                         addConstraint(type, Cmp.EQUAL, childValues.iterator().next(), and, tx);
                     } else {
                         final Or<E> nested = new Or<>(childValues.size());
-                        for (final Object inValue : childValues)
-                            addConstraint(type, Cmp.EQUAL, inValue, nested, tx);
+                        addConstraints(type, Cmp.EQUAL, childValues, nested, tx);
                         and.add(nested);
                     }
                 }
@@ -283,7 +330,15 @@ public class QueryUtil {
         return and;
     }
 
+    //Returns the disjunction with the branches of the predicate, or null where nothing satisfies any of them
     private static <E extends ItinerisElement> Or<E> addConstraint(final RelationType type, OrJanusPredicate predicate, List<Object> values, Or<E> or, StandardItinerisTx tx) {
+        addBranches(type, predicate, values, or, tx);
+        //An empty disjunction would hold for every element
+        return or.hasChildren() ? or : null;
+    }
+
+    //Adds the branches of the predicate to the disjunction, leaving out each branch which nothing satisfies
+    private static <E extends ItinerisElement> void addBranches(final RelationType type, OrJanusPredicate predicate, List<Object> values, Or<E> or, StandardItinerisTx tx) {
         for (int i = 0 ; i < values.size(); i++) {
             final ItinerisPredicate janusGraphPredicate = predicate.get(i);
             if (janusGraphPredicate instanceof Contain) {
@@ -296,47 +351,62 @@ public class QueryUtil {
                     // Don't need to handle the case where childValues is empty, because it defaults to
                     // an or(and()) is added, which is a tautology
                     final And<E> nested = new And<>(childValues.size());
-                    for (final Object inValue : childValues) {
-                        addConstraint(type, Cmp.NOT_EQUAL, inValue, nested, tx);
-                    }
+                    addConstraints(type, Cmp.NOT_EQUAL, childValues, nested, tx);
                     or.add(nested);
                 } else {
                     Preconditions.checkArgument(janusGraphPredicate == Contain.IN);
                     if (childValues.isEmpty()) {
                         continue; // Handle any unsatisfiable condition that occurs within an OR statement like it does not exist
                     }
-                    for (final Object inValue : childValues) {
-                        addConstraint(type, Cmp.EQUAL, inValue, or, tx);
-                    }
+                    addConstraints(type, Cmp.EQUAL, childValues, or, tx);
                 }
             } else if (janusGraphPredicate instanceof AndJanusPredicate) {
                 final List<Object> childValues = (List<Object>) (values.get(i));
                 final And<E> nested = addConstraint(type, (AndJanusPredicate) janusGraphPredicate, childValues, new And<>(childValues.size()), tx);
-                if (nested == null) {
-                    return null;
+                if (nested != null) {
+                    or.add(nested);
                 }
-                or.add(nested);
             } else if (janusGraphPredicate instanceof OrJanusPredicate) {
-                if (addConstraint(type, (OrJanusPredicate) janusGraphPredicate, (List<Object>) (values.get(i)), or, tx) == null) {
-                    return null;
-                }
+                addBranches(type, (OrJanusPredicate) janusGraphPredicate, (List<Object>) (values.get(i)), or, tx);
             } else {
                 addConstraint(type, janusGraphPredicate, values.get(i), or, tx);
             }
         }
-        return or;
     }
 
     private static <E extends ItinerisElement> void addConstraint(RelationType type, ItinerisPredicate predicate,
                                                                Object value, MultiCondition<E> conditions, StandardItinerisTx tx) {
+        final PredicateCondition<RelationType, E> pc = constraint(type, predicate, value, tx);
+        if (!conditions.contains(pc)) conditions.add(pc);
+    }
+
+    //Adds the constraint for each of the values which the conditions don't hold yet, as addConstraint does for one value.
+    //A set tells which they hold: looking each one up in the list made a within() or without() quadratic in its values
+    private static <E extends ItinerisElement> void addConstraints(RelationType type, ItinerisPredicate predicate,
+                                                                Collection<?> values, MultiCondition<E> conditions,
+                                                                StandardItinerisTx tx) {
+        final Set<Condition<E>> held = Sets.newHashSetWithExpectedSize(conditions.size() + values.size());
+        for (final Condition<E> condition : conditions) {
+            //Only an atom can equal an atom, and hashing a nested and() or or() would hash all of its children
+            if (condition instanceof PredicateCondition) held.add(condition);
+        }
+        for (final Object value : values) {
+            final PredicateCondition<RelationType, E> pc = constraint(type, predicate, value, tx);
+            if (held.add(pc)) conditions.add(pc);
+        }
+    }
+
+    private static <E extends ItinerisElement> PredicateCondition<RelationType, E> constraint(RelationType type,
+                                                                                            ItinerisPredicate predicate,
+                                                                                            Object value,
+                                                                                            StandardItinerisTx tx) {
         if (type.isPropertyKey()) {
             if (value != null)
                 value = tx.verifyAttribute((PropertyKey) type, value);
         } else { //t.isEdgeLabel()
             Preconditions.checkArgument(value instanceof ItinerisVertex);
         }
-        final PredicateCondition<RelationType, E> pc = new PredicateCondition<>(type, predicate, value);
-        if (!conditions.contains(pc)) conditions.add(pc);
+        return new PredicateCondition<>(type, predicate, value);
     }
 
 
