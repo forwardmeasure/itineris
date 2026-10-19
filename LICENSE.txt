@@ -10,9 +10,9 @@ The code of Itineris is under the APACHE-2.0 license.
 
 The documentation of Itineris is under a combination of licenses:
 
-* APACHE-2.0 license for all documentation contributed prior to the Itineris
+* APACHE-2.0 license for all documentation contributed prior to the JanusGraph
   fork (27 Dec 2016), i.e., imported with the initial Titan fork
-* CC-BY-4.0 license for all documentation contributed on or after the Itineris
+* CC-BY-4.0 license for all documentation contributed on or after the JanusGraph
   fork (27 Dec 2016)
 
 All new contributions to Itineris are accepted under the following licenses:
