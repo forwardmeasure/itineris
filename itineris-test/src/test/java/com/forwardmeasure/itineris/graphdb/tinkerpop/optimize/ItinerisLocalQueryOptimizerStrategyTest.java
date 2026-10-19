@@ -1,0 +1,128 @@
+// Copyright 2020 JanusGraph Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.forwardmeasure.itineris.graphdb.tinkerpop.optimize;
+
+import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.apache.tinkerpop.gremlin.process.traversal.step.branch.LocalStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.OrderGlobalStep;
+import com.forwardmeasure.itineris.graphdb.query.profile.QueryProfiler;
+import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisHasStep;
+import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisPropertiesStep;
+import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisStep;
+import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisVertexStep;
+import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.strategy.MultiQueryHasStepStrategyMode;
+import org.junit.jupiter.api.Test;
+
+import static org.apache.tinkerpop.gremlin.process.traversal.Order.asc;
+import static org.apache.tinkerpop.gremlin.process.traversal.Order.desc;
+import static com.forwardmeasure.itineris.graphdb.ItinerisBaseTest.option;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.HAS_STEP_BATCH_MODE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.USE_MULTIQUERY;
+import static com.forwardmeasure.itineris.testutil.ItinerisAssert.assertNumStep;
+import static com.forwardmeasure.itineris.testutil.ItinerisAssert.queryProfilerAnnotationIsPresent;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * @author Florian Grieskamp (Florian.Grieskamp@gdata.de)
+ */
+public class ItinerisLocalQueryOptimizerStrategyTest extends OptimizerStrategyTest {
+
+    @Test
+    public void testDefaultConfiguration() {
+        makeSampleGraph();
+        //Edge
+        assertNumStep(numV / 5, 1, g.V(sv[0]).outE("knows").has("weight", 1), ItinerisVertexStep.class);
+        assertNumStep(numV, 1, g.V(sv[0]).outE("knows"), ItinerisVertexStep.class);
+        assertNumStep(numV, 1, g.V(sv[0]).out("knows"), ItinerisVertexStep.class);
+        assertNumStep(10, 1, g.V(sv[0]).local(__.outE("knows").limit(10)), ItinerisVertexStep.class);
+        assertNumStep(10, 1, g.V(sv[0]).local(__.outE("knows").range(10, 20)), LocalStep.class);
+        assertNumStep(numV, 2, g.V(sv[0]).outE("knows").order().by("weight", desc), ItinerisVertexStep.class, OrderGlobalStep.class);
+        // Ensure the LocalStep is dropped because the Order can be folded in the ItinerisVertexStep which in turn
+        // will allow ItinerisLocalQueryOptimizationStrategy to drop the LocalStep as the local ordering will be
+        // provided by the single ItinerisVertex step
+        assertNumStep(10, 0, g.V(sv[0]).local(__.outE("knows").order().by("weight", desc).limit(10)), LocalStep.class);
+        assertNumStep(numV / 5, 2, g.V(sv[0]).outE("knows").has("weight", 1).order().by("weight", asc), ItinerisVertexStep.class, OrderGlobalStep.class);
+        assertNumStep(10, 0, g.V(sv[0]).local(__.outE("knows").has("weight", 1).order().by("weight", asc).limit(10)), LocalStep.class);
+        // Note that for this test, the upper offset of the range will be folded into the ItinerisVertexStep
+        // by ItinerisLocalQueryOptimizationStrategy, but not the lower offset. The RangeGlobalStep will in turn be kept
+        // to enforce this lower bound and the LocalStep will be left as is as the local behavior will have not been
+        // entirely subsumed by the ItinerisVertexStep
+        assertNumStep(5, 1, g.V(sv[0]).local(__.outE("knows").has("weight", 1).has("weight", 1).order().by("weight", asc).range(10, 15)), LocalStep.class);
+
+        //Property
+        assertNumStep(numV / 5, 1, g.V(sv[0]).properties("names").has("weight", 1), ItinerisPropertiesStep.class);
+        assertNumStep(numV, 1, g.V(sv[0]).properties("names"), ItinerisPropertiesStep.class);
+        assertNumStep(10, 0, g.V(sv[0]).local(__.properties("names").order().by("weight", desc).limit(10)), LocalStep.class);
+        assertNumStep(numV, 2, g.V(sv[0]).outE("knows").values("weight"), ItinerisVertexStep.class, ItinerisPropertiesStep.class);
+
+
+        //Global graph queries
+        assertNumStep(1, 1, g.V().has("id", numV / 5), ItinerisStep.class);
+        assertNumStep(1, 1, g.V().has("id", numV / 5).has("weight", (numV / 5) % 5), ItinerisStep.class);
+        assertNumStep(numV / 5, 1, g.V().has("weight", 1), ItinerisStep.class);
+        assertNumStep(10, 1, g.V().has("weight", 1).range(0, 10), ItinerisStep.class);
+
+        assertNumStep(superV, 1, g.V().has("id", sid), ItinerisStep.class);
+        //Ensure that as steps don't interfere
+        assertNumStep(1, 1, g.V().has("id", numV / 5).as("x"), ItinerisStep.class);
+        assertNumStep(1, 1, g.V().has("id", numV / 5).has("weight", (numV / 5) % 5).as("x"), ItinerisStep.class);
+
+
+        assertNumStep(superV * (numV / 5), 2, g.V().has("id", sid).outE("knows").has("weight", 1), ItinerisStep.class, ItinerisVertexStep.class);
+        assertNumStep(superV * (numV / 5 * 2), 2, g.V().has("id", sid).outE("knows").has("weight", P.gte(1)).has("weight", P.lt(3)), ItinerisStep.class, ItinerisVertexStep.class);
+        assertNumStep(superV * (numV / 5 * 2), 2, g.V().has("id", sid).outE("knows").has("weight", P.between(1, 3)), ItinerisStep.class, ItinerisVertexStep.class);
+        assertNumStep(superV * 10, 2, g.V().has("id", sid).local(__.outE("knows").has("weight", P.gte(1)).has("weight", P.lt(3)).limit(10)), ItinerisStep.class, ItinerisVertexStep.class);
+        assertNumStep(superV * 10, 1, g.V().has("id", sid).local(__.outE("knows").has("weight", P.between(1, 3)).order().by("weight", desc).limit(10)), ItinerisStep.class);
+        assertNumStep(superV * 10, 0, g.V().has("id", sid).local(__.outE("knows").has("weight", P.between(1, 3)).order().by("weight", desc).limit(10)), LocalStep.class);
+    }
+
+    @Test
+    public void propertiesPreFetchingIsNotTriggeredWhenConfigurationIsDisabled() {
+        clopen(option(USE_MULTIQUERY), false, option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.NONE.getConfigName());
+
+        makeSampleGraph();
+
+        // Verify that the batch property pre-fetching is not applied when the configuration option is not set
+        Traversal t = g.V().has("id", sid).outE("knows").has("weight", P.between(1, 3)).inV().has("weight", P.between(1, 3)).profile("~metrics");
+        assertNumStep(superV * (numV / 5 * 2), 2, (GraphTraversal) t, ItinerisStep.class, ItinerisVertexStep.class);
+        assertFalse(queryProfilerAnnotationIsPresent(t, QueryProfiler.MULTIPREFETCH_ANNOTATION));
+    }
+
+    @Test
+    public void testBatchPropertyPrefetching() {
+        clopen(option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+        makeSampleGraph();
+
+        // This tests an edge property before inV and will trigger the multiQuery property pre-fetch optimisation in ItinerisEdgeVertexStep
+        Traversal t = g.V().has("id", sid).outE("knows").has("weight", P.between(1, 3)).inV().has("weight", P.between(1, 3)).profile("~metrics");
+        assertNumStep(superV * (numV / 5 * 2), 3, (GraphTraversal)t, ItinerisStep.class, ItinerisVertexStep.class, ItinerisHasStep.class);
+        assertTrue(queryProfilerAnnotationIsPresent(t, QueryProfiler.MULTIPREFETCH_ANNOTATION));
+
+        // This tests a vertex property after inV and will trigger the multiQuery property pre-fetch optimisation in ItinerisVertexStep
+        t = g.V().has("id", sid).outE("knows").inV().has("weight", P.between(1, 3)).profile("~metrics");
+        assertNumStep(superV * (numV / 5 * 2), 3, (GraphTraversal)t, ItinerisStep.class, ItinerisVertexStep.class, ItinerisHasStep.class);
+        assertTrue(queryProfilerAnnotationIsPresent(t, QueryProfiler.MULTIPREFETCH_ANNOTATION));
+
+        // As above but with a limit after the has step. Pre-fetch should fetch data up to limit only.
+        t = g.V().has("id", sid).outE("knows").inV().has("weight", P.between(1, 3)).limit(1000).profile("~metrics");
+        assertNumStep(superV * (numV / 5 * 2), 3, (GraphTraversal)t, ItinerisStep.class, ItinerisVertexStep.class, ItinerisHasStep.class);
+        assertTrue(queryProfilerAnnotationIsPresent(t, QueryProfiler.MULTIPREFETCH_ANNOTATION));
+    }
+
+}

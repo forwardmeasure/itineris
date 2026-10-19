@@ -1,0 +1,122 @@
+// Copyright 2017 JanusGraph Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.forwardmeasure.itineris.graphdb.tinkerpop;
+
+import org.apache.tinkerpop.shaded.kryo.Kryo;
+import org.apache.tinkerpop.shaded.kryo.Serializer;
+import org.apache.tinkerpop.shaded.kryo.io.Input;
+import org.apache.tinkerpop.shaded.kryo.io.Output;
+import com.forwardmeasure.itineris.core.attribute.Geo;
+import com.forwardmeasure.itineris.core.attribute.Text;
+import com.forwardmeasure.itineris.graphdb.tinkerpop.io.ItinerisP;
+
+/**
+ * Serialize Janus Graph Predicates.
+ * <p>
+ * Since all predicates end up being an instance of P and the TinkerPop P
+ * serializer is not extensible, it is copied here and the Itineris predicates
+ * are added.
+ */
+public class ItinerisPSerializer extends Serializer<ItinerisP> {
+
+    @Override
+    public void write(Kryo kryo, Output output, ItinerisP p) {
+        output.writeString(p.getBiPredicate().toString());
+        kryo.writeClassAndObject(output, p.getValue());
+    }
+
+    @Override
+    public ItinerisP read(Kryo kryo, Input input, Class<ItinerisP> aClass) {
+        final String predicate = input.readString();
+        final Object value = kryo.readClassAndObject(input);
+
+        return createPredicateWithValue(predicate, value);
+    }
+
+    public static boolean checkForItinerisPredicate(String predicateName) {
+        switch (predicateName) {
+            case "geoIntersect":
+            case "geoDisjoint":
+            case "geoWithin":
+            case "geoContains":
+            case "textContains":
+            case "textNotContains":
+            case "textContainsFuzzy":
+            case "textNotContainsFuzzy":
+            case "textContainsPrefix":
+            case "textNotContainsPrefix":
+            case "textContainsRegex":
+            case "textNotContainsRegex":
+            case "textContainsPhrase":
+            case "textNotContainsPhrase":
+            case "textFuzzy":
+            case "textNotFuzzy":
+            case "textPrefix":
+            case "textNotPrefix":
+            case "textRegex":
+            case "textNotRegex":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public static ItinerisP createPredicateWithValue(String predicateName, Object value) {
+        switch (predicateName) {
+            case "geoIntersect":
+                return Geo.geoIntersect(value);
+            case "geoDisjoint":
+                return Geo.geoDisjoint(value);
+            case "geoWithin":
+                return Geo.geoWithin(value);
+            case "geoContains":
+                return Geo.geoContains(value);
+            case "textContains":
+                return Text.textContains(value);
+            case "textNotContains":
+                return Text.textNotContains(value);
+            case "textContainsFuzzy":
+                return Text.textContainsFuzzy(value);
+            case "textNotContainsFuzzy":
+                return Text.textNotContainsFuzzy(value);
+            case "textContainsPrefix":
+                return Text.textContainsPrefix(value);
+            case "textNotContainsPrefix":
+                return Text.textNotContainsPrefix(value);
+            case "textContainsRegex":
+                return Text.textContainsRegex(value);
+            case "textNotContainsRegex":
+                return Text.textNotContainsRegex(value);
+            case "textContainsPhrase":
+                return Text.textContainsPhrase(value);
+            case "textNotContainsPhrase":
+                return Text.textNotContainsPhrase(value);
+            case "textFuzzy":
+                return Text.textFuzzy(value);
+            case "textNotFuzzy":
+                return Text.textNotFuzzy(value);
+            case "textPrefix":
+                return Text.textPrefix(value);
+            case "textNotPrefix":
+                return Text.textNotPrefix(value);
+            case "textRegex":
+                return Text.textRegex(value);
+            case "textNotRegex":
+                return Text.textNotRegex(value);
+            default:
+                throw new UnsupportedOperationException("Matched predicate {" + predicateName + "} is not support by ItinerisPSerializer");
+        }
+    }
+}
