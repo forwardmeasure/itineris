@@ -7221,28 +7221,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         TraversalMetrics profile;
 
-        log.info("DEBUG cs[0] id=" + cs[0].id());
-        log.info("DEBUG graph.traversal().V(cs).count()=" +
-                graph.traversal().V(cs).count().next());
-
         // test batching for `has()`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar"),
             option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
             option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
-
-        log.info("DEBUG Profile has {} metrics", profile.getMetrics().size());
-        log.info("DEBUG count result=" +
-                countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
-        log.info("DEBUG barrierSize*3=" + (barrierSize * 3));
-
-        // DEBUG - print all metrics
-        profile.getMetrics().forEach(m -> {
-            log.info("DEBUG METRIC name=" + m.getName() + " counts=" + m.getCounts());
-            m.getNested()
-                    .forEach(n -> log.info("DEBUG NESTED name=" + n.getName() + " counts=" + n.getCounts()));
-        });
 
         // test batching for `has()` in a parent step
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).union(__.has("foo", "bar")),
@@ -7542,15 +7526,13 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertTrue(profile.toString().contains(HasStep.class.getSimpleName()));
 
         // test batching for `has()` as `repeat` start step
-        // TinkerPop 3.8.0: repeat() is now a global parent, barrier() inside repeat()
-        // operates
-        // across all traversers collectively (TINKERPOP-3200)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).repeat(__.has("foo", "bar").in("knows")).emit(),
             option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
             option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
-        // All 100 vertices processed in one global batch (100 * 3 properties = 300)
-        assertEquals(1, countBackendQueriesOfSize(numV * 3, profile.getMetrics()));
-        assertEquals(0, countBackendQueriesOfSize( barrierSize * 3, profile.getMetrics()));
+        assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
+        assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
+
+        // property prefetching tests
 
         // All properties prefetching is used with `PROPERTY_PREFETCHING` == `true`
         profile = testLimitedBatch(() -> graph.traversal().V(bs).out("knows").barrier(barrierSize).has("foo", "bar"),

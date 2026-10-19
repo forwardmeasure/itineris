@@ -22,6 +22,8 @@ import com.forwardmeasure.itineris.util.datastructures.IterablesUtil;
 import com.forwardmeasure.itineris.util.system.ConfigurationUtil;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -145,6 +147,9 @@ public class ConfigurationTest {
 
     @Test
     public void testDisableConfOptReflection() {
+        // Itineris registers the standard classes from itineris-config, which this module does not depend on.
+        ReflectiveConfigOptionLoader.INSTANCE.registerStandardClassnames(
+            Collections.singletonList("com.forwardmeasure.itineris.diskstorage.log.kcvs.KCVSLog"));
         ReflectiveConfigOptionLoader.INSTANCE.setEnabled(false);
         ReflectiveConfigOptionLoader.INSTANCE.loadStandard(this.getClass());
 

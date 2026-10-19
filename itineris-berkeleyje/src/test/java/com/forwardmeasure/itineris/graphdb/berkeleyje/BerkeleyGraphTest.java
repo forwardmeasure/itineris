@@ -222,10 +222,4 @@ public class BerkeleyGraphTest extends ItinerisTest {
         clearGraph(configuration);
     }
 
-    @Override
-    @Test
-    @Disabled("testLimitBatchSizeForMultiQueryRepeatStep: fails on CQL backend - see InMemoryGraphTest suppression, needs investigation")
-    public void testLimitBatchSizeForMultiQueryRepeatStep() {
-    }
-
 }

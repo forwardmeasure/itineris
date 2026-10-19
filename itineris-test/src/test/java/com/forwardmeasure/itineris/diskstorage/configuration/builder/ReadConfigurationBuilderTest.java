@@ -98,8 +98,8 @@ public class ReadConfigurationBuilderTest {
     @Mock
     private ReadConfiguration readConfiguration;
 
-    @Mock
-    private TimestampProviders timestampProviders;
+    // A real value: TimestampProviders is a sealed enum on Java 17, which Mockito cannot mock.
+    private final TimestampProviders timestampProviders = TimestampProviders.MICRO;
 
     private final ReadConfigurationBuilder readConfigurationBuilder = new ReadConfigurationBuilder();
 
