@@ -38,7 +38,7 @@ set -euo pipefail
 # Run from: itineris/itineris-distribution/
 #
 # Options:
-#   --version     1.1.0                        (default)
+#   --version     1.2.0                        (default)
 #   --registry    docker.io/forwardmeasure     (default)
 #   --image       itineris                     (default)
 #   --base-image  eclipse-temurin:17-jre       (default)
@@ -57,7 +57,7 @@ DOCKER_SOURCE="${DIST_DIR}/docker"
 
 MVN_SKIP="-Drat.skip=true -Dskip.rat=true -DskipTests -Dmaven.test.skip=true -Dcheckstyle.skip=true"
 
-VERSION="1.1.0"
+VERSION="1.2.0"
 REGISTRY="docker.io/forwardmeasure"
 IMAGE_NAME="itineris"
 BASE_IMAGE="eclipse-temurin:17-jre"

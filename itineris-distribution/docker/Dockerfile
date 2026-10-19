@@ -16,7 +16,7 @@
 # Itineris Server — Docker Image
 #
 # Build args:
-#   VERSION       — Itineris version       (default: 1.1.0)
+#   VERSION       — Itineris version       (default: 1.2.0)
 #   BASE_IMAGE    — JRE base image         (default: eclipse-temurin:17-jre)
 #   YQ_VERSION    — yq version             (default: 4.40.5)
 #   TARGETARCH    — target architecture    (default: amd64)
@@ -34,11 +34,11 @@
 # ---------------------------------------------------------------------------
 
 ARG BASE_IMAGE=eclipse-temurin:17-jre
-ARG VERSION=1.1.0
+ARG VERSION=1.2.0
 
 FROM ${BASE_IMAGE}
 
-ARG VERSION=1.1.0
+ARG VERSION=1.2.0
 ARG YQ_VERSION=4.40.5
 ARG TARGETARCH=amd64
 ARG CREATED=unknown
