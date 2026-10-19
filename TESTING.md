@@ -27,7 +27,7 @@ All of Itineris's tests are written for JUnit.  Itineris's JUnit tests are annot
 | PERFORMANCE_TESTS | test.skip.perf | true (disabled) | Tests written as simple speed tests|
 | (No&nbsp;tag) | test.skip.default | false (enabled) | Tests without any Tag annotations |
 
-**Tag Name** above is a Java interface defined in the package [com.forwardmeasure.itineris.testcategory](itineris-backend-testutils/src/main/java/org/itineris/TestCategory.java).  These interfaces appear as arguments to the JUnit `@Tag(...)` annotation, e.g. `@Tag(TestCategory.MEMORY_TESTS)`.
+**Tag Name** above is a Java interface defined in the package [com.forwardmeasure.itineris.testcategory](itineris-backend-testutils/src/main/java/com/forwardmeasure/itineris/TestCategory.java).  These interfaces appear as arguments to the JUnit `@Tag(...)` annotation, e.g. `@Tag(TestCategory.MEMORY_TESTS)`.
 
 **Maven Property** above is a boolean-valued pom.xml property that skips the associated test tag when true and executes the associated test tag when false.  The default values defined in pom.xml can be overridden on the command-line in the ordinary Maven way, e.g. `mvn -Dtest.skip.mem=false test`.
 
