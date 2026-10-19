@@ -1,4 +1,4 @@
-// Copyright 2019 Itineris Authors
+// Copyright 2019 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ public class StandardVertexTest {
     }
 
     // This test is flaky simply because it tests a possible deadlock
-    // https://github.com/Itineris/itineris/pull/1486
+    // https://github.com/JanusGraph/janusgraph/pull/1486
     @RepeatedIfExceptionsTest(repeats = 3)
     public void shouldNotStuckInDeadlockWhenTheVerticeAndItsRelationIsDeletedInParallel()
         throws InterruptedException, TimeoutException, ExecutionException {

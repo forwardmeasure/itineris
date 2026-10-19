@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -432,9 +432,9 @@ public class EdgeSerializer implements RelationReader {
 
                 if (i>=sortKeyIDs.length) {
                     assert !type.multiplicity().isUnique(dir);
-                    assert propertyKey==ImplicitKey.JANUSGRAPHID || propertyKey==ImplicitKey.ADJACENT_ID;
+                    assert propertyKey==ImplicitKey.ITINERISID || propertyKey==ImplicitKey.ADJACENT_ID;
                     assert propertyKey!=ImplicitKey.ADJACENT_ID || (i==sortKeyIDs.length);
-                    assert propertyKey!=ImplicitKey.JANUSGRAPHID || (!type.multiplicity().isConstrained() &&
+                    assert propertyKey!=ImplicitKey.ITINERISID || (!type.multiplicity().isConstrained() &&
                                                   (i==sortKeyIDs.length || i==sortKeyIDs.length+1));
                     assert colStart.getPosition()==colEnd.getPosition();
                     assert interval==null || interval.isPoints();
@@ -449,7 +449,7 @@ public class EdgeSerializer implements RelationReader {
                     break;
                 }
                 if (interval.isPoints()) {
-                    if (propertyKey==ImplicitKey.JANUSGRAPHID) {
+                    if (propertyKey==ImplicitKey.ITINERISID) {
                         assert !type.multiplicity().isUnique(dir);
                         VariableLong.writePositiveBackward(colStart, (Long) interval.getStart());
                         VariableLong.writePositiveBackward(colEnd, (Long) interval.getEnd());

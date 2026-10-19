@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -141,7 +141,7 @@ class StandardScannerExecutor extends AbstractFuture<ScanMetrics> implements Sca
             try {
                 job.workerIterationEnd(metrics);
             } catch (IllegalArgumentException e) {
-                // https://github.com/Itineris/itineris/pull/891
+                // https://github.com/JanusGraph/janusgraph/pull/891
                 log.warn("Exception occurred processing worker iteration end. See PR 891.", e);
             }
 

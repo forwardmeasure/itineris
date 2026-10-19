@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -87,8 +87,8 @@ public class ItinerisFactory {
      *
      * @param shortcutOrFile Configuration file name or configuration short-cut
      * @return Itineris graph database configured according to the provided configuration
-     * @see <a href="https://docs.itineris.org/basics/configuration/">"Configuration" manual chapter</a>
-     * @see <a href="https://docs.itineris.org/basics/configuration-reference/">Configuration Reference</a>
+     * @see <a href="https://docs.janusgraph.org/basics/configuration/">"Configuration" manual chapter</a>
+     * @see <a href="https://docs.janusgraph.org/basics/configuration-reference/">Configuration Reference</a>
      */
     public static Itineris open(String shortcutOrFile) {
         return open(getLocalConfiguration(shortcutOrFile));
@@ -108,8 +108,8 @@ public class ItinerisFactory {
      * @param shortcutOrFile Configuration file name or configuration short-cut
      * @param backupName Backup name for graph
      * @return Itineris graph database configured according to the provided configuration
-     * @see <a href="https://docs.itineris.org/basics/configuration/">"Configuration" manual chapter</a>
-     * @see <a href="https://docs.itineris.org/basics/configuration-reference/">Configuration Reference</a>
+     * @see <a href="https://docs.janusgraph.org/basics/configuration/">"Configuration" manual chapter</a>
+     * @see <a href="https://docs.janusgraph.org/basics/configuration-reference/">Configuration Reference</a>
      */
     public static Itineris open(String shortcutOrFile, String backupName) {
         return open(getLocalConfiguration(shortcutOrFile), backupName);
@@ -120,8 +120,8 @@ public class ItinerisFactory {
      *
      * @param configuration Configuration for the graph database
      * @return Itineris graph database
-     * @see <a href="https://docs.itineris.org/basics/configuration/">"Configuration" manual chapter</a>
-     * @see <a href="https://docs.itineris.org/basics/configuration-reference/">Configuration Reference</a>
+     * @see <a href="https://docs.janusgraph.org/basics/configuration/">"Configuration" manual chapter</a>
+     * @see <a href="https://docs.janusgraph.org/basics/configuration-reference/">Configuration Reference</a>
      */
     public static Itineris open(Configuration configuration) {
         return open(new CommonsConfiguration(configuration));

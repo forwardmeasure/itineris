@@ -1,4 +1,4 @@
-// Copyright 2023 Itineris Authors
+// Copyright 2023 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,24 +14,23 @@
 
 package com.forwardmeasure.itineris.graphdb.cql.customid;
 
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_CUSTOM_VERTEX_ID_TYPES;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_SETTING_VERTEX_ID;
-import static com.forwardmeasure.itineris.graphdb.relations.RelationIdentifier.JANUSGRAPH_RELATION_DELIMITER;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import java.util.UUID;
-
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.junit.jupiter.api.Test;
-import org.junitpioneer.jupiter.SetEnvironmentVariable;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-
 import com.forwardmeasure.itineris.ItinerisCassandraContainer;
 import com.forwardmeasure.itineris.diskstorage.configuration.WriteConfiguration;
 import com.forwardmeasure.itineris.graphdb.ItinerisBaseTest;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.util.UUID;
+
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_SETTING_VERTEX_ID;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_CUSTOM_VERTEX_ID_TYPES;
+import static com.forwardmeasure.itineris.graphdb.relations.RelationIdentifier.ITINERIS_RELATION_DELIMITER;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junitpioneer.jupiter.SetEnvironmentVariable;
 
 @Testcontainers
 public class CQLCustomDelimiterTest extends ItinerisBaseTest {
@@ -39,7 +38,7 @@ public class CQLCustomDelimiterTest extends ItinerisBaseTest {
     public static final ItinerisCassandraContainer cqlContainer = new ItinerisCassandraContainer();
 
     @Test
-    @SetEnvironmentVariable(key = JANUSGRAPH_RELATION_DELIMITER, value = "@")
+    @SetEnvironmentVariable(key = ITINERIS_RELATION_DELIMITER, value = "@")
     public void testCustomRelationDelimiter() throws Exception {
         clopen(option(ALLOW_SETTING_VERTEX_ID), true, option(ALLOW_CUSTOM_VERTEX_ID_TYPES), true);
         String id1 = UUID.randomUUID().toString();

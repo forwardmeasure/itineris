@@ -1,4 +1,4 @@
-// Copyright 2019 Itineris Authors
+// Copyright 2019 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,37 +14,8 @@
 
 package com.forwardmeasure.itineris.diskstorage.configuration.builder;
 
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_STALE_CONFIG;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_UPGRADE;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.IDS_STORE_NAME;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.INITIAL_ITINERIS_GRAPH_VERSION;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.INITIAL_STORAGE_VERSION;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LOCK_LOCAL_MEDIATOR_GROUP;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.TIMESTAMP_PROVIDER;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.TITAN_COMPATIBLE_VERSIONS;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
 import com.forwardmeasure.itineris.core.ItinerisConfigurationException;
 import com.forwardmeasure.itineris.core.ItinerisException;
 import com.forwardmeasure.itineris.diskstorage.configuration.BasicConfiguration;
@@ -60,8 +31,36 @@ import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.StoreFeatures;
 import com.forwardmeasure.itineris.diskstorage.util.time.TimestampProviders;
 import com.forwardmeasure.itineris.graphdb.configuration.ItinerisConstants;
 import com.forwardmeasure.itineris.graphdb.database.management.ManagementSystem;
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableSet;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_STALE_CONFIG;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_UPGRADE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.IDS_STORE_NAME;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.INITIAL_ITINERIS_VERSION;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.INITIAL_STORAGE_VERSION;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LOCK_LOCAL_MEDIATOR_GROUP;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.TIMESTAMP_PROVIDER;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.TITAN_COMPATIBLE_VERSIONS;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 /**
  * Tests for building ReadConfiguration
@@ -106,9 +105,10 @@ public class ReadConfigurationBuilderTest {
 
     public static Stream<ConfigOption.Type> managedConfigOptionTypes() {
         return ImmutableSet.of(
-                ConfigOption.Type.FIXED,
-                ConfigOption.Type.GLOBAL_OFFLINE,
-                ConfigOption.Type.GLOBAL).stream();
+            ConfigOption.Type.FIXED,
+            ConfigOption.Type.GLOBAL_OFFLINE,
+            ConfigOption.Type.GLOBAL
+        ).stream();
     }
 
     public static Stream<ConfigOption.Type> notManagedConfigOptionTypes() {
@@ -118,10 +118,10 @@ public class ReadConfigurationBuilderTest {
 
     @BeforeEach
     public void setUp() {
-        when(kcvsConfigurationBuilder.buildStandaloneGlobalConfiguration(storeManager, localBasicConfiguration))
-                .thenReturn(keyColumnValueStoreConfiguration);
+        when(kcvsConfigurationBuilder.buildStandaloneGlobalConfiguration(storeManager,localBasicConfiguration))
+            .thenReturn(keyColumnValueStoreConfiguration);
         when(modifiableConfigurationBuilder.buildGlobalWrite(keyColumnValueStoreConfiguration))
-                .thenReturn(globalWrite);
+            .thenReturn(globalWrite);
     }
 
     @Test
@@ -154,8 +154,8 @@ public class ReadConfigurationBuilderTest {
 
     @Test
     public void shouldNotSetupTimestampProviderOnExistedOne() {
-        when(localBasicConfiguration.has(any()))
-                .thenAnswer(invocation -> TIMESTAMP_PROVIDER.equals(invocation.getArguments()[0]));
+        when(localBasicConfiguration.has(any())).thenAnswer(invocation ->
+            TIMESTAMP_PROVIDER.equals(invocation.getArguments()[0]));
 
         buildConfiguration();
 
@@ -188,7 +188,7 @@ public class ReadConfigurationBuilderTest {
 
         buildConfiguration();
 
-        verify(globalWrite).set(INITIAL_ITINERIS_GRAPH_VERSION, ItinerisConstants.VERSION);
+        verify(globalWrite).set(INITIAL_ITINERIS_VERSION, ItinerisConstants.VERSION);
         verify(globalWrite).set(INITIAL_STORAGE_VERSION, ItinerisConstants.STORAGE_VERSION);
     }
 
@@ -226,7 +226,7 @@ public class ReadConfigurationBuilderTest {
     public void shouldSetupVersionsWithDisallowedUpgradeFromInitialStorageVersion() {
         frozenGlobalWriteWithAllowUpgradeMock(true);
         when(globalWrite.has(INITIAL_STORAGE_VERSION)).thenReturn(true);
-        concreteStorageVersionMock(Integer.parseInt(ItinerisConstants.STORAGE_VERSION) - 1);
+        concreteStorageVersionMock(Integer.parseInt(ItinerisConstants.STORAGE_VERSION)-1);
 
         buildConfiguration();
 
@@ -237,14 +237,14 @@ public class ReadConfigurationBuilderTest {
     public void shouldThrowExceptionWhenStorageVersionLessThenInternalStorageVersion() {
         frozenGlobalWriteWithAllowUpgradeMock(true);
         when(globalWrite.has(INITIAL_STORAGE_VERSION)).thenReturn(true);
-        concreteStorageVersionMock(Integer.parseInt(ItinerisConstants.STORAGE_VERSION) + 1);
+        concreteStorageVersionMock(Integer.parseInt(ItinerisConstants.STORAGE_VERSION)+1);
 
         ItinerisException exception = assertThrows(ItinerisException.class, this::buildConfiguration);
 
         assertEquals(
-                String.format(ReadConfigurationBuilder.BACKLEVEL_STORAGE_VERSION_EXCEPTION,
-                        globalWrite.get(INITIAL_STORAGE_VERSION), ItinerisConstants.STORAGE_VERSION, null),
-                exception.getMessage());
+            String.format(ReadConfigurationBuilder.BACKLEVEL_STORAGE_VERSION_EXCEPTION,
+                globalWrite.get(INITIAL_STORAGE_VERSION), ItinerisConstants.STORAGE_VERSION, null),
+            exception.getMessage());
     }
 
     @Test
@@ -264,13 +264,12 @@ public class ReadConfigurationBuilderTest {
 
         ItinerisException exception = assertThrows(ItinerisException.class, this::buildConfiguration);
 
-        String storageVersion = (globalWrite.has(INITIAL_STORAGE_VERSION)) ? globalWrite.get(INITIAL_STORAGE_VERSION)
-                : "1";
+        String storageVersion = (globalWrite.has(INITIAL_STORAGE_VERSION)) ? globalWrite.get(INITIAL_STORAGE_VERSION) : "1";
 
         assertEquals(
-                String.format(ReadConfigurationBuilder.INCOMPATIBLE_STORAGE_VERSION_EXCEPTION,
-                        storageVersion, ItinerisConstants.STORAGE_VERSION, null),
-                exception.getMessage());
+            String.format(ReadConfigurationBuilder.INCOMPATIBLE_STORAGE_VERSION_EXCEPTION,
+                storageVersion, ItinerisConstants.STORAGE_VERSION, null),
+            exception.getMessage());
     }
 
     @Test
@@ -290,7 +289,7 @@ public class ReadConfigurationBuilderTest {
         allowUpgradeWithItinerisIDStoreNameMock();
         globalWriteTitanCompatibleVersionMock();
         when(keyColumnValueStoreConfiguration.get(IDS_STORE_NAME.getName(), IDS_STORE_NAME.getDatatype()))
-                .thenReturn("test_value");
+            .thenReturn("test_value");
 
         buildConfiguration();
 
@@ -299,20 +298,18 @@ public class ReadConfigurationBuilderTest {
 
     @ParameterizedTest
     @MethodSource("managedConfigOptionTypes")
-    public void shouldThrowExceptionOnDisallowedManagedOverwritesWithDiscrepanciesOptions(
-            ConfigOption.Type managedType) {
+    public void shouldThrowExceptionOnDisallowedManagedOverwritesWithDiscrepanciesOptions(ConfigOption.Type managedType) {
         when(globalWrite.isFrozen()).thenReturn(true);
         upgradeWithStaleConfigMock(false);
         globalWriteInitialItinerisVersionMock();
         ConfigOption childOption = includeChildOptionIntoLocalBasicConfiguration(managedType);
 
         ItinerisConfigurationException exception = assertThrows(ItinerisConfigurationException.class,
-                this::buildConfiguration);
+            this::buildConfiguration);
 
         Set<String> optionsWithDiscrepancies = Collections.singleton(childOption.getName());
         final String template = "Local settings present for one or more globally managed options: [%s].  These options are controlled through the %s interface; local settings have no effect.";
-        String expectedExceptionMessage = String.format(template, Joiner.on(", ").join(optionsWithDiscrepancies),
-                ManagementSystem.class.getSimpleName());
+        String expectedExceptionMessage = String.format(template, Joiner.on(", ").join(optionsWithDiscrepancies), ManagementSystem.class.getSimpleName());
 
         assertEquals(expectedExceptionMessage, exception.getMessage());
     }
@@ -348,47 +345,47 @@ public class ReadConfigurationBuilderTest {
         assertDoesNotThrow(this::buildConfiguration);
     }
 
-    private ReadConfiguration buildConfiguration() {
+    private ReadConfiguration buildConfiguration(){
         return readConfigurationBuilder.buildGlobalConfiguration(localConfig, localBasicConfiguration,
-                overwrite, storeManager, modifiableConfigurationBuilder, kcvsConfigurationBuilder);
+            overwrite, storeManager, modifiableConfigurationBuilder, kcvsConfigurationBuilder);
     }
 
-    private void frozenGlobalWriteWithAllowUpgradeMock(boolean upgradeAllowed) {
+    private void frozenGlobalWriteWithAllowUpgradeMock(boolean upgradeAllowed){
         when(globalWrite.isFrozen()).thenReturn(true);
 
-        when(localBasicConfiguration.has(any()))
-                .thenAnswer(invocation -> ALLOW_UPGRADE.equals(invocation.getArguments()[0]));
+        when(localBasicConfiguration.has(any())).thenAnswer(invocation ->
+            ALLOW_UPGRADE.equals(invocation.getArguments()[0]));
 
         when(localBasicConfiguration.get(eq(ALLOW_UPGRADE))).thenReturn(upgradeAllowed);
     }
 
-    private void globalWriteInitialItinerisVersionMock() {
+    private void globalWriteInitialItinerisVersionMock(){
         when(globalWrite.get(any())).thenAnswer(invocation -> {
             Object argument = invocation.getArguments()[0];
-            if (INITIAL_STORAGE_VERSION.equals(argument)) {
+            if(INITIAL_STORAGE_VERSION.equals(argument)){
                 return ItinerisConstants.STORAGE_VERSION;
             }
-            if (INITIAL_ITINERIS_GRAPH_VERSION.equals(argument)) {
+            if(INITIAL_ITINERIS_VERSION.equals(argument)){
                 return "";
             }
             return ((ConfigOption) argument).get(null);
         });
     }
 
-    private void globalWriteTitanCompatibleVersionMock() {
+    private void globalWriteTitanCompatibleVersionMock(){
         when(globalWrite.get(any())).thenAnswer(invocation -> {
             Object argument = invocation.getArguments()[0];
-            if (INITIAL_STORAGE_VERSION.equals(argument)) {
+            if(INITIAL_STORAGE_VERSION.equals(argument)){
                 return ItinerisConstants.STORAGE_VERSION;
             }
-            if (TITAN_COMPATIBLE_VERSIONS.equals(argument)) {
+            if(TITAN_COMPATIBLE_VERSIONS.equals(argument)){
                 return ItinerisConstants.TITAN_COMPATIBLE_VERSIONS.get(0);
             }
             return null;
         });
     }
 
-    private void upgradeWithStaleConfigMock(boolean allowStaleConfig) {
+    private void upgradeWithStaleConfigMock(boolean allowStaleConfig){
         when(localBasicConfiguration.has(any())).thenAnswer(invocation -> {
             Object argument = invocation.getArguments()[0];
             return ALLOW_UPGRADE.equals(argument) || ALLOW_STALE_CONFIG.equals(argument);
@@ -396,50 +393,50 @@ public class ReadConfigurationBuilderTest {
 
         when(localBasicConfiguration.get(any())).thenAnswer(invocation -> {
             Object argument = invocation.getArguments()[0];
-            if (ALLOW_UPGRADE.equals(argument)) {
+            if(ALLOW_UPGRADE.equals(argument)){
                 return true;
             }
-            if (ALLOW_STALE_CONFIG.equals(argument)) {
+            if(ALLOW_STALE_CONFIG.equals(argument)){
                 return allowStaleConfig;
             }
             return null;
         });
     }
 
-    private void allowUpgradeWithItinerisIDStoreNameMock() {
-        when(localBasicConfiguration.has(any()))
-                .thenAnswer(invocation -> ALLOW_UPGRADE.equals(invocation.getArguments()[0]));
+    private void allowUpgradeWithItinerisIDStoreNameMock(){
+        when(localBasicConfiguration.has(any())).thenAnswer(invocation ->
+            ALLOW_UPGRADE.equals(invocation.getArguments()[0]));
 
         when(localBasicConfiguration.get(any())).thenAnswer(invocation -> {
             Object argument = invocation.getArguments()[0];
-            if (ALLOW_UPGRADE.equals(argument)) {
+            if(ALLOW_UPGRADE.equals(argument)){
                 return true;
             }
-            if (IDS_STORE_NAME.equals(argument)) {
-                return ItinerisConstants.ITINERIS_GRAPH_ID_STORE_NAME;
+            if(IDS_STORE_NAME.equals(argument)){
+                return ItinerisConstants.ITINERIS_ID_STORE_NAME;
             }
             return null;
         });
     }
 
-    private void concreteStorageVersionMock(int initialStorageVersion) {
+    private void concreteStorageVersionMock(int initialStorageVersion){
         when(globalWrite.get(any())).thenAnswer(invocation -> {
             Object argument = invocation.getArguments()[0];
-            if (INITIAL_STORAGE_VERSION.equals(argument)) {
+            if(INITIAL_STORAGE_VERSION.equals(argument)){
                 return Integer.toString(initialStorageVersion);
             }
-            if (INITIAL_ITINERIS_GRAPH_VERSION.equals(argument)) {
+            if(INITIAL_ITINERIS_VERSION.equals(argument)){
                 return "";
             }
             return null;
         });
     }
 
-    private ConfigOption includeChildOptionIntoLocalBasicConfiguration(ConfigOption.Type type) {
-        // Parent
-        ConfigNamespace root = new ConfigNamespace(null, "root", "root_description");
+    private ConfigOption includeChildOptionIntoLocalBasicConfiguration(ConfigOption.Type type){
+        //Parent
+        ConfigNamespace root = new ConfigNamespace(null,"root","root_description");
 
-        // Child option. Included in optionsWithDiscrepancies when the type is managed
+        //Child option. Included in optionsWithDiscrepancies when the type is managed
         ConfigOption childOption = new ConfigOption(root, "child_name", "child_description", type, String.class);
 
         ConfigElement.PathIdentifier identifier = ConfigElement.parse(root, "child_name");
@@ -448,8 +445,8 @@ public class ReadConfigurationBuilderTest {
         return childOption;
     }
 
-    private void verifySetupVersionsWithDisallowedUpgrade() {
-        verify(globalWrite).set(INITIAL_ITINERIS_GRAPH_VERSION, ItinerisConstants.VERSION);
+    private void verifySetupVersionsWithDisallowedUpgrade(){
+        verify(globalWrite).set(INITIAL_ITINERIS_VERSION, ItinerisConstants.VERSION);
         verify(globalWrite).set(TITAN_COMPATIBLE_VERSIONS, ItinerisConstants.VERSION);
         verify(globalWrite).set(INITIAL_STORAGE_VERSION, ItinerisConstants.STORAGE_VERSION);
         verify(globalWrite).set(ALLOW_UPGRADE, false);

@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,10 +27,10 @@ public interface IndexInformation {
     /**
      * Whether the index supports executing queries with the given predicate against a key with the given information
      * @param information
-     * @param janusgraphPredicate
+     * @param itinerisPredicate
      * @return
      */
-    boolean supports(KeyInformation information, ItinerisPredicate janusgraphPredicate);
+    boolean supports(KeyInformation information, ItinerisPredicate itinerisPredicate);
 
     /**
      * Whether the index supports indexing a key with the given information

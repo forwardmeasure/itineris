@@ -1,4 +1,4 @@
-// Copyright 2019 Itineris Authors
+// Copyright 2019 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ class ThreadLocalTxLeakTest {
     }
 
     /**
-     * Before https://github.com/Itineris/itineris/pull/2472, event listeners are available across thread-bound transactions
+     * Before https://github.com/JanusGraph/janusgraph/pull/2472, event listeners are available across thread-bound transactions
      * They now have the same lifecycle of transaction, meaning they have to be registered again after previous transaction ends
      * This test demonstrates the workaround for the breaking change introduced in PR #2472.
      */

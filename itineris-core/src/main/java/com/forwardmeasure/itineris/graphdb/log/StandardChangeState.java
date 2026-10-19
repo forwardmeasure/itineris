@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -90,23 +90,23 @@ class StandardChangeState implements ChangeState {
     @Override
     public Iterable<ItinerisRelation> getRelations(final Change change, final RelationType... types) {
         final Set<RelationType> typeSet = toSet(types);
-        return getRelations(change, janusgraphRelation -> typeSet.isEmpty() || typeSet.contains(janusgraphRelation.getType()));
+        return getRelations(change, itinerisRelation -> typeSet.isEmpty() || typeSet.contains(itinerisRelation.getType()));
     }
 
     @Override
     public Iterable<ItinerisEdge> getEdges(final Vertex vertex, final Change change, final Direction dir, final String... labels) {
         final Set<String> stypes = toSet(labels);
-        return (Iterable)getRelations(change, janusgraphRelation -> janusgraphRelation.isEdge() && janusgraphRelation.isIncidentOn(vertex) &&
-                (dir==Direction.BOTH || ((ItinerisEdge)janusgraphRelation).vertex(dir).equals(vertex)) &&
-                (stypes.isEmpty() || stypes.contains(janusgraphRelation.getType().name())));
+        return (Iterable)getRelations(change, itinerisRelation -> itinerisRelation.isEdge() && itinerisRelation.isIncidentOn(vertex) &&
+                (dir==Direction.BOTH || ((ItinerisEdge)itinerisRelation).vertex(dir).equals(vertex)) &&
+                (stypes.isEmpty() || stypes.contains(itinerisRelation.getType().name())));
     }
 
 
     @Override
     public Iterable<ItinerisVertexProperty> getProperties(final Vertex vertex, final Change change, final String... keys) {
         final Set<String> stypes = toSet(keys);
-        return (Iterable)getRelations(change, janusgraphRelation -> janusgraphRelation.isProperty() && janusgraphRelation.isIncidentOn(vertex) &&
-                (stypes.isEmpty() || stypes.contains(janusgraphRelation.getType().name())));
+        return (Iterable)getRelations(change, itinerisRelation -> itinerisRelation.isProperty() && itinerisRelation.isIncidentOn(vertex) &&
+                (stypes.isEmpty() || stypes.contains(itinerisRelation.getType().name())));
     }
 
 }

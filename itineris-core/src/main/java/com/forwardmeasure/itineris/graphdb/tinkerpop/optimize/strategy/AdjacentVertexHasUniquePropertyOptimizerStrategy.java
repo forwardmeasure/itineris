@@ -1,4 +1,4 @@
-// Copyright 2020 Itineris Authors
+// Copyright 2020 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,15 +14,6 @@
 
 package com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.strategy;
 
-import static com.forwardmeasure.itineris.graphdb.types.system.ImplicitKey.ADJACENT_ID;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -34,9 +25,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-
 import com.forwardmeasure.itineris.core.Cardinality;
 import com.forwardmeasure.itineris.core.ItinerisElement;
 import com.forwardmeasure.itineris.graphdb.database.StandardItineris;
@@ -49,19 +38,29 @@ import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.ItinerisTraversalU
 import com.forwardmeasure.itineris.graphdb.transaction.StandardItinerisTx;
 import com.forwardmeasure.itineris.graphdb.types.CompositeIndexType;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static com.forwardmeasure.itineris.graphdb.types.system.ImplicitKey.ADJACENT_ID;
+import java.util.Collections;
+import org.apache.tinkerpop.gremlin.structure.T;
+
 /**
  * @author Florian Grieskamp (Florian.Grieskamp@gdata.de)
  */
 public class AdjacentVertexHasUniquePropertyOptimizerStrategy
-        extends AdjacentVertexOptimizerStrategy<HasStep<?>> {
+    extends AdjacentVertexOptimizerStrategy<HasStep<?>> {
 
-    private static final AdjacentVertexHasUniquePropertyOptimizerStrategy INSTANCE = new AdjacentVertexHasUniquePropertyOptimizerStrategy();
+    private static final AdjacentVertexHasUniquePropertyOptimizerStrategy INSTANCE =
+        new AdjacentVertexHasUniquePropertyOptimizerStrategy();
 
-    private static final Set<Class<? extends ProviderOptimizationStrategy>> POSTS = new HashSet<>(
-            Arrays.asList(ItinerisStepStrategy.class, ItinerisLocalQueryOptimizerStrategy.class));
+    private static final Set<Class<? extends ProviderOptimizationStrategy>> POSTS =
+        new HashSet<>(Arrays.asList(ItinerisStepStrategy.class, ItinerisLocalQueryOptimizerStrategy.class));
 
-    private AdjacentVertexHasUniquePropertyOptimizerStrategy() {
-    }
+    private AdjacentVertexHasUniquePropertyOptimizerStrategy() {}
 
     public static AdjacentVertexHasUniquePropertyOptimizerStrategy instance() {
         return INSTANCE;
@@ -88,39 +87,38 @@ public class AdjacentVertexHasUniquePropertyOptimizerStrategy
         }
 
         TraversalHelper.getStepsOfClass(HasStep.class, traversal)
-                .forEach(this::optimizeStep);
+            .forEach(this::optimizeStep);
     }
 
     /**
-     * Determines whether this HasStep can be answered by a unique index and thus,
-     * returns either 0 or 1 match
+     * Determines whether this HasStep can be answered by a unique index and thus, returns either 0 or 1 match
      */
     @Override
     protected boolean isValidStep(HasStep<?> step) {
         StandardItinerisTx tx = (StandardItinerisTx) ItinerisTraversalUtil.getTx(step.getTraversal());
 
         List<String> givenKeys = step.getHasContainers().stream()
-                .map(HasContainer::getKey).collect(Collectors.toList());
+            .map(HasContainer::getKey).collect(Collectors.toList());
 
         List<PredicateCondition<String, ItinerisElement>> constraints = step.getHasContainers().stream()
-                .filter(hc -> hc.getBiPredicate() == Compare.eq)
-                .map(hc -> new PredicateCondition<>(hc.getKey(), ItinerisPredicateUtils.convert(hc.getBiPredicate()),
-                        hc.getValue()))
-                .filter(pc -> tx.validDataType(pc.getValue().getClass()))
-                .collect(Collectors.toList());
+            .filter(hc -> hc.getBiPredicate() == Compare.eq)
+            .map(hc -> new PredicateCondition<>(hc.getKey(), ItinerisPredicateUtils.convert(hc.getBiPredicate()), hc.getValue()))
+            .filter(pc -> tx.validDataType(pc.getValue().getClass()))
+            .collect(Collectors.toList());
         final MultiCondition<ItinerisElement> conditions = QueryUtil.constraints2QNF(tx, constraints);
 
         // check all matching unique indexes
         return IndexSelectionUtil.existsMatchingIndex(conditions,
-                indexType -> indexType.isCompositeIndex()
-                        && ((CompositeIndexType) indexType).getCardinality() == Cardinality.SINGLE
-                        && IndexSelectionUtil.isIndexSatisfiedByGivenKeys(indexType, givenKeys));
+            indexType -> indexType.isCompositeIndex()
+                && ((CompositeIndexType) indexType).getCardinality() == Cardinality.SINGLE
+                && IndexSelectionUtil.isIndexSatisfiedByGivenKeys(indexType, givenKeys));
     }
 
-    private Traversal.Admin<?, Long> generateFilter(Traversal.Admin<?, ?> traversal, HasStep<?> originalStep) {
+    private Traversal.Admin<?,Long> generateFilter(Traversal.Admin<?,?> traversal, HasStep<?> originalStep) {
         Traversal.Admin filterTraversal = new DefaultGraphTraversal<>(traversal.getGraph().get())
-                .addStep(
-                        new GraphStep<>(traversal, Vertex.class, true));
+            .addStep(
+                new GraphStep<>(traversal, Vertex.class, true)
+            );
 
         filterTraversal.addStep(originalStep);
         filterTraversal.addStep(new IdStep<>(filterTraversal));
@@ -129,7 +127,7 @@ public class AdjacentVertexHasUniquePropertyOptimizerStrategy
 
     @Override
     protected FilterStep<Edge> makeFilterByAdjacentIdStep(Traversal.Admin<?, ?> traversal, HasStep<?> originalStep) {
-        Traversal.Admin<?, Long> filterTraversal = generateFilter(traversal, originalStep);
+        Traversal.Admin<?,Long> filterTraversal = generateFilter(traversal, originalStep);
         if (filterTraversal.hasNext()) {
             HasContainer hc = new HasContainer(ADJACENT_ID.name(), P.eq(filterTraversal.next()));
             return new HasStep<>(traversal, hc);

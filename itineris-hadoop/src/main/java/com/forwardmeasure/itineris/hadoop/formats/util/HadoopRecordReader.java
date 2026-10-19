@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,7 +64,7 @@ public class HadoopRecordReader extends RecordReader<NullWritable, VertexWritabl
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
         while (reader.nextKeyValue()) {
-            // TODO janusgraph05 integration -- the duplicate() call may be unnecessary
+            // TODO itineris05 integration -- the duplicate() call may be unnecessary
             final Vertex maybeNullVertex =
                     deserializer.readHadoopVertex(reader.getCurrentKey(), reader.getCurrentValue());
             if (null != maybeNullVertex) {

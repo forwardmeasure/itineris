@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,8 +48,8 @@ public class ElementHelper {
             return Iterables.transform((((ItinerisVertex) element).query()).keys(key.name()).properties(), new Function<ItinerisVertexProperty, Object>() {
                 @Nullable
                 @Override
-                public Object apply(final ItinerisVertexProperty janusgraphProperty) {
-                    return janusgraphProperty.value();
+                public Object apply(final ItinerisVertexProperty itinerisProperty) {
+                    return itinerisProperty.value();
                 }
             });
         }

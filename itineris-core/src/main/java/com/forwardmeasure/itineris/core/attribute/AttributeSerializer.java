@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ import com.forwardmeasure.itineris.diskstorage.WriteBuffer;
  * @param <V> Type of the attribute associated with the AttributeSerializer
  * @author Matthias Br&ouml;cheler (http://www.matthiasb.com)
  * @see com.forwardmeasure.itineris.core.schema.RelationTypeMaker
- * @see <a href="https://docs.itineris.org/advanced-topics/serializer/">
+ * @see <a href="https://docs.janusgraph.org/advanced-topics/serializer/">
  *      "Datatype and Attribute Serializer Configuration" manual chapter</a>
  */
 public interface AttributeSerializer<V> {

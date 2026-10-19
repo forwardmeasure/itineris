@@ -1,4 +1,4 @@
-// Copyright 2019 Itineris Authors
+// Copyright 2019 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,12 +57,12 @@ public class CQLHadoopScanRunner extends AbstractHadoopScanRunner<CQLHadoopScanR
         org.apache.hadoop.conf.Configuration hadoopConf = null != baseHadoopConf ?
                 baseHadoopConf : new org.apache.hadoop.conf.Configuration();
 
-        if (null != janusgraphConf) {
-            for (String k : janusgraphConf.getKeys("")) {
+        if (null != itinerisConf) {
+            for (String k : itinerisConf.getKeys("")) {
                 String prefix = ConfigElement.getPath(ItinerisHadoopConfiguration.GRAPH_CONFIG_KEYS, true) + ".";
-                hadoopConf.set(prefix + k, janusgraphConf.get(k, Object.class).toString());
+                hadoopConf.set(prefix + k, itinerisConf.get(k, Object.class).toString());
                 log.debug("Set: {}={}", prefix + k,
-                        janusgraphConf.get(k, Object.class).toString());
+                        itinerisConf.get(k, Object.class).toString());
             }
         }
 

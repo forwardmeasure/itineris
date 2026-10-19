@@ -1,4 +1,4 @@
-// Copyright 2019 Itineris Authors
+// Copyright 2019 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ public class CQLInputFormatIT extends AbstractInputFormatIT {
         baseOutDir.toFile().mkdirs();
         String outDir = Files.createTempDirectory(baseOutDir, null).toAbsolutePath().toString();
         config.setProperty("gremlin.hadoop.outputLocation", outDir);
-        config.setProperty("janusgraphmr.ioformat.conf.storage.port", String.valueOf(cql.getMappedCQLPort()));
+        config.setProperty("itinerismr.ioformat.conf.storage.port", String.valueOf(cql.getMappedCQLPort()));
         return config;
     }
 

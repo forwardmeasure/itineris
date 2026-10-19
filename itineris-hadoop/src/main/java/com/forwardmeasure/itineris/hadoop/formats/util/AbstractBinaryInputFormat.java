@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,14 +27,14 @@ public abstract class AbstractBinaryInputFormat extends InputFormat<StaticBuffer
 
     protected Configuration hadoopConf;
     protected ModifiableHadoopConfiguration mrConf;
-    protected ModifiableConfiguration janusgraphConf;
+    protected ModifiableConfiguration itinerisConf;
 
     @Override
     public void setConf(final Configuration config) {
         HadoopPoolsConfigurable.super.setConf(config);
         this.mrConf = ModifiableHadoopConfiguration.of(ItinerisHadoopConfiguration.MAPRED_NS, config);
         this.hadoopConf = config;
-        this.janusgraphConf = mrConf.getItinerisConf();
+        this.itinerisConf = mrConf.getItinerisConf();
     }
 
     @Override

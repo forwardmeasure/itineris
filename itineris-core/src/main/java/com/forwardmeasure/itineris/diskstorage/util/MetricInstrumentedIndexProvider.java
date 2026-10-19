@@ -1,4 +1,4 @@
-// Copyright 2021 Itineris Authors
+// Copyright 2021 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -123,8 +123,8 @@ public class MetricInstrumentedIndexProvider implements IndexProvider {
     }
 
     @Override
-    public boolean supports(final KeyInformation information, final ItinerisPredicate janusgraphPredicate) {
-        return indexProvider.supports(information, janusgraphPredicate);
+    public boolean supports(final KeyInformation information, final ItinerisPredicate itinerisPredicate) {
+        return indexProvider.supports(information, itinerisPredicate);
     }
 
     @Override

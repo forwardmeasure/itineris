@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ public abstract class SystemTypeManager {
                 BaseKey.SchemaDefinitionProperty, BaseKey.SchemaName, BaseKey.SchemaUpdateTime,
                 BaseKey.VertexExists,
                 BaseLabel.VertexLabelEdge, BaseLabel.SchemaDefinitionEdge,
-                ImplicitKey.ID, ImplicitKey.JANUSGRAPHID, ImplicitKey.LABEL,
+                ImplicitKey.ID, ImplicitKey.ITINERISID, ImplicitKey.LABEL,
                 ImplicitKey.KEY, ImplicitKey.VALUE, ImplicitKey.ADJACENT_ID,
                 ImplicitKey.TIMESTAMP, ImplicitKey.TTL, ImplicitKey.VISIBILITY
             };

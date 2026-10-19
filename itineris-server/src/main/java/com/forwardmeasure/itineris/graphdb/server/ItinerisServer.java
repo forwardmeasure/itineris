@@ -1,4 +1,4 @@
-// Copyright 2020 Itineris Authors
+// Copyright 2020 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,23 +14,21 @@
 
 package com.forwardmeasure.itineris.graphdb.server;
 
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-
+import com.jcabi.manifests.Manifests;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
 import org.apache.tinkerpop.gremlin.server.GraphManager;
 import org.apache.tinkerpop.gremlin.server.GremlinServer;
 import org.apache.tinkerpop.gremlin.server.util.ServerGremlinExecutor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.forwardmeasure.itineris.graphdb.grpc.ItinerisContextHandler;
 import com.forwardmeasure.itineris.graphdb.grpc.ItinerisManagerServiceImpl;
 import com.forwardmeasure.itineris.graphdb.grpc.schema.SchemaManagerImpl;
 import com.forwardmeasure.itineris.graphdb.management.ItinerisManager;
-import com.jcabi.manifests.Manifests;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
 public class ItinerisServer {
     private static final Logger logger = LoggerFactory.getLogger(ItinerisServer.class);
@@ -70,10 +68,10 @@ public class ItinerisServer {
     private Server createGrpcServer(ItinerisSettings itinerisGraphSettings, GraphManager graphManager) {
         ItinerisContextHandler itinerisGraphContextHandler = new ItinerisContextHandler(graphManager);
         return ServerBuilder
-                .forPort(itinerisGraphSettings.getGrpcServer().getPort())
-                .addService(new ItinerisManagerServiceImpl(itinerisGraphContextHandler))
-                .addService(new SchemaManagerImpl(itinerisGraphContextHandler))
-                .build();
+            .forPort(itinerisGraphSettings.getGrpcServer().getPort())
+            .addService(new ItinerisManagerServiceImpl(itinerisGraphContextHandler))
+            .addService(new SchemaManagerImpl(itinerisGraphContextHandler))
+            .build();
     }
 
     public synchronized CompletableFuture<Void> start() {
@@ -98,7 +96,7 @@ public class ItinerisServer {
                 });
             }
             CompletableFuture<Void> gremlinServerFuture = gremlinServer.start()
-                    .thenAcceptAsync(ItinerisServer::configure);
+                .thenAcceptAsync(ItinerisServer::configure);
             serverStarted = CompletableFuture.allOf(gremlinServerFuture, grpcServerFuture);
         } catch (Exception ex) {
             serverStarted.completeExceptionally(ex);
@@ -108,7 +106,7 @@ public class ItinerisServer {
 
     private static void configure(ServerGremlinExecutor serverGremlinExecutor) {
         GraphManager graphManager = serverGremlinExecutor.getGraphManager();
-        if (!(graphManager instanceof ItinerisManager)) {
+        if (!(graphManager instanceof ItinerisManager)){
             return;
         }
         ((ItinerisManager) graphManager).configureGremlinExecutor(serverGremlinExecutor.getGremlinExecutor());
@@ -130,16 +128,13 @@ public class ItinerisServer {
 
     private static String getHeader() {
         return "                                                                      " + System.lineSeparator() +
-                "   mmm                                mmm                       #     " + System.lineSeparator() +
-                "     #   mmm   m mm   m   m   mmm   m\"   \"  m mm   mmm   mmmm   # mm  " + System.lineSeparator() +
-                "     #  \"   #  #\"  #  #   #  #   \"  #   mm  #\"  \" \"   #  #\" \"#  #\"  # "
-                + System.lineSeparator() +
-                "     #  m\"\"\"#  #   #  #   #   \"\"\"m  #    #  #     m\"\"\"#  #   #  #   # "
-                + System.lineSeparator() +
-                " \"mmm\"  \"mm\"#  #   #  \"mm\"#  \"mmm\"   \"mmm\"  #     \"mm\"#  ##m#\"  #   # "
-                + System.lineSeparator() +
-                "                                                         #            " + System.lineSeparator() +
-                "                                                         \"            " + System.lineSeparator();
+            "   mmm                                mmm                       #     " + System.lineSeparator() +
+            "     #   mmm   m mm   m   m   mmm   m\"   \"  m mm   mmm   mmmm   # mm  " + System.lineSeparator() +
+            "     #  \"   #  #\"  #  #   #  #   \"  #   mm  #\"  \" \"   #  #\" \"#  #\"  # " + System.lineSeparator() +
+            "     #  m\"\"\"#  #   #  #   #   \"\"\"m  #    #  #     m\"\"\"#  #   #  #   # " + System.lineSeparator() +
+            " \"mmm\"  \"mm\"#  #   #  \"mm\"#  \"mmm\"   \"mmm\"  #     \"mm\"#  ##m#\"  #   # " + System.lineSeparator() +
+            "                                                         #            " + System.lineSeparator() +
+            "                                                         \"            " + System.lineSeparator();
     }
 
     private static void printHeader() {

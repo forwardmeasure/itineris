@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import com.forwardmeasure.itineris.diskstorage.configuration.ConfigOption;
 public class ItinerisHadoopConfiguration {
 
     public static final ConfigNamespace MAPRED_NS =
-            new ConfigNamespace(null, "janusgraphmr", "Itineris MapReduce configuration root");
+            new ConfigNamespace(null, "itinerismr", "Itineris MapReduce configuration root");
 
     // ScanJob configuration
 

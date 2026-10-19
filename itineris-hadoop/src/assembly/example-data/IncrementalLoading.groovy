@@ -1,4 +1,4 @@
-// Copyright 2019 Itineris Authors
+// Copyright 2019 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,20 +22,20 @@
 ItinerisVertex getOrCreateVertex(faunusVertex, graph, context, log) {
     String uniqueKey = "name"
     Object uniqueValue = faunusVertex.getProperty(uniqueKey)
-    Vertex janusgraphVertex
+    Vertex itinerisVertex
     if (null == uniqueValue) {
         throw new RuntimeException(faunusVertex + " has no value for key " + uniqueKey)
     }
     Iterator<Vertex> itty = graph.query().has(uniqueKey, uniqueValue).vertices().iterator()
     if (itty.hasNext()) {
-      janusgraphVertex = itty.next()
+      itinerisVertex = itty.next()
       if (itty.hasNext()) {
           log.info("The key {} has duplicated value {}", uniqueKey, uniqueValue)
       }
     } else {
-      janusgraphVertex = graph.addVertex(faunusVertex.getId())
+      itinerisVertex = graph.addVertex(faunusVertex.getId())
     }
-    return janusgraphVertex
+    return itinerisVertex
 }
 
 ItinerisEdge getOrCreateEdge(faunusEdge, inVertex, outVertex, graph, context, log) {
@@ -43,11 +43,11 @@ ItinerisEdge getOrCreateEdge(faunusEdge, inVertex, outVertex, graph, context, lo
 
     log.debug("outVertex:{} label:{} inVertex:{}", outVertex, label, inVertex)
 
-    final Edge janusgraphEdge = !outVertex.out(label).has("id", inVertex.getId()).hasNext() ?
+    final Edge itinerisEdge = !outVertex.out(label).has("id", inVertex.getId()).hasNext() ?
         graph.addEdge(null, outVertex, inVertex, label) :
         outVertex.outE(label).as("here").inV().has("id", inVertex.getId()).back("here").next()
 
-    return janusgraphEdge
+    return itinerisEdge
 }
 
 Object getOrCreateVertexProperty(faunusProperty, vertex, graph, context, log) {

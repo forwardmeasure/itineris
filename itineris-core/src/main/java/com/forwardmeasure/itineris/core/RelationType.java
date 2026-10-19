@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ import com.forwardmeasure.itineris.core.schema.ItinerisSchemaType;
  * @author Matthias Br&ouml;cheler (me@matthiasb.com);
  * @see ItinerisRelation
  * @see com.forwardmeasure.itineris.core.schema.RelationTypeMaker
- * @see <a href="https://docs.itineris.org/basics/schema/">"Schema and Data Modeling" manual chapter</a>
+ * @see <a href="https://docs.janusgraph.org/basics/schema/">"Schema and Data Modeling" manual chapter</a>
  */
 public interface RelationType extends ItinerisVertex, ItinerisSchemaType {
 

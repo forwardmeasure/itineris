@@ -1,4 +1,4 @@
-// Copyright 2022 Itineris Authors
+// Copyright 2022 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ public class CQLCustomIdSparkTest extends ItinerisCustomIdSparkTest {
         baseOutDir.toFile().mkdirs();
         String outDir = Files.createTempDirectory(baseOutDir, null).toAbsolutePath().toString();
         config.setProperty("gremlin.hadoop.outputLocation", outDir);
-        config.setProperty("janusgraphmr.ioformat.conf.storage.port", String.valueOf(cql.getMappedCQLPort()));
+        config.setProperty("itinerismr.ioformat.conf.storage.port", String.valueOf(cql.getMappedCQLPort()));
         return config;
     }
 

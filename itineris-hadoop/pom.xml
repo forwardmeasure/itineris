@@ -69,7 +69,7 @@
             <artifactId>log4j-1.2-api</artifactId>
         </dependency>
 
-        <!-- JANUSGRAPH -->
+        <!-- ITINERIS -->
         <dependency>
             <groupId>com.forwardmeasure</groupId>
             <artifactId>itineris-core</artifactId>

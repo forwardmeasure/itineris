@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -109,7 +109,7 @@ public class CQLConfiguredGraphFactoryTest extends AbstractConfiguredGraphFactor
         }
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/3393
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/3393
     @RepeatedIfExceptionsTest(repeats = 3)
     public void dropGraphShouldRemoveGraphKeyspace() throws Exception {
         final MapConfiguration graphConfig = getGraphConfig();
@@ -133,14 +133,14 @@ public class CQLConfiguredGraphFactoryTest extends AbstractConfiguredGraphFactor
         }
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/3096
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/3096
     @RepeatedIfExceptionsTest(repeats = 3)
     @Override
     public void updateConfigurationShouldRemoveGraphFromCache() throws Exception {
         super.updateConfigurationShouldRemoveGraphFromCache();
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/3959
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/3959
     @RepeatedIfExceptionsTest(repeats = 3)
     @Override
     public void dropShouldCleanUpTraversalSourceAndBindings() throws Exception {

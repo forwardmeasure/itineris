@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -225,7 +225,7 @@ public abstract class BasicVertexCentricQueryBuilder<Q extends BaseVertexQuery<Q
                                                                final ItinerisVertex other) {
         // We don't use here `stream::iterator` because such iterable can be traversed only once.
         // We don't use `stream.collect(Collectors.toList())` because such list will be evaluated immediately instead of lazily.
-        return Iterables.transform(edges, janusgraphEdge ->  janusgraphEdge.otherVertex(other));
+        return Iterables.transform(edges, itinerisEdge ->  itinerisEdge.otherVertex(other));
     }
 
     protected VertexList edges2VertexIds(final Iterable<ItinerisEdge> edges, final ItinerisVertex other) {
@@ -773,7 +773,7 @@ public abstract class BasicVertexCentricQueryBuilder<Q extends BaseVertexQuery<Q
             entireKey[i]=tx.getExistingPropertyKey(type.getSortKey()[i]);
         }
         if (type.isEdgeLabel() && !type.multiplicity().isUnique(dir)) entireKey[i++]=ImplicitKey.ADJACENT_ID;
-        if (!type.multiplicity().isConstrained()) entireKey[i]=ImplicitKey.JANUSGRAPHID;
+        if (!type.multiplicity().isConstrained()) entireKey[i]=ImplicitKey.ITINERISID;
         return entireKey;
     }
 

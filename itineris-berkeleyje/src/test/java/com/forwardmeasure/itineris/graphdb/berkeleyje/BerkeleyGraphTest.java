@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,22 +14,10 @@
 
 package com.forwardmeasure.itineris.graphdb.berkeleyje;
 
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_CUSTOM_VERTEX_ID_TYPES;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_SETTING_VERTEX_ID;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
-import java.util.concurrent.TimeUnit;
-
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.google.common.base.Preconditions;
+import com.sleepycat.je.Environment;
+import com.sleepycat.je.EnvironmentConfig;
+import com.sleepycat.je.LockMode;
 import com.forwardmeasure.itineris.BerkeleyStorageSetup;
 import com.forwardmeasure.itineris.core.ItinerisException;
 import com.forwardmeasure.itineris.core.ItinerisFactory;
@@ -44,18 +32,29 @@ import com.forwardmeasure.itineris.diskstorage.configuration.WriteConfiguration;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.keyvalue.OrderedKeyValueStoreManagerAdapter;
 import com.forwardmeasure.itineris.graphdb.ItinerisTest;
 import com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration;
-import com.google.common.base.Preconditions;
-import com.sleepycat.je.Environment;
-import com.sleepycat.je.EnvironmentConfig;
-import com.sleepycat.je.LockMode;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.concurrent.TimeUnit;
+
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_SETTING_VERTEX_ID;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_CUSTOM_VERTEX_ID_TYPES;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class BerkeleyGraphTest extends ItinerisTest {
 
-    private static final Logger log = LoggerFactory.getLogger(BerkeleyGraphTest.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(BerkeleyGraphTest.class);
 
     public EnvironmentConfig getCurrentEnvironmentConfig() {
-        BerkeleyJEStoreManager storeManager = (BerkeleyJEStoreManager) ((OrderedKeyValueStoreManagerAdapter) graph
-                .getBackend().getStoreManager()).getManager();
+        BerkeleyJEStoreManager storeManager = (BerkeleyJEStoreManager) ((OrderedKeyValueStoreManagerAdapter) graph.getBackend().getStoreManager()).getManager();
         Environment environment = storeManager.getEnvironment();
         return environment.getConfig();
     }
@@ -71,8 +70,7 @@ public class BerkeleyGraphTest extends ItinerisTest {
         } else {
             IsolationLevel iso = null;
             if (modifiableConfiguration.has(BerkeleyJEStoreManager.ISOLATION_LEVEL)) {
-                iso = ConfigOption.getEnumValue(modifiableConfiguration.get(BerkeleyJEStoreManager.ISOLATION_LEVEL),
-                        IsolationLevel.class);
+                iso = ConfigOption.getEnumValue(modifiableConfiguration.get(BerkeleyJEStoreManager.ISOLATION_LEVEL),IsolationLevel.class);
             }
             log.debug("Using isolation level {} (null means adapter default) for test method {}", iso, methodName);
         }
@@ -95,7 +93,7 @@ public class BerkeleyGraphTest extends ItinerisTest {
 
     @Test
     public void testVertexCentricQuerySmall() {
-        testVertexCentricQuery(1450 /* noVertices */);
+        testVertexCentricQuery(1450 /*noVertices*/);
     }
 
     @Override
@@ -106,9 +104,7 @@ public class BerkeleyGraphTest extends ItinerisTest {
         // This could be enforced with a JUnit assertion instead of a Precondition,
         // but a failure here indicates a problem in the test itself rather than the
         // system-under-test, so a Precondition seems more appropriate
-        IsolationLevel effective = ConfigOption.getEnumValue(
-                config.get(ConfigElement.getPath(BerkeleyJEStoreManager.ISOLATION_LEVEL), String.class),
-                IsolationLevel.class);
+        IsolationLevel effective = ConfigOption.getEnumValue(config.get(ConfigElement.getPath(BerkeleyJEStoreManager.ISOLATION_LEVEL), String.class),IsolationLevel.class);
         Preconditions.checkState(IsolationLevel.SERIALIZABLE.equals(effective));
         super.testConsistencyEnforcement();
     }
@@ -160,21 +156,20 @@ public class BerkeleyGraphTest extends ItinerisTest {
         // Must be able to reopen
         open(config);
 
-        assertEquals(0L, (long) graph.traversal().V().count().next());
+        assertEquals(0L, (long)graph.traversal().V().count().next());
     }
 
     @Override
-    public void clopenForStaleIndex() {
-        // We set LOCK_MODE to READ_UNCOMMITTED here to mitigate an issue with deadlock
-        // problem described in
-        // https://github.com/Itineris/itineris/issues/1623
+    public void clopenForStaleIndex(){
+        // We set LOCK_MODE to READ_UNCOMMITTED here to mitigate an issue with deadlock problem described in
+        // https://github.com/JanusGraph/janusgraph/issues/1623
         clopen(option(BerkeleyJEStoreManager.LOCK_MODE), LockMode.READ_UNCOMMITTED.toString());
     }
 
     @Test
     public void testCannotUseCustomStringId() {
         ItinerisException ex = assertThrows(ItinerisException.class,
-                () -> clopen(option(ALLOW_SETTING_VERTEX_ID), true, option(ALLOW_CUSTOM_VERTEX_ID_TYPES), true));
+            () -> clopen(option(ALLOW_SETTING_VERTEX_ID), true, option(ALLOW_CUSTOM_VERTEX_ID_TYPES), true));
         assertEquals("allow-custom-vid-types is not supported for OrderedKeyValueStore", ex.getMessage());
     }
 
@@ -185,15 +180,12 @@ public class BerkeleyGraphTest extends ItinerisTest {
         close();
         WriteConfiguration configuration = getConfiguration();
         clearGraph(configuration);
-        configuration.set(
-                BerkeleyJEStoreManager.BERKELEY_EXTRAS_NS.toStringWithoutRoot() + "." + EnvironmentConfig.LOCK_TIMEOUT,
-                "12345 ms");
+        configuration.set(BerkeleyJEStoreManager.BERKELEY_EXTRAS_NS.toStringWithoutRoot()+"."+EnvironmentConfig.LOCK_TIMEOUT, "12345 ms");
         open(configuration);
         assertEquals(12345, getCurrentEnvironmentConfig().getLockTimeout(TimeUnit.MILLISECONDS));
         close();
         clearGraph(configuration);
-        configuration.set(BerkeleyJEStoreManager.BERKELEY_EXTRAS_NS.toStringWithoutRoot() + "."
-                + EnvironmentConfig.ENV_IS_TRANSACTIONAL, "true");
+        configuration.set(BerkeleyJEStoreManager.BERKELEY_EXTRAS_NS.toStringWithoutRoot()+"."+EnvironmentConfig.ENV_IS_TRANSACTIONAL, "true");
         open(configuration);
         assertTrue(getCurrentEnvironmentConfig().getTransactional());
         close();
@@ -205,4 +197,5 @@ public class BerkeleyGraphTest extends ItinerisTest {
     @Disabled("testLimitBatchSizeForMultiQueryRepeatStep: fails on CQL backend - see InMemoryGraphTest suppression, needs investigation")
     public void testLimitBatchSizeForMultiQueryRepeatStep() {
     }
+
 }

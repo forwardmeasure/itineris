@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ public class SimpleIndexCache implements IndexCache {
 
     @Override
     public Iterable<ItinerisVertexProperty> get(final Object value, final PropertyKey key) {
-        return Iterables.filter(map.get(value), janusgraphProperty -> janusgraphProperty.propertyKey().equals(key));
+        return Iterables.filter(map.get(value), itinerisProperty -> itinerisProperty.propertyKey().equals(key));
     }
 
     @Override

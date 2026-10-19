@@ -1,4 +1,4 @@
-// Copyright 2020 Itineris Authors
+// Copyright 2020 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,12 +29,12 @@ import java.util.Properties;
 
 public class CqlMapReduceIndexJobsUtils {
 
-    public static ScanMetrics repair(String janusgraphPropertiesPath, String indexName, String relationType, String partitionerName)
+    public static ScanMetrics repair(String itinerisPropertiesPath, String indexName, String relationType, String partitionerName)
         throws InterruptedException, IOException, ClassNotFoundException {
         Properties p = new Properties();
         FileInputStream fis = null;
         try {
-            fis = new FileInputStream(janusgraphPropertiesPath);
+            fis = new FileInputStream(itinerisPropertiesPath);
             p.load(fis);
             return repair(p, indexName, relationType, partitionerName);
         } finally {
@@ -42,26 +42,26 @@ public class CqlMapReduceIndexJobsUtils {
         }
     }
 
-    public static ScanMetrics repair(Properties janusgraphProperties, String indexName, String relationType,
+    public static ScanMetrics repair(Properties itinerisProperties, String indexName, String relationType,
                                      String partitionerName)
         throws InterruptedException, IOException, ClassNotFoundException {
-        return repair(janusgraphProperties, indexName, relationType, partitionerName, new Configuration());
+        return repair(itinerisProperties, indexName, relationType, partitionerName, new Configuration());
     }
 
-    public static ScanMetrics repair(Properties janusgraphProperties, String indexName, String relationType,
+    public static ScanMetrics repair(Properties itinerisProperties, String indexName, String relationType,
                                      String partitionerName, Configuration hadoopBaseConf)
         throws InterruptedException, IOException, ClassNotFoundException {
         IndexRepairJob job = new IndexRepairJob();
         CQLHadoopScanRunner cr = new CQLHadoopScanRunner(job);
-        return executeScanRunner(janusgraphProperties, indexName, relationType, partitionerName, hadoopBaseConf, cr);
+        return executeScanRunner(itinerisProperties, indexName, relationType, partitionerName, hadoopBaseConf, cr);
     }
 
-    public static ScanMetrics remove(String janusgraphPropertiesPath, String indexName, String relationType, String partitionerName)
+    public static ScanMetrics remove(String itinerisPropertiesPath, String indexName, String relationType, String partitionerName)
         throws InterruptedException, IOException, ClassNotFoundException {
         Properties p = new Properties();
         FileInputStream fis = null;
         try {
-            fis = new FileInputStream(janusgraphPropertiesPath);
+            fis = new FileInputStream(itinerisPropertiesPath);
             p.load(fis);
             return remove(p, indexName, relationType, partitionerName);
         } finally {
@@ -69,23 +69,23 @@ public class CqlMapReduceIndexJobsUtils {
         }
     }
 
-    public static ScanMetrics remove(Properties janusgraphProperties, String indexName, String relationType,
+    public static ScanMetrics remove(Properties itinerisProperties, String indexName, String relationType,
                                      String partitionerName)
         throws InterruptedException, IOException, ClassNotFoundException {
-        return remove(janusgraphProperties, indexName, relationType, partitionerName, new Configuration());
+        return remove(itinerisProperties, indexName, relationType, partitionerName, new Configuration());
     }
 
-    public static ScanMetrics remove(Properties janusgraphProperties, String indexName, String relationType,
+    public static ScanMetrics remove(Properties itinerisProperties, String indexName, String relationType,
                                      String partitionerName, Configuration hadoopBaseConf)
         throws InterruptedException, IOException, ClassNotFoundException {
         IndexRemoveJob job = new IndexRemoveJob();
         CQLHadoopScanRunner cr = new CQLHadoopScanRunner(job);
-        return executeScanRunner(janusgraphProperties, indexName, relationType, partitionerName, hadoopBaseConf, cr);
+        return executeScanRunner(itinerisProperties, indexName, relationType, partitionerName, hadoopBaseConf, cr);
     }
 
-    private static ScanMetrics executeScanRunner(Properties janusgraphProperties, String indexName, String relationType, String partitionerName, Configuration hadoopBaseConf, CQLHadoopScanRunner cr) throws InterruptedException, IOException, ClassNotFoundException {
+    private static ScanMetrics executeScanRunner(Properties itinerisProperties, String indexName, String relationType, String partitionerName, Configuration hadoopBaseConf, CQLHadoopScanRunner cr) throws InterruptedException, IOException, ClassNotFoundException {
         ModifiableConfiguration mc = MapReduceIndexJobs.getIndexJobConf(indexName, relationType);
-        MapReduceIndexJobs.copyPropertiesToInputAndOutputConf(hadoopBaseConf, janusgraphProperties);
+        MapReduceIndexJobs.copyPropertiesToInputAndOutputConf(hadoopBaseConf, itinerisProperties);
         cr.partitionerOverride(partitionerName);
         cr.scanJobConf(mc);
         cr.scanJobConfRoot(GraphDatabaseConfiguration.class.getName() + "#JOB_NS");

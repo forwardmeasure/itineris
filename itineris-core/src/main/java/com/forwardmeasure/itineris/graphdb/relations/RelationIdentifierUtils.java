@@ -1,4 +1,4 @@
-// Copyright 2019 Itineris Authors
+// Copyright 2019 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,7 +81,7 @@ public class RelationIdentifierUtils {
 
         RelationType internalVertex = ((StandardItinerisTx) tx).getExistingRelationType(type.longId());
         if (((InternalRelationType) internalVertex).getConsistencyModifier() != ConsistencyModifier.FORK) {
-            query.has(ImplicitKey.JANUSGRAPHID.name(), rId.getRelationId());
+            query.has(ImplicitKey.ITINERISID.name(), rId.getRelationId());
         }
         return query.edges();
     }

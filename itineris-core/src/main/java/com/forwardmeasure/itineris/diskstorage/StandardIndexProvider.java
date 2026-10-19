@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,8 +27,7 @@ import java.util.Set;
  * It is subject to backwards-incompatible change.
  */
 public enum StandardIndexProvider {
-    OPENSEARCH("com.forwardmeasure.itineris.diskstorage.opensearch.OpenSearchIndex",
-            Arrays.asList("opensearch"));
+    OPENSEARCH("com.forwardmeasure.itineris.diskstorage.opensearch.OpenSearchIndex", Arrays.asList("opensearch"));
 
     private static final Set<String> ALL_SHORTHANDS;
     private static final Map<String, String> ALL_MANAGER_CLASSES;

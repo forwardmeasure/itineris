@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,53 +13,6 @@
 // limitations under the License.
 
 package com.forwardmeasure.itineris.diskstorage.cql;
-
-import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.CF_COMPRESSION;
-import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.CF_COMPRESSION_BLOCK_SIZE;
-import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.CF_COMPRESSION_TYPE;
-import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.GC_GRACE_SECONDS;
-import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.KEYSPACE;
-import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.METRICS_NODE_ENABLED;
-import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.METRICS_SESSION_ENABLED;
-import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.SPECULATIVE_RETRY;
-import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.USE_EXTERNAL_LOCKING;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.BASIC_METRICS;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.lang.reflect.Field;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
@@ -85,6 +38,52 @@ import com.forwardmeasure.itineris.diskstorage.util.BufferUtil;
 import com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration;
 import com.forwardmeasure.itineris.testutil.FeatureFlag;
 import com.forwardmeasure.itineris.testutil.ItinerisFeature;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.lang.reflect.Field;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
+
+import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.CF_COMPRESSION;
+import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.CF_COMPRESSION_BLOCK_SIZE;
+import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.CF_COMPRESSION_TYPE;
+import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.GC_GRACE_SECONDS;
+import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.KEYSPACE;
+import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.METRICS_NODE_ENABLED;
+import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.METRICS_SESSION_ENABLED;
+import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.SPECULATIVE_RETRY;
+import static com.forwardmeasure.itineris.diskstorage.cql.CQLConfigOptions.USE_EXTERNAL_LOCKING;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.BASIC_METRICS;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)
 @Testcontainers
@@ -139,7 +138,7 @@ public class CQLStoreTest extends KeyColumnValueStoreTest {
     public void testExternalLocking() throws BackendException {
         assertFalse(this.manager.getFeatures().hasLocking());
         assertTrue(openStorageManager(getBaseStorageConfiguration()
-                .set(USE_EXTERNAL_LOCKING, true)).getFeatures().hasLocking());
+            .set(USE_EXTERNAL_LOCKING, true)).getFeatures().hasLocking());
     }
 
     @Test
@@ -151,13 +150,10 @@ public class CQLStoreTest extends KeyColumnValueStoreTest {
 
         final Map<String, String> opts = cqlStoreManager.getCompressionOptions(cf);
         assertEquals(2, opts.size());
-        // chunk length key differs between 2.x (chunk_length_kb) and 3.x
-        // (chunk_length_in_kb)
+        // chunk length key differs between 2.x (chunk_length_kb) and 3.x (chunk_length_in_kb)
         assertEquals("64", opts.getOrDefault("chunk_length_kb", opts.get("chunk_length_in_kb")));
-        // compression class key differs between 2.x (sstable_compression) and 3.x
-        // (class)
-        assertEquals(DEFAULT_COMPRESSOR_PACKAGE + "." + CF_COMPRESSION_TYPE.getDefaultValue(),
-                opts.getOrDefault("sstable_compression", opts.get("class")));
+        // compression class key differs between 2.x (sstable_compression) and 3.x (class)
+        assertEquals(DEFAULT_COMPRESSOR_PACKAGE + "." + CF_COMPRESSION_TYPE.getDefaultValue(), opts.getOrDefault("sstable_compression", opts.get("class")));
     }
 
     @Test
@@ -177,13 +173,10 @@ public class CQLStoreTest extends KeyColumnValueStoreTest {
 
         final Map<String, String> opts = mgr.getCompressionOptions(cf);
         assertEquals(2, opts.size());
-        // chunk length key differs between 2.x (chunk_length_kb) and 3.x
-        // (chunk_length_in_kb)
+        // chunk length key differs between 2.x (chunk_length_kb) and 3.x (chunk_length_in_kb)
         assertEquals(String.valueOf(ckb), opts.getOrDefault("chunk_length_kb", opts.get("chunk_length_in_kb")));
-        // compression class key differs between 2.x (sstable_compression) and 3.x
-        // (class)
-        assertEquals(DEFAULT_COMPRESSOR_PACKAGE + "." + cname,
-                opts.getOrDefault("sstable_compression", opts.get("class")));
+        // compression class key differs between 2.x (sstable_compression) and 3.x (class)
+        assertEquals(DEFAULT_COMPRESSOR_PACKAGE + "." + cname, opts.getOrDefault("sstable_compression", opts.get("class")));
     }
 
     @Test
@@ -208,18 +201,13 @@ public class CQLStoreTest extends KeyColumnValueStoreTest {
     @Test
     public void testCqlMetricsInitialization() throws BackendException, InterruptedException {
         final ModifiableConfiguration config = getBaseStorageConfiguration();
-        // override keyspace so a cached CQLStoreManager is not used and
-        // CQLStoreManager#initializeSession is called
+        // override keyspace so a cached CQLStoreManager is not used and CQLStoreManager#initializeSession is called 
         config.set(KEYSPACE, "testkeyspace_metrics");
         config.set(BASIC_METRICS, true);
-        config.set(METRICS_NODE_ENABLED,
-                "pool.open-connections,pool.available-streams,pool.in-flight,bytes-sent,bytes-received,cql-messages"
-                        .split(","));
-        config.set(METRICS_SESSION_ENABLED,
-                "bytes-sent,bytes-received,cql-requests,cql-client-timeouts,throttling.delay,throttling.queue-size,throttling.errors"
-                        .split(","));
+        config.set(METRICS_NODE_ENABLED, "pool.open-connections,pool.available-streams,pool.in-flight,bytes-sent,bytes-received,cql-messages".split(","));
+        config.set(METRICS_SESSION_ENABLED, "bytes-sent,bytes-received,cql-requests,cql-client-timeouts,throttling.delay,throttling.queue-size,throttling.errors".split(","));
         // Will update CQL Gauge metrics on graph creation
-        openStorageManager(config); // throws NoSuchMethodError on metrics-core 3.x / 4.x conflict
+        openStorageManager(config);  // throws NoSuchMethodError on metrics-core 3.x / 4.x conflict
     }
 
     @Test
@@ -254,14 +242,15 @@ public class CQLStoreTest extends KeyColumnValueStoreTest {
 
     public static Stream<Arguments> validSpeculativeRetryProvider() {
         return Stream.of(
-                arguments(0, "NONE", "(NONE|NEVER)"),
-                arguments(1, "ALWAYS", "ALWAYS"),
-                arguments(2, "95percentile", "95(?:\\.0+)?(PERCENTILE|p)"),
-                arguments(3, "99PERCENTILE", "99(?:\\.0+)?(PERCENTILE|p)"),
-                arguments(4, "99.9PERCENTILE", "99\\.90*(PERCENTILE|p)"),
-                arguments(5, "100ms", "100(?:\\.0+)?ms"),
-                arguments(6, "100MS", "100(?:\\.0+)?ms"),
-                arguments(7, "100.9ms", "100(\\.90*)*ms"));
+            arguments(0, "NONE", "(NONE|NEVER)"),
+            arguments(1, "ALWAYS", "ALWAYS"),
+            arguments(2, "95percentile", "95(?:\\.0+)?(PERCENTILE|p)"),
+            arguments(3, "99PERCENTILE", "99(?:\\.0+)?(PERCENTILE|p)"),
+            arguments(4, "99.9PERCENTILE", "99\\.90*(PERCENTILE|p)"),
+            arguments(5, "100ms", "100(?:\\.0+)?ms"),
+            arguments(6, "100MS", "100(?:\\.0+)?ms"),
+            arguments(7, "100.9ms", "100(\\.90*)*ms")
+        );
     }
 
     @Test
@@ -298,7 +287,7 @@ public class CQLStoreTest extends KeyColumnValueStoreTest {
 
     @Test
     public void testExistTableOpenDatabase() throws BackendException {
-        // arrange
+        //arrange
         String someTableName = "foo";
         Metadata metadata = mock(Metadata.class);
         KeyspaceMetadata keyspaceMetadata = mock(KeyspaceMetadata.class);
@@ -307,16 +296,16 @@ public class CQLStoreTest extends KeyColumnValueStoreTest {
         when(session.getMetadata()).thenReturn(metadata);
         when(metadata.getKeyspace(mockManager.getKeyspaceName())).thenReturn(Optional.of(keyspaceMetadata));
 
-        // act
+        //act
         mockManager.openDatabase(someTableName, null);
 
-        // assert
+        //assert
         verify(session, never()).execute(any(Statement.class));
     }
 
     @Test
     public void testNewTableOpenDatabase() throws BackendException {
-        // arrange
+        //arrange
         String someTableName = "foo";
         Metadata metadata = mock(Metadata.class);
         KeyspaceMetadata keyspaceMetadata = mock(KeyspaceMetadata.class);
@@ -324,57 +313,50 @@ public class CQLStoreTest extends KeyColumnValueStoreTest {
         when(session.getMetadata()).thenReturn(metadata);
         when(metadata.getKeyspace(mockManager.getKeyspaceName())).thenReturn(Optional.of(keyspaceMetadata));
 
-        // act
+        //act
         mockManager.openDatabase(someTableName, null);
 
-        // assert
+        //assert
         verify(session, times(1)).execute(any(Statement.class));
     }
 
     @Test
     @FeatureFlag(feature = ItinerisFeature.UnorderedScan)
     public void testGetKeysWithoutOrderedScan() throws Exception {
-        StandardStoreFeatures features = new StandardStoreFeatures.Builder(manager.getFeatures())
-                .orderedScan(false)
+        StandardStoreFeatures features = new StandardStoreFeatures.Builder(manager.getFeatures()).orderedScan(false)
                 .unorderedScan(true)
                 .build();
-
-        Field featuresField = CQLStoreManager.class.getDeclaredField("storeFeatures");
+        Field featuresField = CQLStoreManager.class
+            .getDeclaredField("storeFeatures");
         featuresField.setAccessible(true);
         featuresField.set(manager, features);
-
         Exception ex = assertThrows(PermanentBackendException.class, () -> store.getKeys(
-                new KeyRangeQuery(BufferUtil.getLongBuffer(1), BufferUtil.getLongBuffer(1000),
-                        BufferUtil.getLongBuffer(1),
-                        BufferUtil.getLongBuffer(1000)),
-                tx));
+            new KeyRangeQuery(BufferUtil.getLongBuffer(1), BufferUtil.getLongBuffer(1000), BufferUtil.getLongBuffer(1),
+                BufferUtil.getLongBuffer(1000)), tx));
         assertEquals("This operation is only allowed when the byteorderedpartitioner is used.", ex.getMessage());
         assertDoesNotThrow(() -> store.getKeys(
-                new SliceQuery(BufferUtil.zeroBuffer(1), BufferUtil.oneBuffer(4)), tx));
+            new SliceQuery(BufferUtil.zeroBuffer(1), BufferUtil.oneBuffer(4)), tx));
     }
 
     @Test
     @FeatureFlag(feature = ItinerisFeature.OrderedScan)
     public void testGetKeysWithoutUnorderedScan() throws Exception {
         // Build features with unorderedScan=false using the copy constructor builder
-        StandardStoreFeatures features = new StandardStoreFeatures.Builder(manager.getFeatures())
-                .unorderedScan(false)
+        StandardStoreFeatures features = new StandardStoreFeatures.Builder(manager.getFeatures()).unorderedScan(false)
                 .orderedScan(true)
                 .build();
 
         // Inject the new features into the manager
-        Field featuresField = manager.getClass().getDeclaredField("storeFeatures");
+        Field featuresField = manager.getClass()
+            .getDeclaredField("storeFeatures");
         featuresField.setAccessible(true);
         featuresField.set(manager, features);
-
         Exception ex = assertThrows(PermanentBackendException.class, () -> store.getKeys(
-                new SliceQuery(BufferUtil.zeroBuffer(1), BufferUtil.oneBuffer(4)), tx));
+            new SliceQuery(BufferUtil.zeroBuffer(1), BufferUtil.oneBuffer(4)), tx));
         assertEquals("This operation is only allowed when partitioner supports unordered scan", ex.getMessage());
         assertDoesNotThrow(() -> store.getKeys(
-                new KeyRangeQuery(BufferUtil.getLongBuffer(1), BufferUtil.getLongBuffer(1000),
-                        BufferUtil.getLongBuffer(1),
-                        BufferUtil.getLongBuffer(1000)),
-                tx));
+            new KeyRangeQuery(BufferUtil.getLongBuffer(1), BufferUtil.getLongBuffer(1000), BufferUtil.getLongBuffer(1),
+                BufferUtil.getLongBuffer(1000)), tx));
     }
 
     @Override
@@ -383,7 +365,7 @@ public class CQLStoreTest extends KeyColumnValueStoreTest {
     }
 
     @Test
-    public void backPressureLimitOverflowTest() {
+    public void backPressureLimitOverflowTest(){
         Metadata metadata = mock(Metadata.class);
         DriverContext driverContext = mock(DriverContext.class);
         DriverConfig driverConfig = mock(DriverConfig.class);
@@ -393,7 +375,7 @@ public class CQLStoreTest extends KeyColumnValueStoreTest {
         when(session.getContext()).thenReturn(driverContext);
         when(driverContext.getConfig()).thenReturn(driverConfig);
         when(driverConfig.getDefaultProfile()).thenReturn(profile);
-        when(profile.getInt(DefaultDriverOption.CONNECTION_MAX_REQUESTS)).thenReturn(Integer.MAX_VALUE / 2);
+        when(profile.getInt(DefaultDriverOption.CONNECTION_MAX_REQUESTS)).thenReturn(Integer.MAX_VALUE/2);
         when(profile.getInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE)).thenReturn(10);
         int backPressure = CQLStoreManager.getDefaultBackPressureLimit(session);
         assertEquals(Integer.MAX_VALUE, backPressure);

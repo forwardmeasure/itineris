@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,18 @@
 
 package com.forwardmeasure.itineris.core.util;
 
+import com.google.common.base.Preconditions;
+import com.forwardmeasure.itineris.diskstorage.configuration.ConfigOption;
+import com.forwardmeasure.itineris.diskstorage.util.time.Timer;
+import com.forwardmeasure.itineris.diskstorage.util.time.TimestampProviders;
+import com.forwardmeasure.itineris.graphdb.configuration.PreInitializeConfigOptions;
+import org.reflections8.Reflections;
+import org.reflections8.scanners.SubTypesScanner;
+import org.reflections8.scanners.TypeAnnotationsScanner;
+import org.reflections8.vfs.Vfs;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -28,19 +40,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.reflections8.Reflections;
-import org.reflections8.scanners.SubTypesScanner;
-import org.reflections8.scanners.TypeAnnotationsScanner;
-import org.reflections8.vfs.Vfs;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.forwardmeasure.itineris.diskstorage.configuration.ConfigOption;
-import com.forwardmeasure.itineris.diskstorage.util.time.Timer;
-import com.forwardmeasure.itineris.diskstorage.util.time.TimestampProviders;
-import com.forwardmeasure.itineris.graphdb.configuration.PreInitializeConfigOptions;
-import com.google.common.base.Preconditions;
 
 /**
  * This class supports iteration over Itineris's ConfigNamespaces at runtime.
@@ -65,9 +64,10 @@ public enum ReflectiveConfigOptionLoader {
     INSTANCE;
 
     private static final String SYS_PROP_NAME = "itineris.load.cfg.opts";
-    private static final String ENV_VAR_NAME = "ITINERIS_LOAD_CFG_OPTS";
+    private static final String ENV_VAR_NAME  = "ITINERIS_LOAD_CFG_OPTS";
 
-    private static final Logger log = LoggerFactory.getLogger(ReflectiveConfigOptionLoader.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(ReflectiveConfigOptionLoader.class);
 
     private volatile LoaderConfiguration cfg = new LoaderConfiguration();
 
@@ -133,10 +133,14 @@ public enum ReflectiveConfigOptionLoader {
      * Reflectively load types at most once over the life of this class.
      */
     public void loadAll(Class<?> caller) {
+
         LoaderConfiguration cfg = this.cfg;
+
         if (!cfg.enabled || cfg.allInit)
             return;
+
         load(cfg, caller);
+
         cfg.allInit = true;
     }
 
@@ -150,11 +154,13 @@ public enum ReflectiveConfigOptionLoader {
      * (e.g. unit tests of itineris-core in isolation), config option loading
      * degrades gracefully to the full reflective scan via {@link #loadAll(Class)}.
      */
+
     public void loadStandard(Class<?> caller) {
+
         LoaderConfiguration cfg = this.cfg;
+
         if (!cfg.enabled || cfg.standardInit || cfg.allInit)
             return;
-
         List<String> classnames = standardClassnames.get();
         if (classnames.isEmpty()) {
             log.debug("No standard classnames registered; skipping loadStandard. " +
@@ -164,6 +170,7 @@ public enum ReflectiveConfigOptionLoader {
 
         Timer t = new Timer(TimestampProviders.MILLI);
         t.start();
+
         List<ClassLoader> loaders = getClassLoaders(cfg, caller);
 
         boolean foundLoader = false;
@@ -196,36 +203,38 @@ public enum ReflectiveConfigOptionLoader {
             }
         }
 
-        log.info("Loaded and initialized config classes: {} OK out of {} attempts in {}",
-                loadedClasses, classnames.size(), t.elapsed());
+        log.info("Loaded and initialized config classes: {} OK out of {} attempts in {}", loadedClasses, classnames.size(), t.elapsed());
+
         cfg.standardInit = true;
     }
 
     private List<ClassLoader> getClassLoaders(LoaderConfiguration cfg, Class<?> caller) {
+
         final List<ClassLoader> builder = new ArrayList<>(cfg.preferredLoaders);
+
         for (ClassLoader c : cfg.preferredLoaders)
             log.debug("Added preferred classloader to config option loader chain: {}", c);
+
         if (cfg.useThreadContextLoader) {
             ClassLoader c = Thread.currentThread().getContextClassLoader();
             builder.add(c);
             log.debug("Added thread context classloader to config option loader chain: {}", c);
         }
+
         if (cfg.useCallerLoader) {
             ClassLoader c = caller.getClassLoader();
             builder.add(c);
             log.debug("Added caller classloader to config option loader chain: {}", c);
         }
+
         return Collections.unmodifiableList(builder);
     }
-
     private synchronized void load(LoaderConfiguration cfg, Class<?> caller) {
         try {
             loadAllClassesUnsafe(cfg, caller);
         } catch (Throwable t) {
-            log.error(
-                    "Failed to iterate over classpath using Reflections; " +
-                            "this usually indicates a broken classpath/classloader",
-                    t);
+            log.error("Failed to iterate over classpath using Reflections; " +
+                            "this usually indicates a broken classpath/classloader", t);
         }
     }
 
@@ -236,7 +245,6 @@ public enum ReflectiveConfigOptionLoader {
         List<ClassLoader> loaderList = getClassLoaders(cfg, caller);
         Collection<URL> scanUrls = forClassLoaders(loaderList);
         Iterator<URL> i = scanUrls.iterator();
-
         while (i.hasNext()) {
             URL u = i.next();
             File f;
@@ -254,28 +262,26 @@ public enum ReflectiveConfigOptionLoader {
         }
 
         org.reflections8.Configuration rc = new org.reflections8.util.ConfigurationBuilder()
-                .setUrls(scanUrls)
-                .setScanners(new TypeAnnotationsScanner(), new SubTypesScanner());
+            .setUrls(scanUrls)
+            .setScanners(new TypeAnnotationsScanner(), new SubTypesScanner());
         Reflections reflections = new Reflections(rc);
-
         for (Class<?> c : reflections.getTypesAnnotatedWith(PreInitializeConfigOptions.class)) {
             try {
                 loadCount += loadSingleClassUnsafe(c);
             } catch (Throwable t) {
-                log.warn(
-                        "Failed to load class {} or its referenced types; " +
-                                "this usually indicates a broken classpath/classloader",
-                        c, t);
+                log.warn("Failed to load class {} or its referenced types; " +
+                                "this usually indicates a broken classpath/classloader", c, t);
                 errorCount++;
             }
         }
 
-        log.debug("Pre-loaded {} config option(s) via Reflections ({} class(es) with errors)",
-                loadCount, errorCount);
-    }
+        log.debug("Pre-loaded {} config option(s) via Reflections ({} class(es) with errors)", loadCount, errorCount);
 
+    }
     private Set<URL> forClassLoaders(List<ClassLoader> loaders) {
+
         final Set<URL> result = new HashSet<>();
+
         for (ClassLoader classLoader : loaders) {
             while (classLoader != null) {
                 if (classLoader instanceof URLClassLoader) {
@@ -287,16 +293,20 @@ public enum ReflectiveConfigOptionLoader {
                 classLoader = classLoader.getParent();
             }
         }
+
         return result;
     }
 
     private int loadSingleClassUnsafe(Class<?> c) {
         int loadCount = 0;
+
         log.trace("Looking for ConfigOption public static fields on class {}", c);
+
         for (Field f : c.getDeclaredFields()) {
             final boolean pub = Modifier.isPublic(f.getModifiers());
             final boolean stat = Modifier.isStatic(f.getModifiers());
             final boolean typeMatch = ConfigOption.class.isAssignableFrom(f.getType());
+
             log.trace("Properties for field \"{}\": public={} static={} assignable={}", f, pub, stat, typeMatch);
             if (pub && stat && typeMatch) {
                 try {
@@ -309,11 +319,14 @@ public enum ReflectiveConfigOptionLoader {
                 }
             }
         }
+
         return loadCount;
     }
 
     private static class LoaderConfiguration {
-        private static final Logger log = LoggerFactory.getLogger(LoaderConfiguration.class);
+
+        private static final Logger log =
+                LoggerFactory.getLogger(LoaderConfiguration.class);
 
         private final boolean enabled;
         private final List<ClassLoader> preferredLoaders;
@@ -323,7 +336,7 @@ public enum ReflectiveConfigOptionLoader {
         private volatile boolean standardInit = false;
 
         private LoaderConfiguration(boolean enabled, List<ClassLoader> preferredLoaders,
-                boolean useCallerLoader, boolean useThreadContextLoader) {
+                                    boolean useCallerLoader, boolean useThreadContextLoader) {
             this.enabled = enabled;
             this.preferredLoaders = preferredLoaders;
             this.useCallerLoader = useCallerLoader;
@@ -338,9 +351,9 @@ public enum ReflectiveConfigOptionLoader {
         }
 
         private boolean getEnabledByDefault() {
-            List<String> sources = Arrays.asList(
-                    System.getProperty(SYS_PROP_NAME),
-                    System.getenv(ENV_VAR_NAME));
+            List<String> sources =
+                    Arrays.asList(System.getProperty(SYS_PROP_NAME), System.getenv(ENV_VAR_NAME));
+
             for (String setting : sources) {
                 if (null != setting) {
                     boolean enabled = setting.equalsIgnoreCase("true");
@@ -348,7 +361,9 @@ public enum ReflectiveConfigOptionLoader {
                     return enabled;
                 }
             }
+
             log.debug("Option loading enabled by default");
+
             return true;
         }
 
@@ -369,4 +384,3 @@ public enum ReflectiveConfigOptionLoader {
         }
     }
 }
-

@@ -1,4 +1,4 @@
-// Copyright 2024 Itineris Authors
+// Copyright 2024 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,17 +14,16 @@
 
 package com.forwardmeasure.itineris.graphdb.inmemory;
 
-import static org.junit.Assert.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-import org.junit.jupiter.api.Test;
-
 import com.forwardmeasure.itineris.core.ItinerisVertex;
-import com.forwardmeasure.itineris.diskstorage.BackendException;
 import com.forwardmeasure.itineris.diskstorage.configuration.WriteConfiguration;
 import com.forwardmeasure.itineris.graphdb.configuration.builder.GraphDatabaseConfigurationBuilder;
 import com.forwardmeasure.itineris.graphdb.database.LazyLoadGraphTest;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import com.forwardmeasure.itineris.diskstorage.BackendException;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
@@ -39,8 +38,7 @@ public class InMemoryLazyLoadGraphTest extends InMemoryGraphTest {
         mgmt = graph.openManagement();
     }
 
-    @Override
-    @Test
+    @Override @Test
     public void testBasic() throws BackendException {
         super.testBasic();
     }
@@ -57,8 +55,7 @@ public class InMemoryLazyLoadGraphTest extends InMemoryGraphTest {
         // access property id in new transaction
         graph.tx().commit();
         Exception exception = assertThrows(IllegalStateException.class, p::id);
-        assertEquals(exception.getMessage(),
-                "Any lazy load operation is not supported when transaction is already closed.");
+        assertEquals(exception.getMessage(), "Any lazy load operation is not supported when transaction is already closed.");
     }
 
 }

@@ -1,4 +1,4 @@
-// Copyright 2021 Itineris Authors
+// Copyright 2021 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -232,7 +232,7 @@ public abstract class ItinerisCustomIdTest extends ItinerisBaseTest {
 
     /**
      * This is to test that Itineris properly handles vertex Ids that are of length
-     * 7 and 8 (byte size of long type). See https://github.com/Itineris/itineris/issues/3732
+     * 7 and 8 (byte size of long type). See https://github.com/JanusGraph/janusgraph/issues/3732
      * to understand why these numbers are special.
      */
     @Test
@@ -301,7 +301,7 @@ public abstract class ItinerisCustomIdTest extends ItinerisBaseTest {
      * @throws ExecutionException
      * @throws InterruptedException
      */
-    // flaky test: https://github.com/Itineris/itineris/issues/1498
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/1498
     @RepeatedIfExceptionsTest(repeats = 3)
     public void testIndexUpdatesWithReindexAndRemove() throws ExecutionException, InterruptedException {
         ModifiableConfiguration config = getModifiableConfiguration();

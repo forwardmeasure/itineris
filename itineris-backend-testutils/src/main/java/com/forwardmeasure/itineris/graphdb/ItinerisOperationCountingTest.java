@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -128,7 +128,7 @@ public abstract class ItinerisOperationCountingTest extends ItinerisBaseTest {
         }
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/1459
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/1459
     @RepeatedIfExceptionsTest(repeats = 3)
     public void testIdCounts() {
         makeVertexIndexedUniqueKey("uid", Integer.class);

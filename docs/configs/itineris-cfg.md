@@ -89,7 +89,7 @@ General configuration options for graph element IDs
 | ids.placement | Name of the vertex placement strategy or full class name | String | simple | MASKABLE |
 | ids.renew-percentage | When the most-recently-reserved ID block has only this percentage of its total IDs remaining (expressed as a value between 0 and 1), Itineris asynchronously begins reserving another block. This helps avoid transaction commits waiting on ID reservation even if the block size is relatively small. | Double | 0.3 | MASKABLE |
 | ids.renew-timeout | The number of milliseconds that the Itineris id pool manager will wait before giving up on allocating a new block of ids | Duration | 120000 ms | MASKABLE |
-| ids.store-name | The name of the ID KCVStore. IDS_STORE_NAME is meant to be used only for backward compatibility with Titan, and should not be used explicitly in normal operations or in new graphs. | String | janusgraph_ids | GLOBAL_OFFLINE |
+| ids.store-name | The name of the ID KCVStore. IDS_STORE_NAME is meant to be used only for backward compatibility with Titan, and should not be used explicitly in normal operations or in new graphs. | String | itineris_ids | GLOBAL_OFFLINE |
 
 ### ids.authority
 Configuration options for graph element ID reservation/allocation

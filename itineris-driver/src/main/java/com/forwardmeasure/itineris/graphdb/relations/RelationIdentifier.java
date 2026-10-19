@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ import static com.forwardmeasure.itineris.util.encoding.LongEncoding.STRING_ENCO
 public final class RelationIdentifier implements Serializable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RelationIdentifier.class);
-    public static final String JANUSGRAPH_RELATION_DELIMITER = "JANUSGRAPH_RELATION_DELIMITER";
+    public static final String ITINERIS_RELATION_DELIMITER = "ITINERIS_RELATION_DELIMITER";
     public static final String TOSTRING_DELIMITER;
 
     private final Object outVertexId;
@@ -40,9 +40,9 @@ public final class RelationIdentifier implements Serializable {
     private final Object inVertexId;
 
     static {
-        String reservedKeyword = System.getProperty(JANUSGRAPH_RELATION_DELIMITER);
+        String reservedKeyword = System.getProperty(ITINERIS_RELATION_DELIMITER);
         if (StringUtils.isEmpty(reservedKeyword)) {
-            reservedKeyword = System.getenv(JANUSGRAPH_RELATION_DELIMITER);
+            reservedKeyword = System.getenv(ITINERIS_RELATION_DELIMITER);
         }
         if (StringUtils.isNotEmpty(reservedKeyword)) {
             if (!StringUtils.isAsciiPrintable(reservedKeyword)) {
@@ -53,7 +53,7 @@ public final class RelationIdentifier implements Serializable {
             }
             TOSTRING_DELIMITER = reservedKeyword;
             LOGGER.info("Loaded {} from system property, relation delimiter is: {}",
-                JANUSGRAPH_RELATION_DELIMITER, TOSTRING_DELIMITER);
+                ITINERIS_RELATION_DELIMITER, TOSTRING_DELIMITER);
         } else {
             TOSTRING_DELIMITER = "-";
             LOGGER.info("Use default relation delimiter: {}", TOSTRING_DELIMITER);

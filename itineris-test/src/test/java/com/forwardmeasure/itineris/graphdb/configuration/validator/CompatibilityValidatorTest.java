@@ -1,4 +1,4 @@
-// Copyright 2019 Itineris Authors
+// Copyright 2019 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,13 @@
 
 package com.forwardmeasure.itineris.graphdb.configuration.validator;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
+import com.forwardmeasure.itineris.core.ItinerisException;
+import com.forwardmeasure.itineris.graphdb.configuration.ItinerisConstants;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
-import com.forwardmeasure.itineris.core.ItinerisException;
-import com.forwardmeasure.itineris.graphdb.configuration.ItinerisConstants;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Validator tests for backward compatibility with Titan
@@ -34,7 +33,7 @@ public class CompatibilityValidatorTest {
             CompatibilityValidator.validateBackwardCompatibilityWithTitan(null, "");
         });
         assertEquals("Itineris version nor Titan compatibility have not been initialized",
-                illegalArgumentException.getMessage());
+            illegalArgumentException.getMessage());
     }
 
     @Test
@@ -47,22 +46,22 @@ public class CompatibilityValidatorTest {
     @Test
     public void shouldPassOnItinerisIdStoreName() {
         CompatibilityValidator.validateBackwardCompatibilityWithTitan(
-                ItinerisConstants.TITAN_COMPATIBLE_VERSIONS.get(0),
-                ItinerisConstants.ITINERIS_GRAPH_ID_STORE_NAME);
+            ItinerisConstants.TITAN_COMPATIBLE_VERSIONS.get(0),
+            ItinerisConstants.ITINERIS_ID_STORE_NAME);
     }
 
     @Test
     public void shouldPassOnTitanIdStoreName() {
         CompatibilityValidator.validateBackwardCompatibilityWithTitan(
-                ItinerisConstants.TITAN_COMPATIBLE_VERSIONS.get(0),
-                ItinerisConstants.TITAN_ID_STORE_NAME);
+            ItinerisConstants.TITAN_COMPATIBLE_VERSIONS.get(0),
+            ItinerisConstants.TITAN_ID_STORE_NAME);
     }
 
     @Test
     public void shouldThrowExceptionOnIncompatibleIdStoreName() {
         expectIncompatibleIdStoreNameException(() -> {
             CompatibilityValidator.validateBackwardCompatibilityWithTitan(
-                    ItinerisConstants.TITAN_COMPATIBLE_VERSIONS.get(0), "not_compatible");
+                ItinerisConstants.TITAN_COMPATIBLE_VERSIONS.get(0), "not_compatible");
         });
     }
 
@@ -70,11 +69,11 @@ public class CompatibilityValidatorTest {
     public void shouldThrowExceptionOnNullIdStoreName() {
         expectIncompatibleIdStoreNameException(() -> {
             CompatibilityValidator.validateBackwardCompatibilityWithTitan(
-                    ItinerisConstants.TITAN_COMPATIBLE_VERSIONS.get(0), null);
+                ItinerisConstants.TITAN_COMPATIBLE_VERSIONS.get(0), null);
         });
     }
 
-    private void expectIncompatibleIdStoreNameException(Executable executable) {
+    private void expectIncompatibleIdStoreNameException(Executable executable){
         IllegalArgumentException illegalArgumentException = assertThrows(IllegalArgumentException.class, executable);
         assertEquals("ID store for Titan compatibility has not been initialized to: " +
                 ItinerisConstants.TITAN_ID_STORE_NAME, illegalArgumentException.getMessage());

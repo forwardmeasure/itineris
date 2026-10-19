@@ -1,4 +1,4 @@
-// Copyright 2019 Itineris Authors
+// Copyright 2019 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ public class CQLIndexManagementIT extends AbstractIndexManagementIT {
         return cql.getConfiguration(getClass().getSimpleName().toLowerCase()).getConfiguration();
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/3132
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/3132
     @RepeatedIfExceptionsTest(repeats = 3)
     @Override
     public void testRepairRelationIndex() throws ExecutionException, InterruptedException, BackendException {

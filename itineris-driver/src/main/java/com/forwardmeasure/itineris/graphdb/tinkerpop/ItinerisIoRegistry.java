@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,17 +14,10 @@
 
 package com.forwardmeasure.itineris.graphdb.tinkerpop;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.tinkerpop.gremlin.structure.io.AbstractIoRegistry;
 import org.apache.tinkerpop.gremlin.structure.io.binary.GraphBinaryIo;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONIo;
 import org.apache.tinkerpop.gremlin.structure.io.gryo.GryoIo;
-import org.apache.tinkerpop.shaded.kryo.Kryo;
-import org.apache.tinkerpop.shaded.kryo.Serializer;
-import org.apache.tinkerpop.shaded.kryo.io.Input;
-import org.apache.tinkerpop.shaded.kryo.io.Output;
-
 import com.forwardmeasure.itineris.core.attribute.Geoshape;
 import com.forwardmeasure.itineris.graphdb.relations.RelationIdentifier;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.io.ItinerisP;
@@ -32,6 +25,11 @@ import com.forwardmeasure.itineris.graphdb.tinkerpop.io.binary.GeoshapeGraphBina
 import com.forwardmeasure.itineris.graphdb.tinkerpop.io.binary.ItinerisPBinarySerializer;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.io.binary.RelationIdentifierGraphBinarySerializer;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.io.graphson.ItinerisSONModuleV2d0;
+import java.util.concurrent.atomic.AtomicLong;
+import org.apache.tinkerpop.shaded.kryo.Kryo;
+import org.apache.tinkerpop.shaded.kryo.Serializer;
+import org.apache.tinkerpop.shaded.kryo.io.Input;
+import org.apache.tinkerpop.shaded.kryo.io.Output;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)

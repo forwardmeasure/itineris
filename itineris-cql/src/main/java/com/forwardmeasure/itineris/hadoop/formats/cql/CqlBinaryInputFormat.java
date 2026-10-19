@@ -1,4 +1,4 @@
-// Copyright 2019 Itineris Authors
+// Copyright 2019 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -61,20 +61,20 @@ public class CqlBinaryInputFormat extends AbstractBinaryInputFormat {
         super.setConf(config);
 
         // Copy some Itineris configuration keys to the Hadoop Configuration keys used by Cassandra's ColumnFamilyInputFormat
-        ConfigHelper.setInputInitialAddress(config, String.join(",", janusgraphConf.get(GraphDatabaseConfiguration.STORAGE_HOSTS)));
-        if (janusgraphConf.has(GraphDatabaseConfiguration.STORAGE_PORT))
-            CqlConfigHelper.setInputNativePort(config, String.valueOf(janusgraphConf.get(GraphDatabaseConfiguration.STORAGE_PORT)));
-        if (janusgraphConf.has(GraphDatabaseConfiguration.AUTH_USERNAME) && janusgraphConf.has(GraphDatabaseConfiguration.AUTH_PASSWORD)) {
+        ConfigHelper.setInputInitialAddress(config, String.join(",", itinerisConf.get(GraphDatabaseConfiguration.STORAGE_HOSTS)));
+        if (itinerisConf.has(GraphDatabaseConfiguration.STORAGE_PORT))
+            CqlConfigHelper.setInputNativePort(config, String.valueOf(itinerisConf.get(GraphDatabaseConfiguration.STORAGE_PORT)));
+        if (itinerisConf.has(GraphDatabaseConfiguration.AUTH_USERNAME) && itinerisConf.has(GraphDatabaseConfiguration.AUTH_PASSWORD)) {
             CqlConfigHelper.setUserNameAndPassword(config,
-                janusgraphConf.get(GraphDatabaseConfiguration.AUTH_USERNAME),
-                janusgraphConf.get(GraphDatabaseConfiguration.AUTH_PASSWORD));
+                itinerisConf.get(GraphDatabaseConfiguration.AUTH_USERNAME),
+                itinerisConf.get(GraphDatabaseConfiguration.AUTH_PASSWORD));
         }
 
         // Copy keyspace, force the CF setting to edgestore, honor widerows when set
         final boolean wideRows = config.getBoolean(INPUT_WIDEROWS_CONFIG, false);
         // Use the setInputColumnFamily overload that includes a widerows argument; using the overload without this argument forces it false
-        ConfigHelper.setInputColumnFamily(config, janusgraphConf.get(CQLConfigOptions.KEYSPACE),
+        ConfigHelper.setInputColumnFamily(config, itinerisConf.get(CQLConfigOptions.KEYSPACE),
             mrConf.get(ItinerisHadoopConfiguration.COLUMN_FAMILY_NAME), wideRows);
-        log.debug("Set keyspace: {}", janusgraphConf.get(CQLConfigOptions.KEYSPACE));
+        log.debug("Set keyspace: {}", itinerisConf.get(CQLConfigOptions.KEYSPACE));
     }
 }

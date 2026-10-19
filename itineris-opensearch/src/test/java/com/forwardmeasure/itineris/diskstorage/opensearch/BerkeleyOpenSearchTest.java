@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ public class BerkeleyOpenSearchTest extends OpenSearchItinerisIndexTest {
         return getBerkeleyJEConfiguration();
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/3960
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/3960
     @RepeatedIfExceptionsTest(repeats = 3)
     @Override
     public void indexShouldNotExistAfterDeletion() throws Exception {
@@ -65,14 +65,14 @@ public class BerkeleyOpenSearchTest extends OpenSearchItinerisIndexTest {
         gotg.close();
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/3651
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/3651
     @RepeatedIfExceptionsTest(repeats = 3)
     @Override
     public void testDisableAndDiscardManuallyAndDropEnabledIndex() throws Exception {
         super.testDisableAndDiscardManuallyAndDropEnabledIndex();
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/3931
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/3931
     @RepeatedIfExceptionsTest(repeats = 3)
     @Override
     public void testDiscardAndDropRegisteredIndex() throws ExecutionException, InterruptedException {

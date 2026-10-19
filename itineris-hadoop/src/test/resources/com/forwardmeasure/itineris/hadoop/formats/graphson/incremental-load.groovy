@@ -1,4 +1,4 @@
-// Copyright 2019 Itineris Authors
+// Copyright 2019 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,20 +20,20 @@ import com.forwardmeasure.itineris.core.ItinerisVertex
 ItinerisVertex getOrCreateVertex(FaunusVertex faunusVertex, Itineris graph, TaskInputOutputContext context, Logger log) {
     String uniqueKey = "name"
     Object uniqueValue = faunusVertex.value(uniqueKey)
-    Vertex janusgraphVertex
+    Vertex itinerisVertex
     if (null == uniqueValue) {
         throw new RuntimeException("The provided Faunus vertex does not have a property for the unique key: " + faunusVertex)
     }
     Iterator<Vertex> itty = graph.query().has(uniqueKey, uniqueValue).vertexStream().iterator()
     if (itty.hasNext()) {
-      janusgraphVertex = itty.next()
+      itinerisVertex = itty.next()
       if (itty.hasNext()) {
           log.info("The unique key is not unique as more than one vertex with the value {}", uniqueValue)
       }
     } else {
-      janusgraphVertex = graph.addVertex(faunusVertex.longId(),faunusVertex.label())
+      itinerisVertex = graph.addVertex(faunusVertex.longId(),faunusVertex.label())
     }
-    return janusgraphVertex
+    return itinerisVertex
 }
 
 ItinerisEdge getOrCreateEdge(FaunusEdge faunusEdge, ItinerisVertex inVertex, ItinerisVertex outVertex, Itineris graph, TaskInputOutputContext context, Logger log) {
@@ -41,11 +41,11 @@ ItinerisEdge getOrCreateEdge(FaunusEdge faunusEdge, ItinerisVertex inVertex, Iti
 
     log.debug("outVertex:{} label:{} inVertex:{}", outVertex, label, inVertex)
 
-    final Edge janusgraphEdge = !outVertex.out(label).has("id", inVertex.id()).hasNext() ?
+    final Edge itinerisEdge = !outVertex.out(label).has("id", inVertex.id()).hasNext() ?
         graph.addEdge(null, outVertex, inVertex, label) :
         outVertex.outE(label).as("here").inV().has("id", inVertex.id()).back("here").next()
 
-    return janusgraphEdge
+    return itinerisEdge
 }
 
 void getOrCreateVertexProperty(ItinerisProperty faunusProperty, ItinerisVertex vertex, Itineris graph, TaskInputOutputContext context, Logger log) {

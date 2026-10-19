@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,25 +14,24 @@
 
 package com.forwardmeasure.itineris.graphdb.predicate;
 
+import org.apache.tinkerpop.gremlin.process.traversal.P;
+import com.forwardmeasure.itineris.graphdb.query.ItinerisPredicate;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.tinkerpop.gremlin.process.traversal.P;
-
-import com.forwardmeasure.itineris.graphdb.query.ItinerisPredicate;
-
 /**
  * @author David Clement (david.clement90@laposte.net)
  */
-public class ConnectiveItinerisP extends P<Object> {
+public class ConnectiveItinerisP extends P<Object>{
+
     private static final long serialVersionUID = 1737489543643777182L;
 
     public ConnectiveItinerisP(ConnectiveJanusPredicate biPredicate, List<Object> value) {
         super(biPredicate, value);
     }
-
     @Override
     public String toString() {
         return toString((ConnectiveJanusPredicate) this.getBiPredicate(), this.getValue()).toString();
@@ -52,18 +51,15 @@ public class ConnectiveItinerisP extends P<Object> {
         if (connectivePredicate.size() == 1) {
             return toString(connectivePredicate.get(0), values.get(0));
         }
-        if (predicate instanceof AndJanusPredicate) {
+        if (predicate instanceof AndJanusPredicate){
             toReturn.append("and(");
-        } else if (predicate instanceof OrJanusPredicate) {
+        } else if (predicate instanceof OrJanusPredicate){
             toReturn.append("or(");
         } else {
             throw new IllegalArgumentException("Itineris does not support the given predicate: " + predicate);
         }
         final Iterator<Object> itValues = values.iterator();
-        toReturn.append(connectivePredicate.stream()
-                .map(p -> toString(p, itValues.next()))
-                .collect(Collectors.joining(", ")))
-                .append(")");
+        toReturn.append(connectivePredicate.stream().map(p -> toString(p, itValues.next())).collect(Collectors.joining(", "))).append(")");
         return toReturn;
     }
 }

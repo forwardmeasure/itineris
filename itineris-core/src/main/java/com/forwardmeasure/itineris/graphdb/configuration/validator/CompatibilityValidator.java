@@ -1,4 +1,4 @@
-// Copyright 2018 Itineris Authors
+// Copyright 2018 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
 
 package com.forwardmeasure.itineris.graphdb.configuration.validator;
 
+import com.google.common.base.Preconditions;
 import com.forwardmeasure.itineris.core.ItinerisException;
 import com.forwardmeasure.itineris.graphdb.configuration.ItinerisConstants;
-import com.google.common.base.Preconditions;
 
 /**
  * Validator for checking backward compatibility with Titan
@@ -27,28 +27,20 @@ public class CompatibilityValidator {
 
     public static void validateBackwardCompatibilityWithTitan(String version, String localConfigurationIdsStoreName) {
 
-        Preconditions.checkArgument(version != null,
-                "Itineris version nor Titan compatibility have not been initialized");
+        Preconditions.checkArgument(version!=null,"Itineris version nor Titan compatibility have not been initialized");
 
         if (!ItinerisConstants.TITAN_COMPATIBLE_VERSIONS.contains(version)) {
-            throw new ItinerisException(
-                    String.format(INCOMPATIBLE_VERSION_EXCEPTION, version, ItinerisConstants.VERSION));
+            throw new ItinerisException(String.format(INCOMPATIBLE_VERSION_EXCEPTION, version, ItinerisConstants.VERSION));
         }
 
-        // When connecting to a store created by Titan the ID store name will not be in
-        // the
-        // global configuration as it was not something which was configurable with
-        // Titan.
+        // When connecting to a store created by Titan the ID store name will not be in the
+        // global configuration as it was not something which was configurable with Titan.
         // So to ensure compatibility override the default to titan_ids.
-        boolean localIdStoreIsDefault = ItinerisConstants.ITINERIS_GRAPH_ID_STORE_NAME
-                .equals(localConfigurationIdsStoreName);
+        boolean localIdStoreIsDefault = ItinerisConstants.ITINERIS_ID_STORE_NAME.equals(localConfigurationIdsStoreName);
 
-        boolean usingTitanIdStore = localIdStoreIsDefault
-                || ItinerisConstants.TITAN_ID_STORE_NAME.equals(localConfigurationIdsStoreName);
+        boolean usingTitanIdStore = localIdStoreIsDefault || ItinerisConstants.TITAN_ID_STORE_NAME.equals(localConfigurationIdsStoreName);
 
-        Preconditions.checkArgument(usingTitanIdStore,
-                "ID store for Titan compatibility has not been initialized to: %s",
-                ItinerisConstants.TITAN_ID_STORE_NAME);
+        Preconditions.checkArgument(usingTitanIdStore,"ID store for Titan compatibility has not been initialized to: %s", ItinerisConstants.TITAN_ID_STORE_NAME);
     }
 
 }

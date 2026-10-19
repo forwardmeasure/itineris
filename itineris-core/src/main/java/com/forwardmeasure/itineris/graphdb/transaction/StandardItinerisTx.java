@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -939,8 +939,8 @@ public class StandardItinerisTx extends ItinerisBlueprintsTransaction implements
 //                if (cardinality == Cardinality.SET) {
 //                    if (!Iterables.isEmpty(Iterables.filter(query(vertex).type(key).properties(), new Predicate<ItinerisVertexProperty>() {
 //                        @Override
-//                        public boolean apply(@Nullable ItinerisVertexProperty janusgraphProperty) {
-//                            return normalizedValue.equals(janusgraphProperty.value());
+//                        public boolean apply(@Nullable ItinerisVertexProperty itinerisProperty) {
+//                            return normalizedValue.equals(itinerisProperty.value());
 //                        }
 //                    })))
 //                        throw new SchemaViolationException("A property with the given key [%s] and value [%s] already exists on the vertex and the property key is defined as set-valued", key.name(), normalizedValue);

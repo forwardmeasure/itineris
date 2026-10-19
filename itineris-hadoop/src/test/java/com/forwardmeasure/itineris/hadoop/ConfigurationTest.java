@@ -1,4 +1,4 @@
-// Copyright 2019 Itineris Authors
+// Copyright 2019 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,12 +28,12 @@ public class ConfigurationTest {
     @Test
     public void testIncludeRoot() {
         Configuration config = new Configuration();
-        config.setBoolean("janusgraphmr.ioformat.filter-partitioned-vertices", true);
+        config.setBoolean("itinerismr.ioformat.filter-partitioned-vertices", true);
 
         ModifiableHadoopConfiguration scanConf = ModifiableHadoopConfiguration.of(ItinerisHadoopConfiguration.MAPRED_NS, config);
 
         assertEquals(ConfigElement.getPath(ItinerisHadoopConfiguration.FILTER_PARTITIONED_VERTICES), "ioformat.filter-partitioned-vertices");
-        assertEquals(ConfigElement.getPath(ItinerisHadoopConfiguration.FILTER_PARTITIONED_VERTICES, true), "janusgraphmr.ioformat.filter-partitioned-vertices");
+        assertEquals(ConfigElement.getPath(ItinerisHadoopConfiguration.FILTER_PARTITIONED_VERTICES, true), "itinerismr.ioformat.filter-partitioned-vertices");
 
         assertFalse(scanConf.has(ItinerisHadoopConfiguration.FILTER_PARTITIONED_VERTICES));
         assertTrue(scanConf.has(ItinerisHadoopConfiguration.FILTER_PARTITIONED_VERTICES, true));

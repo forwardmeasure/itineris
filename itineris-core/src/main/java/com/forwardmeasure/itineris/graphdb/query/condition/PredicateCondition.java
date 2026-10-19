@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -118,8 +118,8 @@ public class PredicateCondition<K, E extends ItinerisElement> extends Literal<E>
         return key.toString() + " " + predicate.toString() + " " + value;
     }
 
-    public static <K, E extends ItinerisElement> PredicateCondition<K, E> of(K key, ItinerisPredicate janusgraphPredicate, Object condition) {
-        return new PredicateCondition<>(key, janusgraphPredicate, condition);
+    public static <K, E extends ItinerisElement> PredicateCondition<K, E> of(K key, ItinerisPredicate itinerisPredicate, Object condition) {
+        return new PredicateCondition<>(key, itinerisPredicate, condition);
     }
 
 }

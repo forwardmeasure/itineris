@@ -1,4 +1,4 @@
-# Copyright 2017 Itineris Authors
+# Copyright 2017 JanusGraph Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@ services:
       - CASSANDRA_ENABLE_BOP=false
     volumes:
       - ./update_config.py:/update_config.py
-      - ./janusgraph_docker_entrypoint.sh:/janusgraph_docker_entrypoint.sh
+      - ./itineris_docker_entrypoint.sh:/itineris_docker_entrypoint.sh
       - ../cert/node.keystore:/etc/ssl/node.keystore
       - ../cert/node.truststore:/etc/ssl/node.truststore
       - ../cert/node.crt:/etc/ssl/node.crt
       - ../cqlshrc:/root/.cassandra/cqlshrc
-    entrypoint: /janusgraph_docker_entrypoint.sh
+    entrypoint: /itineris_docker_entrypoint.sh

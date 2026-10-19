@@ -56,7 +56,7 @@
 # GREMLIN SETTINGS #
 ####################
 
--Dgremlin.io.kryoShimService=org.janusgraph.hadoop.serialize.JanusGraphKryoShimService
+-Dgremlin.io.kryoShimService=org.itineris.hadoop.serialize.ItinerisKryoShimService
 
 
 #################

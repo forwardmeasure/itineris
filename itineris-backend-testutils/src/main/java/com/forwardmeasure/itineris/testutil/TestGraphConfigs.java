@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class TestGraphConfigs {
 
-    public static final String ENV_OVERRIDE_FILE = "JANUSGRAPH_CONFIG";
+    public static final String ENV_OVERRIDE_FILE = "ITINERIS_CONFIG";
 
     private static final CommonsConfiguration overrides;
 

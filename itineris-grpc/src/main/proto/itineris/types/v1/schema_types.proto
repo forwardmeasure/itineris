@@ -1,4 +1,4 @@
-// Copyright 2021 Itineris Authors
+// Copyright 2021 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -117,7 +117,7 @@ message EdgeLabel {
         // Edge can be queried from both vertices (default).
         DIRECTION_BOTH = 1;
         // Edge can be only queried from the outgoing vertex.
-        // Direction OUT should be only used by experts, see https://docs.itineris.org/schema/advschema/#unidirected-edges.
+        // Direction OUT should be only used by experts, see https://docs.janusgraph.org/schema/advschema/#unidirected-edges.
         DIRECTION_OUT = 2;
     }
     // Defines queryable direction.

@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -125,8 +125,8 @@ public class TestMockIndexProvider implements IndexProvider {
     }
 
     @Override
-    public boolean supports(KeyInformation information, ItinerisPredicate janusgraphPredicate) {
-        return index.supports(information,janusgraphPredicate);
+    public boolean supports(KeyInformation information, ItinerisPredicate itinerisPredicate) {
+        return index.supports(information,itinerisPredicate);
     }
 
     @Override

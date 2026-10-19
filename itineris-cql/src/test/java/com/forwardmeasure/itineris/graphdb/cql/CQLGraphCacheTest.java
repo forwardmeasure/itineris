@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,22 +14,21 @@
 
 package com.forwardmeasure.itineris.graphdb.cql;
 
-import java.util.concurrent.ExecutionException;
+import com.forwardmeasure.itineris.ItinerisCassandraContainer;
+import com.forwardmeasure.itineris.StorageSetup;
+import com.forwardmeasure.itineris.diskstorage.configuration.WriteConfiguration;
+import com.forwardmeasure.itineris.graphdb.ItinerisTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.junitpioneer.jupiter.RetryingTest;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-
-import com.forwardmeasure.itineris.ItinerisCassandraContainer;
-import com.forwardmeasure.itineris.StorageSetup;
 import com.forwardmeasure.itineris.TestCategory;
-import com.forwardmeasure.itineris.diskstorage.configuration.WriteConfiguration;
-import com.forwardmeasure.itineris.graphdb.ItinerisTest;
 
 @Testcontainers
 public class CQLGraphCacheTest extends ItinerisTest {
@@ -42,52 +41,52 @@ public class CQLGraphCacheTest extends ItinerisTest {
         return StorageSetup.addPermanentCache(cqlContainer.getConfiguration(getClass().getSimpleName()));
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/1457
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/1457
     @ParameterizedTest
-    @ValueSource(booleans = { true, false })
+    @ValueSource(booleans = {true, false})
     @Override
     public void simpleLogTest(boolean useStringId) throws InterruptedException {
         super.simpleLogTest(useStringId);
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/1457
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/1457
     @ParameterizedTest
-    @ValueSource(booleans = { true, false })
+    @ValueSource(booleans = {true, false})
     @Override
     public void simpleLogTestWithFailure(boolean useStringId) throws InterruptedException {
         super.simpleLogTestWithFailure(useStringId);
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/1497
-    @RetryingTest(3)
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/1497
+    @RetryingTest( 3)
     @Override
     public void testEdgeTTLTiming() throws Exception {
         super.testEdgeTTLTiming();
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/1462
-    @RetryingTest(3)
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/1462
+    @RetryingTest( 3)
     @Override
     public void testEdgeTTLWithTransactions() throws Exception {
         super.testEdgeTTLWithTransactions();
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/1464
-    @RetryingTest(3)
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/1464
+    @RetryingTest( 3)
     @Override
     public void testVertexTTLWithCompositeIndex() throws Exception {
         super.testVertexTTLWithCompositeIndex();
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/1465
-    @RetryingTest(3)
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/1465
+    @RetryingTest( 3)
     @Override
     public void testVertexTTLImplicitKey() throws Exception {
         super.testVertexTTLImplicitKey();
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/3142
-    @RetryingTest(3)
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/3142
+    @RetryingTest( 3)
     @Override
     public void testReindexingForEdgeIndex() throws ExecutionException, InterruptedException {
         super.testReindexingForEdgeIndex();
@@ -162,5 +161,4 @@ public class CQLGraphCacheTest extends ItinerisTest {
     public void testLimitBatchSizeForMultiQueryRepeatStep() {
         super.testLimitBatchSizeForMultiQueryRepeatStep();
     }
-
 }

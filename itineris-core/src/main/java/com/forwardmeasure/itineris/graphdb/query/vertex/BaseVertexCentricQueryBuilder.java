@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -113,7 +113,7 @@ public abstract class BaseVertexCentricQueryBuilder<Q extends BaseVertexQuery<Q>
         } else if (type.equals(ImplicitKey.ID.name())) {
             RelationIdentifier rid = ElementUtils.getEdgeId(value);
             Preconditions.checkNotNull(rid, "Expected valid relation id: %s", value);
-            return addConstraint(ImplicitKey.JANUSGRAPHID.name(), rel, rid.getRelationId());
+            return addConstraint(ImplicitKey.ITINERISID.name(), rel, rid.getRelationId());
         } else {
             Preconditions.checkArgument(rel.isValidCondition(value), "Invalid condition provided: %s", value);
         }

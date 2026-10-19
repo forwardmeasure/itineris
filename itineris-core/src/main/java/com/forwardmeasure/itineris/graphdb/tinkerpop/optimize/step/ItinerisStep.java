@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,15 +14,9 @@
 
 package com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Profiling;
@@ -35,7 +29,6 @@ import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-
 import com.forwardmeasure.itineris.core.ItinerisEdge;
 import com.forwardmeasure.itineris.core.ItinerisElement;
 import com.forwardmeasure.itineris.core.ItinerisQuery;
@@ -53,15 +46,21 @@ import com.forwardmeasure.itineris.graphdb.tinkerpop.profile.TP3ProfileWrapper;
 import com.forwardmeasure.itineris.graphdb.util.MultiDistinctOrderedIterator;
 import com.forwardmeasure.itineris.graphdb.util.MultiDistinctUnorderedIterator;
 import com.forwardmeasure.itineris.graphdb.util.ProfiledIterator;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
  */
-public class ItinerisStep<S, E extends Element> extends GraphStep<S, E>
-        implements HasStepFolder<S, E>, Profiling, HasContainerHolder<S, E> {
+public class ItinerisStep<S, E extends Element> extends GraphStep<S, E> implements HasStepFolder<S, E>, Profiling, HasContainerHolder<S, E> {
+
     private final ArrayList<HasContainer> hasContainers = new ArrayList<>();
     private final Map<String, Map<List<HasContainer>, QueryInfo>> hasLocalContainers = new LinkedHashMap<>();
     private int lowLimit = 0;
@@ -71,19 +70,18 @@ public class ItinerisStep<S, E extends Element> extends GraphStep<S, E>
     private GraphCentricQuery globalQuery;
     private ItinerisTransaction tx;
 
+
     public ItinerisStep(final GraphStep<S, E> originalStep) {
-        super(originalStep.getTraversal(), originalStep.getReturnClass(), originalStep.isStartStep(),
-                originalStep.getIds());
+        super(originalStep.getTraversal(), originalStep.getReturnClass(), originalStep.isStartStep(), originalStep.getIds());
         originalStep.getLabels().forEach(this::addLabel);
 
         this.setIteratorSupplier(() -> {
             if (this.ids == null) {
                 return Collections.emptyIterator();
             } else if (this.ids.length > 0) {
-                final Graph graph = (Graph) traversal.asAdmin().getGraph().get();
+                final Graph graph = (Graph)traversal.asAdmin().getGraph().get();
                 return iteratorList((Iterator<E>) (Vertex.class.isAssignableFrom(getReturnClass())
-                        ? graph.vertices(ids)
-                        : graph.edges(ids)));
+                    ? graph.vertices(ids) : graph.edges(ids)));
             }
 
             buildGlobalGraphCentricQuery();
@@ -92,8 +90,7 @@ public class ItinerisStep<S, E extends Element> extends GraphStep<S, E>
                 globalQuery.observeWith(queryProfiler.addNested(QueryProfiler.GRAPH_CENTRIC_QUERY));
                 queries.put(0, globalQuery);
             } else if (hasLocalContainers.size() == 1) {
-                for (Map.Entry<List<HasContainer>, QueryInfo> c : hasLocalContainers.values().iterator().next()
-                        .entrySet()) {
+                for (Map.Entry<List<HasContainer>, QueryInfo> c : hasLocalContainers.values().iterator().next().entrySet()) {
                     GraphCentricQuery centricQuery = buildGraphCentricQuery(tx, c, queryProfiler);
                     centricQuery.observeWith(queryProfiler.addNested(QueryProfiler.GRAPH_CENTRIC_QUERY));
                     queries.put(c.getValue().getLowLimit(), centricQuery);
@@ -103,9 +100,10 @@ public class ItinerisStep<S, E extends Element> extends GraphStep<S, E>
                 queries.put(0, globalQuery);
             }
 
+
             final GraphCentricQueryBuilder builder = (GraphCentricQueryBuilder) tx.query();
             final List<Iterator<E>> responses = new ArrayList<>();
-            queries.entries().forEach(q -> executeGraphCentricQuery(builder, responses, q));
+            queries.entries().forEach(q ->  executeGraphCentricQuery(builder, responses, q));
 
             if (orders.isEmpty()) {
                 return new MultiDistinctUnorderedIterator<>(lowLimit, highLimit, responses);
@@ -134,8 +132,7 @@ public class ItinerisStep<S, E extends Element> extends GraphStep<S, E>
         return globalQuery;
     }
 
-    private GraphCentricQuery buildGlobalGraphCentricQuery(final ItinerisTransaction tx,
-            final QueryProfiler globalQueryProfiler) {
+    private GraphCentricQuery buildGlobalGraphCentricQuery(final ItinerisTransaction tx, final QueryProfiler globalQueryProfiler) {
         Integer limit = null;
         for (Map<List<HasContainer>, QueryInfo> containers : hasLocalContainers.values()) {
             for (QueryInfo queryInfo : containers.values()) {
@@ -154,27 +151,24 @@ public class ItinerisStep<S, E extends Element> extends GraphStep<S, E>
         final ItinerisQuery query = tx.query();
         for (Map<List<HasContainer>, QueryInfo> lc : hasLocalContainers.values()) {
             List<ItinerisQuery> localQueries = new ArrayList<>(lc.size());
-            for (final List<HasContainer> localContainers : lc.keySet()) {
+            for(final List<HasContainer> localContainers : lc.keySet()) {
                 final ItinerisQuery localQuery = tx.query();
                 addConstraint(localQuery, localContainers);
                 localQueries.add(localQuery);
             }
             query.or(localQueries);
         }
-        for (final OrderEntry order : orders)
-            query.orderBy(order.key, order.order);
+        for (final OrderEntry order : orders) query.orderBy(order.key, order.order);
         query.limit(Math.min(limit, highLimit));
         return buildGraphCentricQuery(query, globalQueryProfiler);
     }
 
     private void addConstraint(final ItinerisQuery query, final List<HasContainer> localContainers) {
         for (final HasContainer condition : hasContainers) {
-            query.has(condition.getKey(), ItinerisPredicateUtils.convert(condition.getBiPredicate()),
-                    condition.getValue());
+            query.has(condition.getKey(), ItinerisPredicateUtils.convert(condition.getBiPredicate()), condition.getValue());
         }
         for (final HasContainer condition : localContainers) {
-            query.has(condition.getKey(), ItinerisPredicateUtils.convert(condition.getBiPredicate()),
-                    condition.getValue());
+            query.has(condition.getKey(), ItinerisPredicateUtils.convert(condition.getBiPredicate()), condition.getValue());
         }
     }
 
@@ -183,10 +177,8 @@ public class ItinerisStep<S, E extends Element> extends GraphStep<S, E>
         final ItinerisQuery query = tx.query();
         addConstraint(query, containers.getKey());
         final List<OrderEntry> realOrders = orders.isEmpty() ? containers.getValue().getOrders() : orders;
-        for (final OrderEntry order : realOrders)
-            query.orderBy(order.key, order.order);
-        if (highLimit != BaseQuery.NO_LIMIT || containers.getValue().getHighLimit() != BaseQuery.NO_LIMIT)
-            query.limit(Math.min(containers.getValue().getHighLimit(), highLimit));
+        for (final OrderEntry order : realOrders) query.orderBy(order.key, order.order);
+        if (highLimit != BaseQuery.NO_LIMIT || containers.getValue().getHighLimit() != BaseQuery.NO_LIMIT) query.limit(Math.min(containers.getValue().getHighLimit(), highLimit));
         return buildGraphCentricQuery(query, queryProfiler);
     }
 
@@ -198,8 +190,7 @@ public class ItinerisStep<S, E extends Element> extends GraphStep<S, E>
         if (traversal.getEndStep() instanceof CountGlobalStep) {
             centricQueryBuilder.disableSmartLimit();
         }
-        final GraphCentricQuery graphCentricQuery = centricQueryBuilder.constructQueryWithoutProfile(
-                Vertex.class.isAssignableFrom(this.returnClass) ? ElementCategory.VERTEX : ElementCategory.EDGE);
+        final GraphCentricQuery graphCentricQuery = centricQueryBuilder.constructQueryWithoutProfile(Vertex.class.isAssignableFrom(this.returnClass) ? ElementCategory.VERTEX: ElementCategory.EDGE);
         optProfiler.stopTimer();
         return graphCentricQuery;
     }
@@ -208,11 +199,8 @@ public class ItinerisStep<S, E extends Element> extends GraphStep<S, E>
             final Entry<Integer, GraphCentricQuery> entry) {
         final GraphCentricQuery query = entry.getValue();
         final QueryProfiler profiler = query.getProfiler();
-        final Class<? extends ItinerisElement> graphClass = Vertex.class.isAssignableFrom(this.returnClass)
-                ? ItinerisVertex.class
-                : ItinerisEdge.class;
-        final ProfiledIterator iterator = new ProfiledIterator(profiler,
-                () -> builder.iterables(query, graphClass).iterator());
+        final Class<? extends ItinerisElement> graphClass = Vertex.class.isAssignableFrom(this.returnClass) ? ItinerisVertex.class: ItinerisEdge.class;
+        final ProfiledIterator iterator = new ProfiledIterator(profiler, () -> builder.iterables(query, graphClass).iterator());
         long i = 0;
         while (i < entry.getKey() && iterator.hasNext()) {
             iterator.next();
@@ -223,7 +211,7 @@ public class ItinerisStep<S, E extends Element> extends GraphStep<S, E>
 
     @Override
     public String toString() {
-        if (hasLocalContainers.isEmpty() && hasContainers.isEmpty()) {
+        if (hasLocalContainers.isEmpty() && hasContainers.isEmpty()){
             return super.toString();
         }
         if (hasLocalContainers.isEmpty()) {
@@ -262,27 +250,23 @@ public class ItinerisStep<S, E extends Element> extends GraphStep<S, E>
     }
 
     @Override
-    public List<HasContainer> addLocalHasContainersConvertingAndPContainers(TraversalParent parent,
-            List<HasContainer> unconvertedHasContainers) {
+    public List<HasContainer> addLocalHasContainersConvertingAndPContainers(TraversalParent parent, List<HasContainer> unconvertedHasContainers){
         List<HasContainer> localHasContainers = new ArrayList<>(unconvertedHasContainers.size());
-        for (HasContainer hasContainer : unconvertedHasContainers) {
+        for(HasContainer hasContainer : unconvertedHasContainers){
             localHasContainers.add(ItinerisPredicateUtils.convert(hasContainer));
         }
-        Map<List<HasContainer>, QueryInfo> hasContainers = hasLocalContainers.computeIfAbsent(parent.asStep().getId(),
-                k -> new LinkedHashMap<>());
+        Map<List<HasContainer>, QueryInfo> hasContainers = hasLocalContainers.computeIfAbsent(parent.asStep().getId(), k -> new LinkedHashMap<>());
         hasContainers.put(localHasContainers, new QueryInfo(new ArrayList<>(), 0, BaseQuery.NO_LIMIT));
         return localHasContainers;
     }
 
     @Override
-    public List<HasContainer> addLocalHasContainersSplittingAndPContainers(TraversalParent parent,
-            Iterable<HasContainer> hasContainers) {
+    public List<HasContainer> addLocalHasContainersSplittingAndPContainers(TraversalParent parent, Iterable<HasContainer> hasContainers) {
         List<HasContainer> localHasContainers = new ArrayList<>();
-        for (HasContainer hasContainer : hasContainers) {
+        for(HasContainer hasContainer : hasContainers){
             HasStepFolder.splitAndP(localHasContainers, hasContainer);
         }
-        Map<List<HasContainer>, QueryInfo> containers = hasLocalContainers.computeIfAbsent(parent.asStep().getId(),
-                k -> new LinkedHashMap<>());
+        Map<List<HasContainer>, QueryInfo> containers = hasLocalContainers.computeIfAbsent(parent.asStep().getId(), k -> new LinkedHashMap<>());
         containers.put(localHasContainers, new QueryInfo(new ArrayList<>(), 0, BaseQuery.NO_LIMIT));
         return localHasContainers;
     }
@@ -354,14 +338,14 @@ public class ItinerisStep<S, E extends Element> extends GraphStep<S, E>
     }
 
     private <A extends Element> Iterator<A> iteratorList(final Iterator<A> iterator) {
-        if (!iterator.hasNext()) {
+        if(!iterator.hasNext()){
             return Collections.emptyIterator();
         }
         List<HasContainer> hasContainers = getHasContainers();
         final List<A> list = new ArrayList<>(hasContainers.size());
         do {
             final A e = iterator.next();
-            if (HasContainer.testAll(e, hasContainers)) {
+            if (HasContainer.testAll(e, hasContainers)){
                 list.add(e);
             }
         } while (iterator.hasNext());
@@ -372,13 +356,13 @@ public class ItinerisStep<S, E extends Element> extends GraphStep<S, E>
     public int hashCode() {
         int result = super.hashCode();
         result = 31 * result + (hasContainers != null ? this.hasContainers.hashCode() : 0);
-        result = 31 * result + (hasLocalContainers != null
-                ? this.hasLocalContainers.values().stream().map(Map::hashCode).reduce(0, Integer::sum)
-                : 0);
+        result = 31 * result + (hasLocalContainers != null ? this.hasLocalContainers.values().stream().map(Map::hashCode).reduce(0, Integer::sum) : 0);
         result = 31 * result + lowLimit;
         result = 31 * result + highLimit;
         result = 31 * result + (orders != null ? orders.hashCode() : 0);
         return result;
     }
 
+
 }
+

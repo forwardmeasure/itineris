@@ -1,4 +1,4 @@
-// Copyright 2023 Itineris Authors
+// Copyright 2023 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,12 +14,6 @@
 
 package com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Profiling;
@@ -31,7 +25,6 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.PropertyType;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-
 import com.forwardmeasure.itineris.core.BaseVertexQuery;
 import com.forwardmeasure.itineris.graphdb.query.profile.QueryProfiler;
 import com.forwardmeasure.itineris.graphdb.query.vertex.BasicVertexCentricQueryBuilder;
@@ -44,8 +37,13 @@ import com.forwardmeasure.itineris.graphdb.tinkerpop.profile.TP3ProfileWrapper;
 import com.forwardmeasure.itineris.graphdb.util.CopyStepUtil;
 import com.forwardmeasure.itineris.graphdb.util.ItinerisTraverserUtil;
 
-public class ItinerisPropertyMapStep<K, E> extends PropertyMapStep<K, E>
-        implements Profiling, MultiQueriable<Element, Map<K, E>> {
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+public class ItinerisPropertyMapStep<K, E> extends PropertyMapStep<K, E> implements Profiling, MultiQueriable<Element,Map<K, E>> {
 
     private boolean useMultiQuery = false;
     private LabelStepBatchFetcher labelStepBatchFetcher;
@@ -58,27 +56,28 @@ public class ItinerisPropertyMapStep<K, E> extends PropertyMapStep<K, E>
     private PropertiesFetchingService propertiesFetchingService;
     private final boolean isReturnTypeValue;
 
-    public ItinerisPropertyMapStep(PropertyMapStep<K, E> originalStep, boolean prefetchAllPropertiesRequired,
-            boolean prefetchingAllowed) {
+    public ItinerisPropertyMapStep(PropertyMapStep<K, E> originalStep, boolean prefetchAllPropertiesRequired, boolean prefetchingAllowed) {
         super(originalStep.getTraversal(), originalStep.getReturnType(), originalStep.getPropertyKeys());
         CopyStepUtil.copyAbstractStepModifiableFields(originalStep, this);
         this.prefetchAllPropertiesRequired = prefetchAllPropertiesRequired;
         this.prefetchingAllowed = prefetchingAllowed;
         this.isReturnTypeValue = getReturnType() == PropertyType.VALUE;
+
         tokens = originalStep.getIncludedTokens();
         withIdsFetching = includeToken(WithOptions.ids);
         withLabelsFetching = includeToken(WithOptions.labels);
         // Replace traversalRing with valueTraversal
         Traversal.Admin<K, E> valueTraversal = originalStep.getValueTraversal();
-        if (valueTraversal != null) {
-            this.modulateBy(valueTraversal.clone());
+        if(valueTraversal != null) {this.modulateBy(valueTraversal.clone());
         }
         parameters = originalStep.getParameters();
         parameters.getTraversals().forEach(this::integrateChild);
+
         Traversal.Admin<Element, ? extends Property> propertyTraversal = originalStep.getPropertyTraversal();
-        if (propertyTraversal != null) {
+        if(propertyTraversal != null){
             super.setPropertyTraversal(propertyTraversal);
         }
+
         if (originalStep instanceof ItinerisPropertyMapStep) {
             ItinerisPropertyMapStep originalItinerisPropertyMapStep = (ItinerisPropertyMapStep) originalStep;
             setBatchSize(originalItinerisPropertyMapStep.batchSize);
@@ -116,26 +115,25 @@ public class ItinerisPropertyMapStep<K, E> extends PropertyMapStep<K, E>
 
     private void addElementPropertiesInternal(final Traverser.Admin<Element> traverser, Map<Object, Object> map) {
         Iterator<? extends Property> properties = propertiesFetchingService.fetchProperties(traverser, traversal);
-        while (properties.hasNext()) {
-            Property<?> property = (Property) properties.next();
+        while(properties.hasNext()) {
+            Property<?> property = (Property)properties.next();
             Object value = isReturnTypeValue ? property.value() : property;
             map.compute(property.key(), (k, v) -> {
-                List<Object> values = v != null ? (List) v : new ArrayList<>();
+                List<Object> values = v != null ? (List)v : new ArrayList<>();
                 values.add(value);
                 return values;
             });
         }
     }
 
-    private void addIncludedOptions(Map<Object, Object> map, final Traverser.Admin<Element> traverser) {
+    private void addIncludedOptions(Map<Object, Object> map, final Traverser.Admin<Element> traverser){
         if (this.returnType == PropertyType.VALUE) {
             Vertex vertexToFetch = (Vertex) traverser.get();
             if (withIdsFetching) {
                 map.put(T.id, getElementId(vertexToFetch));
             }
             if (withLabelsFetching) {
-                map.put(T.label, labelStepBatchFetcher.fetchData(getTraversal(), vertexToFetch,
-                        ItinerisTraverserUtil.getLoops(traverser)));
+                map.put(T.label, labelStepBatchFetcher.fetchData(getTraversal(), vertexToFetch, ItinerisTraverserUtil.getLoops(traverser)));
             }
         }
     }
@@ -143,9 +141,9 @@ public class ItinerisPropertyMapStep<K, E> extends PropertyMapStep<K, E>
     @Override
     public void setMetrics(MutableMetrics metrics) {
         queryProfiler = new TP3ProfileWrapper(metrics);
-        if (propertiesFetchingService instanceof DirectPropertiesFetchingService) {
+        if(propertiesFetchingService instanceof DirectPropertiesFetchingService){
             ((DirectPropertiesFetchingService) propertiesFetchingService).setQueryProfiler(queryProfiler);
-        } else if (propertiesFetchingService != null) {
+        } else if(propertiesFetchingService != null) {
             propertiesFetchingService.setMetrics(metrics);
         }
     }
@@ -153,45 +151,42 @@ public class ItinerisPropertyMapStep<K, E> extends PropertyMapStep<K, E>
     @Override
     public void setUseMultiQuery(boolean useMultiQuery) {
         this.useMultiQuery = prefetchingAllowed && useMultiQuery;
-        if (this.useMultiQuery && propertiesFetchingService == null) {
+        if(this.useMultiQuery && propertiesFetchingService == null){
             final Traversal.Admin<Element, ? extends Property> propertyTraversal = getPropertyTraversal();
-            propertiesFetchingService = propertyTraversal == null
-                    ? new DirectPropertiesFetchingService(getPropertyKeys(), batchSize, prefetchAllPropertiesRequired,
-                            queryProfiler)
-                    : new TraversalPropertiesFetchingService(propertyTraversal, batchSize,
-                            prefetchAllPropertiesRequired);
+            propertiesFetchingService = propertyTraversal == null ?
+                new DirectPropertiesFetchingService(getPropertyKeys(), batchSize, prefetchAllPropertiesRequired, queryProfiler) :
+                new TraversalPropertiesFetchingService(propertyTraversal, batchSize, prefetchAllPropertiesRequired);
         }
         createLabelFetcherIfNeeded();
     }
 
-    private void createLabelFetcherIfNeeded() {
-        if (withLabelsFetching && useMultiQuery && labelStepBatchFetcher == null) {
+    private void createLabelFetcherIfNeeded(){
+        if(withLabelsFetching && useMultiQuery && labelStepBatchFetcher == null){
             labelStepBatchFetcher = new LabelStepBatchFetcher(ItinerisPropertyMapStep.this::makeLabelsQuery, batchSize);
         }
     }
 
     private <Q extends BaseVertexQuery> Q makeLabelsQuery(Q query) {
         return (Q) BasicVertexCentricQueryUtil.withLabelVertices((BasicVertexCentricQueryBuilder) query)
-                .profiler(queryProfiler);
+            .profiler(queryProfiler);
     }
 
     @Override
     public void setBatchSize(int batchSize) {
         this.batchSize = batchSize;
-        if (propertiesFetchingService != null) {
+        if(propertiesFetchingService != null){
             propertiesFetchingService.setBatchSize(batchSize);
         }
-        if (labelStepBatchFetcher != null) {
+        if(labelStepBatchFetcher != null){
             labelStepBatchFetcher.setBatchSize(batchSize);
         }
     }
 
     @Override
     public void registerFirstNewLoopFutureVertexForPrefetching(Vertex futureVertex, int futureVertexTraverserLoop) {
-        if (useMultiQuery) {
-            propertiesFetchingService.registerFirstNewLoopFutureVertexForPrefetching(futureVertex,
-                    futureVertexTraverserLoop);
-            if (withLabelsFetching) {
+        if(useMultiQuery){
+            propertiesFetchingService.registerFirstNewLoopFutureVertexForPrefetching(futureVertex, futureVertexTraverserLoop);
+            if(withLabelsFetching){
                 labelStepBatchFetcher.registerFirstNewLoopFutureVertexForPrefetching(futureVertex);
             }
         }
@@ -199,24 +194,20 @@ public class ItinerisPropertyMapStep<K, E> extends PropertyMapStep<K, E>
 
     @Override
     public void registerSameLoopFutureVertexForPrefetching(Vertex futureVertex, int futureVertexTraverserLoop) {
-        if (useMultiQuery) {
-            propertiesFetchingService.registerSameLoopFutureVertexForPrefetching(futureVertex,
-                    futureVertexTraverserLoop);
-            if (withLabelsFetching) {
-                labelStepBatchFetcher.registerCurrentLoopFutureVertexForPrefetching(futureVertex,
-                        futureVertexTraverserLoop);
+        if(useMultiQuery){
+            propertiesFetchingService.registerSameLoopFutureVertexForPrefetching(futureVertex, futureVertexTraverserLoop);
+            if(withLabelsFetching) {
+                labelStepBatchFetcher.registerCurrentLoopFutureVertexForPrefetching(futureVertex, futureVertexTraverserLoop);
             }
         }
     }
 
     @Override
     public void registerNextLoopFutureVertexForPrefetching(Vertex futureVertex, int futureVertexTraverserLoop) {
-        if (useMultiQuery) {
-            propertiesFetchingService.registerNextLoopFutureVertexForPrefetching(futureVertex,
-                    futureVertexTraverserLoop);
-            if (withLabelsFetching) {
-                labelStepBatchFetcher.registerNextLoopFutureVertexForPrefetching(futureVertex,
-                        futureVertexTraverserLoop);
+        if(useMultiQuery){
+            propertiesFetchingService.registerNextLoopFutureVertexForPrefetching(futureVertex, futureVertexTraverserLoop);
+            if(withLabelsFetching) {
+                labelStepBatchFetcher.registerNextLoopFutureVertexForPrefetching(futureVertex, futureVertexTraverserLoop);
             }
         }
     }

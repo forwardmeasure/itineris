@@ -1,4 +1,4 @@
-// Copyright 2023 Itineris Authors
+// Copyright 2023 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import java.util.UUID;
 
 import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_SETTING_VERTEX_ID;
 import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_CUSTOM_VERTEX_ID_TYPES;
-import static com.forwardmeasure.itineris.graphdb.relations.RelationIdentifier.JANUSGRAPH_RELATION_DELIMITER;
+import static com.forwardmeasure.itineris.graphdb.relations.RelationIdentifier.ITINERIS_RELATION_DELIMITER;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @Testcontainers
@@ -37,10 +37,10 @@ public class CQLNonAsciiDelimiterTest extends ItinerisBaseTest {
     @Test
     public void testCustomRelationDelimiter() {
         // Non-ASCII delimiter
-        System.setProperty(JANUSGRAPH_RELATION_DELIMITER, "™");
+        System.setProperty(ITINERIS_RELATION_DELIMITER, "™");
         clopen(option(ALLOW_SETTING_VERTEX_ID), true, option(ALLOW_CUSTOM_VERTEX_ID_TYPES), true);
         assertThrows(ExceptionInInitializerError.class, () -> graph.addVertex(T.id, UUID.randomUUID().toString()));
-        System.clearProperty(JANUSGRAPH_RELATION_DELIMITER);
+        System.clearProperty(ITINERIS_RELATION_DELIMITER);
     }
 
     @Override

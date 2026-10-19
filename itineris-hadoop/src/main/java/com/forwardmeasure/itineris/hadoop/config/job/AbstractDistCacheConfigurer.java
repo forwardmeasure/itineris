@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ public abstract class AbstractDistCacheConfigurer {
 
     private final Conf conf;
 
-    private static final String HDFS_TMP_LIB_DIR = "janusgraphlib";
+    private static final String HDFS_TMP_LIB_DIR = "itinerislib";
 
     private static final Logger log =
             LoggerFactory.getLogger(AbstractDistCacheConfigurer.class);

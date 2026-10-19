@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -141,7 +141,7 @@ public class Backend implements LockerProvider, AutoCloseable {
      * <p>
      * These names are fixed and should NEVER be changed. Changing these strings can
      * disrupt storage adapters that rely on these names for specific configurations.
-     * In the past, the store name for the ID table, janusgraph_ids, was also marked here,
+     * In the past, the store name for the ID table, itineris_ids, was also marked here,
      * but to clear the upgrade path from Titan to Itineris, we had to pull it into
      * configuration.
      */

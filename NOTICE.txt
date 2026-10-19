@@ -1,10 +1,16 @@
 ==============================================================
  Itineris: Distributed Graph Database
- Copyright 2012 and onwards Itineris Authors
+ Copyright 2026 and onwards ForwardMeasure
 ==============================================================
 
-This product includes software developed by Itineris contributors listed
-in CONTRIBUTORS.txt; Itineris copyright holders are listed in AUTHORS.txt.
+Itineris is a fork of JanusGraph (https://github.com/JanusGraph/janusgraph),
+taken at release v1.1.0 and kept in sync with it since:
+
+  JanusGraph: Distributed Graph Database
+  Copyright 2012 and onwards JanusGraph Authors
+
+This product includes software developed by JanusGraph contributors listed
+in CONTRIBUTORS.txt; JanusGraph copyright holders are listed in AUTHORS.txt.
 
 This product is based on Titan, originally developed by Aurelius (acquired by
 DataStax) and the following individuals:
@@ -156,8 +162,3 @@ cassandra-hadoop-util/src/main/java/org/apache/cassandra/utils/Pair.java
 from
 https://github.com/apache/cassandra/blob/cassandra-4.0.6/src/java/org/apache/cassandra/utils/Pair.java
 
-
----
-This software is a fork of JanusGraph (v1.1.0), originally developed
-by the JanusGraph contributors under the Apache License 2.0.
-Original project: https://github.com/JanusGraph/janusgraph

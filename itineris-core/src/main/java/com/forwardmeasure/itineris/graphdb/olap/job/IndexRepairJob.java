@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -147,18 +147,18 @@ public class IndexRepairJob extends IndexUpdateJob implements VertexScanJob {
                 Map<StaticBuffer,List<Entry>> inAdditionsMap = new HashMap<>();
 
                 for (Object relation : vertex.query().types(indexRelationTypeName).direction(Direction.OUT).relations()) {
-                    InternalRelation janusgraphRelation = (InternalRelation) relation;
-                    for (int pos = 0; pos < janusgraphRelation.getArity(); pos++) {
+                    InternalRelation itinerisRelation = (InternalRelation) relation;
+                    for (int pos = 0; pos < itinerisRelation.getArity(); pos++) {
                         if (!wrappedType.isUnidirected(Direction.BOTH) && !wrappedType.isUnidirected(EdgeDirection.fromPosition(pos)))
                             continue; //Directionality is not covered
 
-                        Entry entry = edgeSerializer.writeRelation(janusgraphRelation, wrappedType, pos, writeTx);
+                        Entry entry = edgeSerializer.writeRelation(itinerisRelation, wrappedType, pos, writeTx);
 
                         if (pos == 0) {
                             outAdditions.add(entry);
                         } else {
                             assert pos == 1;
-                            InternalVertex otherVertex = janusgraphRelation.getVertex(1);
+                            InternalVertex otherVertex = itinerisRelation.getVertex(1);
                             StaticBuffer otherVertexKey = writeTx.getIdInspector().getKey(otherVertex.id());
                             inAdditionsMap.computeIfAbsent(otherVertexKey, k -> new ArrayList<>()).add(entry);
                         }

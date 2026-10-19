@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ abstract class AbstractHadoopScanRunner<R> {
     protected final VertexScanJob vertexScanJob;
     protected String scanJobConfRoot;
     protected Configuration scanJobConf;
-    protected ReadConfiguration janusgraphConf;
+    protected ReadConfiguration itinerisConf;
     protected org.apache.hadoop.conf.Configuration baseHadoopConf;
 
     public AbstractHadoopScanRunner(ScanJob scanJob) {
@@ -55,8 +55,8 @@ abstract class AbstractHadoopScanRunner<R> {
         return self();
     }
 
-    public R useItinerisConfiguration(ReadConfiguration janusgraphConf) {
-        this.janusgraphConf = janusgraphConf;
+    public R useItinerisConfiguration(ReadConfiguration itinerisConf) {
+        this.itinerisConf = itinerisConf;
         return self();
     }
 }

@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -61,10 +61,10 @@ public class StandardItinerisTxTest extends EasyMockSupport {
         StandardItinerisTx tx = createTxWithMockedInternals();
         tx.rollback();
         // ensure getInternalVertex call does not throw NPE
-        // see https://lists.lfaidata.foundation/g/itineris-users/topic/potential_transaction_issue/85970858
+        // see https://lists.lfaidata.foundation/g/janusgraph-users/topic/potential_transaction_issue/85970858
         assertNull(tx.getInternalVertex(1L));
         // ensure expireSchemaElement call does not throw NPE
-        // see https://github.com/Itineris/itineris/issues/2898
+        // see https://github.com/JanusGraph/janusgraph/issues/2898
         tx.expireSchemaElement(1L);
     }
 

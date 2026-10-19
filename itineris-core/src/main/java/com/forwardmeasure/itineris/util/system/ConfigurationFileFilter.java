@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
 
 public class ConfigurationFileFilter {
 
-    private static final Pattern REPLACEMENT_PATTERN = Pattern.compile("^#JANUSGRAPHCFG\\{((.+)=(.*))\\}$");
+    private static final Pattern REPLACEMENT_PATTERN = Pattern.compile("^#ITINERISCFG\\{((.+)=(.*))\\}$");
 
     private static final Logger log =
             LoggerFactory.getLogger(ConfigurationFileFilter.class);

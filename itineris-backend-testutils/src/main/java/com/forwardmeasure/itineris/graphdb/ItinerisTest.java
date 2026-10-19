@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,113 +14,13 @@
 
 package com.forwardmeasure.itineris.graphdb;
 
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ADJUST_LIMIT;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_CUSTOM_VERTEX_ID_TYPES;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_SETTING_VERTEX_ID;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_STALE_CONFIG;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.AUTO_TYPE;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.BASIC_METRICS;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.CUSTOM_ATTRIBUTE_CLASS;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.CUSTOM_SERIALIZER_CLASS;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.DB_CACHE;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.DB_CACHE_CLEAN_WAIT;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.DB_CACHE_TIME;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.DROP_STEP_BATCH_MODE;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.FORCE_INDEX_USAGE;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.HARD_MAX_LIMIT;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.HAS_STEP_BATCH_MODE;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.IDS_STORE_NAME;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.INITIAL_ITINERIS_GRAPH_VERSION;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LABEL_STEP_BATCH_MODE;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LIMITED_BATCH;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LIMITED_BATCH_SIZE;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LOG_BACKEND;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LOG_READ_INTERVAL;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LOG_SEND_DELAY;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.MANAGEMENT_LOG;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.MAX_COMMIT_TIME;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.METRICS_MERGE_STORES;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.PARALLEL_BACKEND_OPS;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.PROPERTIES_BATCH_MODE;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.PROPERTY_PREFETCHING;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.REPEAT_STEP_BATCH_MODE;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.REPLACE_INSTANCE_IF_EXISTS;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCHEMA_CONSTRAINTS;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCHEMA_DROP_BEFORE_INIT;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCHEMA_INIT_JSON_INDICES_ACTIVATION_TYPE;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCHEMA_INIT_JSON_STR;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCHEMA_INIT_STRATEGY;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCRIPT_EVAL_ENABLED;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCRIPT_EVAL_ENGINE;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_BACKEND;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_BATCH;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_READONLY;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SYSTEM_LOG_TRANSACTIONS;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.TRANSACTION_LOG;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.TX_CACHE_SIZE;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.UNIQUE_INSTANCE_ID;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.USER_LOG;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.USE_MULTIQUERY;
-import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.VERBOSE_TX_RECOVERY;
-import static com.forwardmeasure.itineris.graphdb.internal.RelationCategory.EDGE;
-import static com.forwardmeasure.itineris.graphdb.internal.RelationCategory.PROPERTY;
-import static com.forwardmeasure.itineris.graphdb.internal.RelationCategory.RELATION;
-import static com.forwardmeasure.itineris.testutil.ItinerisAssert.assertContains;
-import static com.forwardmeasure.itineris.testutil.ItinerisAssert.assertCount;
-import static com.forwardmeasure.itineris.testutil.ItinerisAssert.assertEmpty;
-import static com.forwardmeasure.itineris.testutil.ItinerisAssert.assertNotEmpty;
-import static com.forwardmeasure.itineris.testutil.ItinerisAssert.getLastStepMetrics;
-import static com.forwardmeasure.itineris.testutil.ItinerisAssert.getStepMetrics;
-import static com.forwardmeasure.itineris.testutil.ItinerisAssert.queryProfilerAnnotationIsPresent;
-import static org.apache.tinkerpop.gremlin.process.traversal.Order.asc;
-import static org.apache.tinkerpop.gremlin.process.traversal.Order.desc;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasNot;
-import static org.apache.tinkerpop.gremlin.structure.Direction.BOTH;
-import static org.apache.tinkerpop.gremlin.structure.Direction.IN;
-import static org.apache.tinkerpop.gremlin.structure.Direction.OUT;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.EnumMap;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import io.github.artsok.RepeatedIfExceptionsTest;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.NotImplementedException;
@@ -145,18 +45,6 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
-import org.opentest4j.AssertionFailedError;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.forwardmeasure.itineris.TestCategory;
 import com.forwardmeasure.itineris.core.Cardinality;
 import com.forwardmeasure.itineris.core.EdgeLabel;
@@ -275,14 +163,124 @@ import com.forwardmeasure.itineris.testutil.ItinerisFeature;
 import com.forwardmeasure.itineris.testutil.TestGraphConfigs;
 import com.forwardmeasure.itineris.util.IDUtils;
 import com.forwardmeasure.itineris.util.stats.MetricManager;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.opentest4j.AssertionFailedError;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import io.github.artsok.RepeatedIfExceptionsTest;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static org.apache.tinkerpop.gremlin.process.traversal.Order.asc;
+import static org.apache.tinkerpop.gremlin.process.traversal.Order.desc;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasNot;
+import static org.apache.tinkerpop.gremlin.structure.Direction.BOTH;
+import static org.apache.tinkerpop.gremlin.structure.Direction.IN;
+import static org.apache.tinkerpop.gremlin.structure.Direction.OUT;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ADJUST_LIMIT;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_CUSTOM_VERTEX_ID_TYPES;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_SETTING_VERTEX_ID;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.ALLOW_STALE_CONFIG;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.AUTO_TYPE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.BASIC_METRICS;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.CUSTOM_ATTRIBUTE_CLASS;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.CUSTOM_SERIALIZER_CLASS;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.DB_CACHE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.DB_CACHE_CLEAN_WAIT;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.DB_CACHE_TIME;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.DROP_STEP_BATCH_MODE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.FORCE_INDEX_USAGE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.HARD_MAX_LIMIT;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.HAS_STEP_BATCH_MODE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.IDS_STORE_NAME;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.INITIAL_ITINERIS_VERSION;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LABEL_STEP_BATCH_MODE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LIMITED_BATCH;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LIMITED_BATCH_SIZE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LOG_BACKEND;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LOG_READ_INTERVAL;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.LOG_SEND_DELAY;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.MANAGEMENT_LOG;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.MAX_COMMIT_TIME;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.METRICS_MERGE_STORES;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.PARALLEL_BACKEND_OPS;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.PROPERTIES_BATCH_MODE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.PROPERTY_PREFETCHING;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.REPEAT_STEP_BATCH_MODE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.REPLACE_INSTANCE_IF_EXISTS;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCHEMA_CONSTRAINTS;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCHEMA_DROP_BEFORE_INIT;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCHEMA_INIT_JSON_INDICES_ACTIVATION_TYPE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCHEMA_INIT_JSON_STR;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCHEMA_INIT_STRATEGY;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCRIPT_EVAL_ENABLED;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SCRIPT_EVAL_ENGINE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_BACKEND;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_BATCH;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.STORAGE_READONLY;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.SYSTEM_LOG_TRANSACTIONS;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.TRANSACTION_LOG;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.TX_CACHE_SIZE;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.UNIQUE_INSTANCE_ID;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.USER_LOG;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.USE_MULTIQUERY;
+import static com.forwardmeasure.itineris.graphdb.configuration.GraphDatabaseConfiguration.VERBOSE_TX_RECOVERY;
+import static com.forwardmeasure.itineris.graphdb.internal.RelationCategory.EDGE;
+import static com.forwardmeasure.itineris.graphdb.internal.RelationCategory.PROPERTY;
+import static com.forwardmeasure.itineris.graphdb.internal.RelationCategory.RELATION;
+import static com.forwardmeasure.itineris.testutil.ItinerisAssert.assertContains;
+import static com.forwardmeasure.itineris.testutil.ItinerisAssert.assertCount;
+import static com.forwardmeasure.itineris.testutil.ItinerisAssert.assertEmpty;
+import static com.forwardmeasure.itineris.testutil.ItinerisAssert.assertNotEmpty;
+import static com.forwardmeasure.itineris.testutil.ItinerisAssert.getLastStepMetrics;
+import static com.forwardmeasure.itineris.testutil.ItinerisAssert.getStepMetrics;
+import static com.forwardmeasure.itineris.testutil.ItinerisAssert.queryProfilerAnnotationIsPresent;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 /**
  * @author Matthias Broecheler (me@matthiasb.com)
@@ -296,13 +294,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         return features.hasOptimisticLocking();
     }
 
-    /*
-     * =============================================================================
-     * =====
-     * UPDATE THEN REMOVE IN THE SAME TRANSACTION
-     * =============================================================================
-     * =====
-     */
+
+    /* ==================================================================================
+                       UPDATE THEN REMOVE IN THE SAME TRANSACTION
+     ==================================================================================*/
 
     private void initializeGraphWithVerticesAndEdges() {
         if (mgmt.getEdgeLabel("fork-connect") == null) {
@@ -411,8 +406,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     /**
-     * update property of a vertex property and remove the property of the vertex
-     * property
+     * update property of a vertex property and remove the property of the vertex property
      */
     @Test
     public void testUpdatePropertyPropThenRemovePropertyProp() {
@@ -512,13 +506,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertTrue(graph.traversal().E(id).hasNext());
     }
 
-    /*
-     * =============================================================================
-     * =====
-     * INDEXING
-     * =============================================================================
-     * =====
-     */
+  /* ==================================================================================
+                            INDEXING
+     ==================================================================================*/
 
     /**
      * Just opens and closes the graph
@@ -529,7 +519,6 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
     /**
      * Ensure clearing storage actually removes underlying database.
-     * 
      * @throws Exception
      */
     @Test
@@ -559,14 +548,13 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         uid = tx.getPropertyKey("name");
         assertNotNull(getV(tx, nid));
         assertNotNull(getV(tx, uid.id()));
-        // even though id is long-type, we can use string-type to query and Itineris
-        // will cast it to long
+        // even though id is long-type, we can use string-type to query and Itineris will cast it to long
         assertNotNull(getV(tx, uid.id().toString()));
         assertMissing(tx, nid + 64);
         uid = tx.getPropertyKey(uid.name());
         n1 = getV(tx, nid);
         assertEquals(n1, getOnlyVertex(tx.query().has(uid.name(), "abcd")));
-        assertEquals(1, Iterables.size(n1.query().relations())); // TODO: how to expose relations?
+        assertEquals(1, Iterables.size(n1.query().relations())); //TODO: how to expose relations?
         assertEquals("abcd", n1.value(uid.name()));
         assertCount(1, tx.query().vertices());
         close();
@@ -611,7 +599,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertCount(0, v1.query().direction(Direction.BOTH).edges());
 
         final ItinerisVertex v2Copied = v2;
-        assertThrows(IllegalStateException.class, () -> v2Copied.query().direction(Direction.BOTH).edges());
+        assertThrows(IllegalStateException.class, ()-> v2Copied.query().direction(Direction.BOTH).edges());
 
         assertCount(1, graph.query().vertices());
         assertCount(1, graph.query().has(nameUniqueVertexPropertyName, "v1").vertices());
@@ -651,18 +639,18 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertCount(numE, tx.query().edges());
         assertCount(numE, tx.query().edges());
 
-        // tx.V().range(0,deleteV).remove();
+        //tx.V().range(0,deleteV).remove();
         for (ItinerisVertex v : tx.query().limit(deleteV).vertices()) {
             v.remove();
         }
 
-        for (int i = 0; i < 10; i++) { // Repeated vertex counts
+        for (int i = 0; i < 10; i++) { //Repeated vertex counts
             assertCount(numV - deleteV, tx.query().vertices());
             assertCount(numV - deleteV, tx.query().has("count", Cmp.GREATER_THAN_EQUAL, 0).vertices());
         }
 
         clopen();
-        for (int i = 0; i < 10; i++) { // Repeated vertex counts
+        for (int i = 0; i < 10; i++) { //Repeated vertex counts
             assertCount(numV - deleteV, tx.query().vertices());
             assertCount(numV - deleteV, tx.query().has("count", Cmp.GREATER_THAN_EQUAL, 0).vertices());
         }
@@ -670,7 +658,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
     @Test
     public void testMediumCreateRetrieve() {
-        // Create schema
+        //Create schema
         makeLabel("connect");
         makeVertexIndexedUniqueKey("name", String.class);
         PropertyKey weight = makeKey("weight", Double.class);
@@ -678,7 +666,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("knows")).sortKey(id).signature(weight).make();
         finishSchema();
 
-        // Create Nodes
+        //Create Nodes
         int noVertices = 500;
         String[] names = new String[noVertices];
         int[] ids = new int[noVertices];
@@ -689,12 +677,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             names[i] = "vertex" + i;
             ids[i] = i;
             nodes[i] = tx.addVertex("name", names[i], "uid", ids[i]);
-            if ((i + 1) % 100 == 0)
-                log.debug("Added 100 nodes");
+            if ((i + 1) % 100 == 0) log.debug("Added 100 nodes");
         }
         log.debug("Nodes created");
-        int[] connectOff = { -100, -34, -4, 10, 20 };
-        int[] knowsOff = { -400, -18, 8, 232, 334 };
+        int[] connectOff = {-100, -34, -4, 10, 20};
+        int[] knowsOff = {-400, -18, 8, 232, 334};
         for (int i = 0; i < noVertices; i++) {
             ItinerisVertex n = nodes[i];
             nodeEdges[i] = new ArrayList<>(10);
@@ -710,8 +697,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                         "name", i + "-" + k);
                 nodeEdges[i].add(r);
             }
-            if (i % 100 == 99)
-                log.debug(".");
+            if (i % 100 == 99) log.debug(".");
         }
 
         tx.commit();
@@ -760,18 +746,18 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             assertEquals(edgeIds, nodeEdgeIds[i], edgeIds + " vs " + nodeEdgeIds[i]);
         }
         newTx();
-        // Bulk vertex retrieval
+        //Bulk vertex retrieval
         Object[] vertexIdsOne = new Object[noVertices / 10];
         System.arraycopy(nodeIds, 0, vertexIdsOne, 0, vertexIdsOne.length);
-        // All non-cached
+        //All non-cached
         verifyVerticesRetrieval(vertexIdsOne, Lists.newArrayList(tx.getVertices(vertexIdsOne)));
 
-        // All cached
+        //All cached
         verifyVerticesRetrieval(vertexIdsOne, Lists.newArrayList(tx.getVertices(vertexIdsOne)));
 
         Object[] vertexIdsTwo = new Object[noVertices / 10 * 2];
         System.arraycopy(nodeIds, 0, vertexIdsTwo, 0, vertexIdsTwo.length);
-        // Partially cached
+        //Partially cached
         verifyVerticesRetrieval(vertexIdsTwo, Lists.newArrayList(tx.getVertices(vertexIdsTwo)));
     }
 
@@ -784,43 +770,38 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         }
     }
 
-    /*
-     * =============================================================================
-     * =====
-     * SCHEMA TESTS
-     * =============================================================================
-     * =====
-     */
+
+    /* ==================================================================================
+                            SCHEMA TESTS
+     ==================================================================================*/
 
     /**
-     * Test the definition and inspection of various schema types and ensure their
-     * correct interpretation
+     * Test the definition and inspection of various schema types and ensure their correct interpretation
      * within the graph
      */
     @SuppressWarnings("unchecked")
     @Test
     public void testSchemaTypes() {
         // ---------- PROPERTY KEYS ----------------
-        // Normal single-valued property key
+        //Normal single-valued property key
         final PropertyKey weight = makeKey("weight", Float.class);
-        // Indexed unique property key
+        //Indexed unique property key
         PropertyKey uid = makeVertexIndexedUniqueKey("uid", String.class);
-        // Indexed but not unique
+        //Indexed but not unique
         final PropertyKey someId = makeVertexIndexedKey("someid", Object.class);
-        // Set-valued property key
+        //Set-valued property key
         PropertyKey name = mgmt.makePropertyKey("name").dataType(String.class).cardinality(Cardinality.SET).make();
-        // List-valued property key with signature
-        PropertyKey value = mgmt.makePropertyKey("value").dataType(Double.class).signature(weight)
-                .cardinality(Cardinality.LIST).make();
+        //List-valued property key with signature
+        PropertyKey value = mgmt.makePropertyKey("value").dataType(Double.class).signature(weight).cardinality(Cardinality.LIST).make();
 
         // ---------- EDGE LABELS ----------------
-        // Standard edge label
+        //Standard edge label
         EdgeLabel friend = mgmt.makeEdgeLabel("friend").make();
-        // Unidirected
+        //Unidirected
         EdgeLabel link = mgmt.makeEdgeLabel("link").unidirected().multiplicity(Multiplicity.MANY2ONE).make();
-        // Signature label
+        //Signature label
         EdgeLabel connect = mgmt.makeEdgeLabel("connect").signature(uid).multiplicity(Multiplicity.SIMPLE).make();
-        // Edge labels with different cardinalities
+        //Edge labels with different cardinalities
         EdgeLabel parent = mgmt.makeEdgeLabel("parent").multiplicity(Multiplicity.MANY2ONE).make();
         EdgeLabel child = mgmt.makeEdgeLabel("child").multiplicity(Multiplicity.ONE2MANY).make();
         EdgeLabel spouse = mgmt.makeEdgeLabel("spouse").multiplicity(Multiplicity.ONE2ONE).make();
@@ -896,38 +877,42 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertFalse(tag.isPartitioned());
         assertTrue(tweet.isStatic());
 
-        // ------ TRY INVALID STUFF --------
+        //------ TRY INVALID STUFF --------
 
-        // Failures
-        // No data type
+        //Failures
+        //No data type
         assertThrows(IllegalArgumentException.class, () -> mgmt.makePropertyKey("fid").make());
-        // Already exists
+        //Already exists
         assertThrows(SchemaViolationException.class, () -> mgmt.makeEdgeLabel("link").unidirected().make());
-        // signature and sort-key collide
-        assertThrows(IllegalArgumentException.class, () -> ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("other"))
-                .sortKey(someId, weight).signature(someId).make());
-        // sort key requires the label to be non-constrained
-        assertThrows(IllegalArgumentException.class, () -> ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("other"))
-                .multiplicity(Multiplicity.SIMPLE).sortKey(weight).make());
-        // sort key requires the label to be non-constrained
-        assertThrows(IllegalArgumentException.class, () -> ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("other"))
-                .multiplicity(Multiplicity.MANY2ONE).sortKey(weight).make());
-        // Already exists
+        //signature and sort-key collide
+        assertThrows(IllegalArgumentException.class, () ->
+            ((StandardEdgeLabelMaker)mgmt.makeEdgeLabel("other")).
+                sortKey(someId, weight).signature(someId).make());
+        //sort key requires the label to be non-constrained
+        assertThrows(IllegalArgumentException.class, () ->
+            ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("other")).multiplicity(Multiplicity.SIMPLE).
+                sortKey(weight).make());
+        //sort key requires the label to be non-constrained
+        assertThrows(IllegalArgumentException.class, () ->
+            ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("other")).multiplicity(Multiplicity.MANY2ONE).
+                sortKey(weight).make());
+        //Already exists
         assertThrows(SchemaViolationException.class, () -> mgmt.makeVertexLabel("tweet").make());
-        // signature key must have non-generic data type
+        //signature key must have non-generic data type
         assertThrows(IllegalArgumentException.class, () -> mgmt.makeEdgeLabel("test").signature(someId).make());
-        // try {
-        // //keys must be single-valued
-        // ((StandardEdgeLabelMaker)mgmt.makeEdgeLabel("other")).
-        // sortKey(name, weight).make();
-        // fail();
+//        try {
+//            //keys must be single-valued
+//            ((StandardEdgeLabelMaker)mgmt.makeEdgeLabel("other")).
+//                    sortKey(name, weight).make();
+//            fail();
 
         // ######### END INSPECTION ############
+
 
         finishSchema();
         clopen();
 
-        // Load schema types into current transaction
+        //Load schema types into current transaction
         final PropertyKey weight2 = mgmt.getPropertyKey("weight");
         uid = mgmt.getPropertyKey("uid");
         final PropertyKey someId2 = mgmt.getPropertyKey("someid");
@@ -942,6 +927,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         person = mgmt.getVertexLabel("person");
         tag = mgmt.getVertexLabel("tag");
         tweet = mgmt.getVertexLabel("tweet");
+
 
         // ######### INSPECTION & FAILURE (COPIED FROM ABOVE) ############
 
@@ -1006,39 +992,42 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertFalse(tag.isPartitioned());
         assertTrue(tweet.isStatic());
 
-        // ------ TRY INVALID STUFF --------
+        //------ TRY INVALID STUFF --------
 
-        // Failures
+        //Failures
         assertThrows(IllegalArgumentException.class, () -> mgmt.makePropertyKey("fid").make());
-        // Already exists
+        //Already exists
         assertThrows(SchemaViolationException.class, () -> mgmt.makeEdgeLabel("link").unidirected().make());
-        // signature and sort-key collide
-        assertThrows(IllegalArgumentException.class, () -> ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("other"))
-                .sortKey(someId2, weight2).signature(someId2).make());
-        // sort key requires the label to be non-constrained
-        assertThrows(IllegalArgumentException.class, () -> ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("other"))
-                .multiplicity(Multiplicity.SIMPLE).sortKey(weight2).make());
-        // sort key requires the label to be non-constrained
-        assertThrows(IllegalArgumentException.class, () -> ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("other"))
-                .multiplicity(Multiplicity.MANY2ONE).sortKey(weight2).make());
-        // Already exists
+        //signature and sort-key collide
+        assertThrows(IllegalArgumentException.class, () ->
+            ((StandardEdgeLabelMaker)mgmt.makeEdgeLabel("other")).
+                sortKey(someId2, weight2).signature(someId2).make());
+        //sort key requires the label to be non-constrained
+        assertThrows(IllegalArgumentException.class, () ->
+            ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("other")).multiplicity(Multiplicity.SIMPLE).
+                sortKey(weight2).make());
+        //sort key requires the label to be non-constrained
+        assertThrows(IllegalArgumentException.class, () ->
+            ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("other")).multiplicity(Multiplicity.MANY2ONE).
+                sortKey(weight2).make());
+        //Already exists
         assertThrows(SchemaViolationException.class, () -> mgmt.makeVertexLabel("tweet").make());
-        // signature key must have non-generic data type
+        //signature key must have non-generic data type
         assertThrows(IllegalArgumentException.class, () -> mgmt.makeEdgeLabel("test").signature(someId2).make());
 
         // ######### END INSPECTION ############
 
         /*
-         * ####### Make sure schema semantics are honored in transactions ######
-         */
+          ####### Make sure schema semantics are honored in transactions ######
+        */
 
         clopen();
 
         ItinerisTransaction tx2;
-        assertEmpty(tx.query().has("uid", "v1").vertices()); // shouldn't exist
+        assertEmpty(tx.query().has("uid", "v1").vertices()); //shouldn't exist
 
         ItinerisVertex v = tx.addVertex();
-        // test property keys
+        //test property keys
         v.property("uid", "v1");
         v.property("weight", 1.5);
         v.property("someid", "Hello");
@@ -1047,8 +1036,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         VertexProperty p = v.property("value", 11);
         p.property("weight", 22);
         v.property("value", 33.3, "weight", 66.6);
-        v.property("value", 11, "weight", 22); // same values are supported for list-properties
-        // test edges
+        v.property("value", 11, "weight", 22); //same values are supported for list-properties
+        //test edges
         ItinerisVertex v12 = tx.addVertex("person"), v13 = tx.addVertex("person");
         v12.property("uid", "v12");
         v13.property("uid", "v13");
@@ -1058,7 +1047,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         v.addEdge("child", v13);
         v.addEdge("spouse", v12);
         v.addEdge("friend", v12);
-        v.addEdge("friend", v12); // supports multi edges
+        v.addEdge("friend", v12); //supports multi edges
         v.addEdge("connect", v12, "uid", "e1");
         v.addEdge("link", v13);
         ItinerisVertex v2 = tx.addVertex("tweet");
@@ -1071,16 +1060,16 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         v = getOnlyVertex(tx.query().has("uid", Cmp.EQUAL, "v1"));
         v12 = getOnlyVertex(tx.query().has("uid", Cmp.EQUAL, "v12"));
         v13 = getOnlyVertex(tx.query().has("uid", Cmp.EQUAL, "v13"));
-        // Invalid data type
+        //Invalid data type
         ItinerisVertex finalV = v;
-        assertThrows(SchemaViolationException.class, () -> finalV.property("weight", "x"));
-        // Only one "John" should be allowed
-        assertThrows(SchemaViolationException.class,
-                () -> finalV.property(VertexProperty.Cardinality.list, "name", "John"));
-        // Cannot set a property as edge
-        assertThrows(IllegalArgumentException.class, () -> finalV.property("link", finalV));
+        assertThrows(SchemaViolationException.class, ()-> finalV.property("weight", "x"));
+        //Only one "John" should be allowed
+        assertThrows(SchemaViolationException.class, ()-> finalV.property(VertexProperty.Cardinality.list, "name", "John"));
+        //Cannot set a property as edge
+        assertThrows(IllegalArgumentException.class, ()-> finalV.property("link", finalV));
 
-        // Only one property for weight allowed
+
+        //Only one property for weight allowed
         v.property(VertexProperty.Cardinality.single, "weight", 1.0);
         assertCount(1, v.properties("weight"));
         v.property(VertexProperty.Cardinality.single, "weight", 0.5);
@@ -1097,31 +1086,31 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             double prec = prop.value();
             assertEquals(prec * 2, prop.<Number>value("weight").doubleValue(), 0.00001);
         }
-        // Ensure we can add additional values
+        //Ensure we can add additional values
         p = v.property("value", 44.4, "weight", 88.8);
         assertEquals(v, getOnlyElement(tx.query().has("someid", Cmp.EQUAL, "Hello").vertices()));
 
-        // ------- EDGES -------
+        //------- EDGES -------
         try {
-            // multiplicity violation
+            //multiplicity violation
             v12.addEdge("parent", v13);
             fail();
         } catch (SchemaViolationException ignored) {
         }
         try {
-            // multiplicity violation
+            //multiplicity violation
             v13.addEdge("child", v12);
             fail();
         } catch (SchemaViolationException ignored) {
         }
         try {
-            // multiplicity violation
+            //multiplicity violation
             v13.addEdge("spouse", v12);
             fail();
         } catch (SchemaViolationException ignored) {
         }
         try {
-            // multiplicity violation
+            //multiplicity violation
             v.addEdge("spouse", v13);
             fail();
         } catch (SchemaViolationException ignored) {
@@ -1134,15 +1123,15 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(1, edge.keys().size());
         assertEquals("e1", edge.value("uid"));
         try {
-            // connect is simple
+            //connect is simple
             v.addEdge("connect", v12);
             fail();
         } catch (SchemaViolationException ignored) {
         }
-        // Make sure "link" is unidirected
+        //Make sure "link" is unidirected
         assertCount(1, v.query().direction(Direction.BOTH).labels("link").edges());
         assertCount(0, v13.query().direction(Direction.BOTH).labels("link").edges());
-        // Assert we can add more friendships
+        //Assert we can add more friendships
         v.addEdge("friend", v12);
         v2 = Iterables.getOnlyElement(v12.query().direction(Direction.OUT).labels("connect").vertices());
         assertEquals(v13, getOnlyElement(v2.query().direction(Direction.OUT).labels("link").vertices()));
@@ -1163,14 +1152,13 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         v12 = getOnlyVertex(tx.query().has("uid", Cmp.EQUAL, "v12"));
         v13 = getOnlyVertex(tx.query().has("uid", Cmp.EQUAL, "v13"));
         ItinerisVertex finalV1 = v;
-        assertThrows(SchemaViolationException.class, () -> finalV1.property("weight", "x"));
-        // Only one "John" should be allowed
-        assertThrows(SchemaViolationException.class,
-                () -> finalV1.property(VertexProperty.Cardinality.list, "name", "John"));
-        // Cannot set a property as edge
-        assertThrows(IllegalArgumentException.class, () -> finalV1.property("link", finalV1));
+        assertThrows(SchemaViolationException.class, ()-> finalV1.property("weight", "x"));
+        //Only one "John" should be allowed
+        assertThrows(SchemaViolationException.class, ()-> finalV1.property(VertexProperty.Cardinality.list, "name", "John"));
+        //Cannot set a property as edge
+        assertThrows(IllegalArgumentException.class, ()-> finalV1.property("link", finalV1));
 
-        // Only one property for weight allowed
+        //Only one property for weight allowed
         v.property(VertexProperty.Cardinality.single, "weight", 1.0);
         assertCount(1, v.properties("weight"));
         v.property(VertexProperty.Cardinality.single, "weight", 0.5);
@@ -1188,31 +1176,31 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             double prec = prop.value();
             assertEquals(prec * 2, prop.<Number>value("weight").doubleValue(), 0.00001);
         }
-        // Ensure we can add additional values
+        //Ensure we can add additional values
         p = v.property("value", 44.4, "weight", 88.8);
         assertEquals(v, getOnlyElement(tx.query().has("someid", Cmp.EQUAL, "Hello").vertices()));
 
-        // ------- EDGES -------
+        //------- EDGES -------
         try {
-            // multiplicity violation
+            //multiplicity violation
             v12.addEdge("parent", v13);
             fail();
         } catch (SchemaViolationException ignored) {
         }
         try {
-            // multiplicity violation
+            //multiplicity violation
             v13.addEdge("child", v12);
             fail();
         } catch (SchemaViolationException ignored) {
         }
         try {
-            // multiplicity violation
+            //multiplicity violation
             v13.addEdge("spouse", v12);
             fail();
         } catch (SchemaViolationException ignored) {
         }
         try {
-            // multiplicity violation
+            //multiplicity violation
             v.addEdge("spouse", v13);
             fail();
         } catch (SchemaViolationException ignored) {
@@ -1225,15 +1213,15 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(1, edge.keys().size());
         assertEquals("e1", edge.value("uid"));
         try {
-            // connect is simple
+            //connect is simple
             v.addEdge("connect", v12);
             fail();
         } catch (SchemaViolationException ignored) {
         }
-        // Make sure "link" is unidirected
+        //Make sure "link" is unidirected
         assertCount(1, v.query().direction(Direction.BOTH).labels("link").edges());
         assertCount(0, v13.query().direction(Direction.BOTH).labels("link").edges());
-        // Assert we can add more friendships
+        //Assert we can add more friendships
         v.addEdge("friend", v12);
         v2 = Iterables.getOnlyElement(v12.query().direction(Direction.OUT).labels("connect").vertices());
         assertEquals(v13, getOnlyElement(v2.query().direction(Direction.OUT).labels("link").vertices()));
@@ -1246,12 +1234,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // ######### END INSPECTION & FAILURE ############
 
-        // Ensure index uniqueness enforcement
+        //Ensure index uniqueness enforcement
         tx2 = graph.newTransaction();
         try {
             ItinerisVertex vx = tx2.addVertex();
             try {
-                // property is unique
+                //property is unique
                 vx.property(VertexProperty.Cardinality.single, "uid", "v1");
                 fail();
             } catch (SchemaViolationException ignored) {
@@ -1259,7 +1247,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             vx.property(VertexProperty.Cardinality.single, "uid", "unique");
             ItinerisVertex vx2 = tx2.addVertex();
             try {
-                // property unique
+                //property unique
                 vx2.property(VertexProperty.Cardinality.single, "uid", "unique");
                 fail();
             } catch (SchemaViolationException ignored) {
@@ -1268,7 +1256,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             tx2.rollback();
         }
 
-        // Ensure that v2 is really static
+
+        //Ensure that v2 is really static
         v2 = getV(tx, v2);
         assertEquals("tweet", v2.label());
         try {
@@ -1282,14 +1271,13 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         } catch (SchemaViolationException ignored) {
         }
 
-        // Ensure that unidirected edges keep pointing to deleted vertices
+        //Ensure that unidirected edges keep pointing to deleted vertices
         getV(tx, v13).remove();
         assertCount(1, v.query().direction(Direction.BOTH).labels("link").edges());
     }
 
     /**
-     * Test the different data types that Itineris supports natively and ensure that
-     * invalid data types aren't allowed
+     * Test the different data types that Itineris supports natively and ensure that invalid data types aren't allowed
      */
     @Test
     public void testDataTypes() {
@@ -1299,14 +1287,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         PropertyKey any = mgmt.makePropertyKey("any").cardinality(Cardinality.LIST).dataType(Object.class).make();
 
         try {
-            // Not a valid data type - primitive
+            //Not a valid data type - primitive
             makeKey("pint", int.class);
             fail();
         } catch (IllegalArgumentException ignored) {
         }
 
         try {
-            // Not a valid data type - interface
+            //Not a valid data type - interface
             makeKey("number", Number.class);
             fail();
         } catch (IllegalArgumentException ignored) {
@@ -1322,20 +1310,17 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         ItinerisVertex v = tx.addVertex();
         v.property(n(any), "Hello");
         v.property(n(any), 10L);
-        int[] testArray = { 5, 6, 7 };
+        int[] testArray = {5, 6, 7};
         v.property(n(any), testArray);
 
         // ######## VERIFICATION ##########
         for (Object prop : v.query().labels("any").properties()) {
             Object value = ((ItinerisVertexProperty<?>) prop).value();
-            if (value instanceof String)
-                assertEquals("Hello", value);
-            else if (value instanceof Long)
-                assertEquals(10L, value);
+            if (value instanceof String) assertEquals("Hello", value);
+            else if (value instanceof Long) assertEquals(10L, value);
             else if (value.getClass().isArray()) {
                 assertArrayEquals(testArray, (int[]) value);
-            } else
-                fail();
+            } else fail();
         }
 
         clopen();
@@ -1345,20 +1330,16 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         // ######## VERIFICATION (copied from above) ##########
         for (Object prop : v.query().labels("any").properties()) {
             Object value = ((ItinerisVertexProperty<?>) prop).value();
-            if (value instanceof String)
-                assertEquals("Hello", value);
-            else if (value instanceof Long)
-                assertEquals(10L, value);
+            if (value instanceof String) assertEquals("Hello", value);
+            else if (value instanceof Long) assertEquals(10L, value);
             else if (value.getClass().isArray()) {
                 assertArrayEquals(testArray, (int[]) value);
-            } else
-                fail();
+            } else fail();
         }
     }
 
     /**
-     * Test the different data types that Itineris supports natively and ensure that
-     * invalid data types aren't allowed
+     * Test the different data types that Itineris supports natively and ensure that invalid data types aren't allowed
      */
 
     public interface Equals<T> {
@@ -1366,31 +1347,31 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     private static Stream<Arguments> generateParametersTestSupportOfDataTypes() {
-        return Arrays.stream(new Arguments[] {
-                arguments(SpecialInt.class, new SpecialInt(10), (Equals<SpecialInt>) (a) -> a.getValue() == 10),
-                arguments(byte[].class, new byte[] { 1, 2, 3, 4 }, (Equals<byte[]>) (a) -> a.length == 4),
-                arguments(Boolean.class, true, (Equals<Boolean>) (a) -> a),
-                arguments(
-                        Instant.class,
-                        Instant.ofEpochSecond(1429225756),
-                        (Equals<Instant>) (a) -> a.equals(Instant.ofEpochSecond(1429225756))),
-                arguments(
-                        Geoshape.class,
-                        Geoshape.point(10.0, 10.0),
-                        (Equals<Geoshape>) (a) -> a.equals(Geoshape.point(10.0, 10.0))),
-                arguments(
-                        Geoshape.class,
-                        Geoshape.box(10.0, 10.0, 20.0, 20.0),
-                        (Equals<Geoshape>) (a) -> a.equals(Geoshape.box(10.0, 10.0, 20.0, 20.0))),
-                arguments(Double.class, 10.12345, (Equals<Double>) (a) -> a == 10.12345),
+        return Arrays.stream(new Arguments[]{
+            arguments(SpecialInt.class, new SpecialInt(10), (Equals<SpecialInt>)(a) -> a.getValue() == 10),
+            arguments(byte[].class, new byte[]{1, 2, 3, 4}, (Equals<byte[]>)(a) -> a.length == 4),
+            arguments(Boolean.class, true, (Equals<Boolean>)(a) -> a),
+            arguments(
+                Instant.class,
+                Instant.ofEpochSecond(1429225756),
+                (Equals<Instant>)(a) -> a.equals(Instant.ofEpochSecond(1429225756))),
+            arguments(
+                Geoshape.class,
+                Geoshape.point(10.0, 10.0),
+                (Equals<Geoshape>)(a) -> a.equals(Geoshape.point(10.0, 10.0))),
+            arguments(
+                Geoshape.class,
+                Geoshape.box(10.0, 10.0, 20.0, 20.0),
+                (Equals<Geoshape>)(a) -> a.equals(Geoshape.box(10.0, 10.0, 20.0, 20.0))),
+            arguments(Double.class, 10.12345, (Equals<Double>)(a) -> a == 10.12345),
         });
     }
 
     @ParameterizedTest
     @MethodSource("generateParametersTestSupportOfDataTypes")
-    public <T> void testSupportOfDataTypes(Class<T> classes, T data, Equals<T> a) {
+    public<T> void testSupportOfDataTypes(Class<T> classes, T data, Equals<T> a){
         clopen(option(CUSTOM_ATTRIBUTE_CLASS, "attribute10"), SpecialInt.class.getCanonicalName(),
-                option(CUSTOM_SERIALIZER_CLASS, "attribute10"), SpecialIntSerializer.class.getCanonicalName());
+            option(CUSTOM_SERIALIZER_CLASS, "attribute10"), SpecialIntSerializer.class.getCanonicalName());
 
         PropertyKey num = makeKey("propertyKey", classes);
         finishSchema();
@@ -1414,11 +1395,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     /**
-     * This tests a special scenario under which a schema type is defined in a
-     * (management) transaction
+     * This tests a special scenario under which a schema type is defined in a (management) transaction
      * and then accessed in a concurrent transaction.
-     * Also ensures that unique property values are enforced within and across
-     * transactions
+     * Also ensures that unique property values are enforced within and across transactions
      */
     @Test
     public void testTransactionalScopeOfSchemaTypes() {
@@ -1506,19 +1485,15 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         String errorMsg = "Property Key with given name does not exist: bla";
         exception = assertThrows(IllegalArgumentException.class, () -> v.property("bla", 5));
         assertEquals(errorMsg, exception.getMessage());
-        exception = assertThrows(IllegalArgumentException.class,
-                () -> v.property("bla", 5).element().property("prop", 6));
+        exception = assertThrows(IllegalArgumentException.class, () -> v.property("bla", 5).element().property("prop", 6));
         assertEquals(errorMsg, exception.getMessage());
-        exception = assertThrows(IllegalArgumentException.class,
-                () -> v.property("prop", 6).element().property("bla", 5));
+        exception = assertThrows(IllegalArgumentException.class, () -> v.property("prop", 6).element().property("bla", 5));
         assertEquals(errorMsg, exception.getMessage());
         exception = assertThrows(IllegalArgumentException.class, () -> e.property("bla", 5));
         assertEquals(errorMsg, exception.getMessage());
-        exception = assertThrows(IllegalArgumentException.class,
-                () -> e.property("bla", 5).element().property("prop", 6));
+        exception = assertThrows(IllegalArgumentException.class, () -> e.property("bla", 5).element().property("prop", 6));
         assertEquals(errorMsg, exception.getMessage());
-        exception = assertThrows(IllegalArgumentException.class,
-                () -> e.property("prop", 6).element().property("bla", 5));
+        exception = assertThrows(IllegalArgumentException.class, () -> e.property("prop", 6).element().property("bla", 5));
         assertEquals(errorMsg, exception.getMessage());
     }
 
@@ -1583,7 +1558,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.makeVertexLabel("people").make();
         finishSchema();
 
-        // CREATE SMALL GRAPH
+        //CREATE SMALL GRAPH
         ItinerisVertex v = tx.addVertex("people");
         v.addEdge("knows", v);
 
@@ -1595,7 +1570,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertCount(1, v.query().direction(Direction.OUT).labels("knows").edges());
         newTx();
 
-        // UPDATE SCHEMA NAMES
+        //UPDATE SCHEMA NAMES
         assertTrue(mgmt.containsRelationType("knows"));
         knows = mgmt.getEdgeLabel("knows");
         mgmt.changeName(knows, "know");
@@ -1603,11 +1578,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         finishSchema();
 
-        // VERIFY UPDATES IN MANAGEMENT SYSTEM
+        //VERIFY UPDATES IN MANAGEMENT SYSTEM
         assertTrue(mgmt.containsRelationType("know"));
         assertFalse(mgmt.containsRelationType("knows"));
 
-        // VERIFY UPDATES IN TRANSACTION
+        //VERIFY UPDATES IN TRANSACTION
         newTx();
         v = Iterables.getOnlyElement(tx.query().vertices());
         assertCount(1, v.query().direction(Direction.IN).labels("know").edges());
@@ -1619,7 +1594,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.makeVertexLabel("people").make();
         finishSchema();
 
-        // CREATE SMALL GRAPH
+        //CREATE SMALL GRAPH
         ItinerisVertex v = tx.addVertex("people");
 
         newTx();
@@ -1627,7 +1602,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals("people", v.label());
         newTx();
 
-        // UPDATE SCHEMA NAMES
+        //UPDATE SCHEMA NAMES
         assertTrue(mgmt.containsVertexLabel("people"));
         VertexLabel vl = mgmt.getVertexLabel("people");
         mgmt.changeName(vl, "person");
@@ -1635,11 +1610,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         finishSchema();
 
-        // VERIFY UPDATES IN MANAGEMENT SYSTEM
+        //VERIFY UPDATES IN MANAGEMENT SYSTEM
         assertTrue(mgmt.containsVertexLabel("person"));
         assertFalse(mgmt.containsVertexLabel("people"));
 
-        // VERIFY UPDATES IN TRANSACTION
+        //VERIFY UPDATES IN TRANSACTION
         newTx();
         v = Iterables.getOnlyElement(tx.query().vertices());
         assertNotNull(v);
@@ -1649,9 +1624,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     @Test
     public void testDiscardAndDropRegisteredIndex() throws ExecutionException, InterruptedException {
         clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ZERO,
-                option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
-                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250),
-                option(FORCE_INDEX_USAGE), true);
+            option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
+            option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250),
+            option(FORCE_INDEX_USAGE), true
+        );
 
         String indexName = "composite";
         String propertyName = "prop";
@@ -1659,7 +1635,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         makeKey(propertyName, String.class);
         finishSchema();
 
-        // Never create new indexes while a transaction is active
+        //Never create new indexes while a transaction is active
         graph.getOpenTransactions().forEach(ItinerisTransaction::rollback);
         mgmt = graph.openManagement();
 
@@ -1675,9 +1651,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     @Test
     public void testReenableDisabledIndex() throws ExecutionException, InterruptedException {
         clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ZERO,
-                option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
-                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250),
-                option(FORCE_INDEX_USAGE), true);
+            option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
+            option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250),
+            option(FORCE_INDEX_USAGE), true
+        );
 
         String indexName = "composite";
         String propertyName = "prop";
@@ -1686,7 +1663,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         makeKey(propertyName, String.class);
         finishSchema();
 
-        // Never create new indexes while a transaction is active
+        //Never create new indexes while a transaction is active
         graph.getOpenTransactions().forEach(ItinerisTransaction::rollback);
         mgmt = graph.openManagement();
 
@@ -1703,8 +1680,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         enableIndex(indexName);
 
-        // verify that vertices are not picked up by the index when they are inserted
-        // while the index was disabled
+        // verify that vertices are not picked up by the index when they are inserted while the index was disabled
         assertEquals(1, graph.traversal().V().has(propertyName, propertyValue).count().next());
 
         graph.addVertex(propertyName, propertyValue);
@@ -1717,9 +1693,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     @Test
     public void testCreateCompositeIndexThatPreviouslyExisted() throws ExecutionException, InterruptedException {
         clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ZERO,
-                option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
-                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250),
-                option(FORCE_INDEX_USAGE), true);
+            option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
+            option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250),
+            option(FORCE_INDEX_USAGE), true
+        );
 
         String indexName = "composite";
         String propertyName = "prop";
@@ -1728,7 +1705,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         makeKey(propertyName, String.class);
         finishSchema();
 
-        // Never create new indexes while a transaction is active
+        //Never create new indexes while a transaction is active
         graph.getOpenTransactions().forEach(ItinerisTransaction::rollback);
         mgmt = graph.openManagement();
 
@@ -1753,8 +1730,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertTrue(graph.traversal().V().has(propertyName, propertyValue).hasNext());
     }
 
-    private void registerIndex(String indexName, Class<? extends Element> type, String... propertyNames)
-            throws InterruptedException {
+    private void registerIndex(String indexName, Class<? extends Element> type, String... propertyNames) throws InterruptedException {
         ItinerisManagement.IndexBuilder builder = mgmt.buildIndex(indexName, type);
         for (String prop : propertyNames) {
             builder.addKey(mgmt.getPropertyKey(prop));
@@ -1762,10 +1738,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         builder.buildCompositeIndex();
         mgmt.commit();
         assertTrue(ManagementSystem
-                .awaitGraphIndexStatus(graph, indexName)
-                .status(SchemaStatus.REGISTERED)
-                .call()
-                .getSucceeded());
+            .awaitGraphIndexStatus(graph, indexName)
+            .status(SchemaStatus.REGISTERED)
+            .call()
+            .getSucceeded()
+        );
         mgmt = graph.openManagement();
     }
 
@@ -1775,7 +1752,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.buildIndex("timeIndex", Vertex.class).addKey(time).buildCompositeIndex();
         finishSchema();
 
-        // UPDATE SCHEMA NAME FOR TIME PROPERTY
+        //UPDATE SCHEMA NAME FOR TIME PROPERTY
         PropertyKey prop = mgmt.getPropertyKey("time");
         mgmt.changeName(prop, "delTime");
         assertEquals("delTime", prop.name());
@@ -1786,13 +1763,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertFalse(mgmt.containsPropertyKey("time"));
     }
 
+
     @Test
     public void testUpdateSchemaChangeNameForCompositeIndex() {
         PropertyKey time = mgmt.makePropertyKey("time").dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
         mgmt.buildIndex("timeIndex", Vertex.class).addKey(time).buildCompositeIndex();
         finishSchema();
 
-        // UPDATE SCHEMA NAMES
+        //UPDATE SCHEMA NAMES
         assertTrue(mgmt.containsGraphIndex("timeIndex"));
         ItinerisIndex graphIndex = mgmt.getGraphIndex("timeIndex");
         mgmt.changeName(graphIndex, "byTime");
@@ -1800,7 +1778,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         finishSchema();
 
-        // VERIFY UPDATES IN MANAGEMENT SYSTEM
+        //VERIFY UPDATES IN MANAGEMENT SYSTEM
         assertTrue(mgmt.containsGraphIndex("byTime"));
         assertFalse(mgmt.containsGraphIndex("timeIndex"));
     }
@@ -1813,7 +1791,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.makeVertexLabel("people").make();
         finishSchema();
 
-        // UPDATE SCHEMA NAMES
+        //UPDATE SCHEMA NAMES
         assertTrue(mgmt.containsRelationIndex(knows, "byTime"));
         RelationTypeIndex byTimeIndex = mgmt.getRelationIndex(knows, "byTime");
         assertEquals("byTime", byTimeIndex.name());
@@ -1822,7 +1800,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         finishSchema();
 
-        // VERIFY UPDATES IN MANAGEMENT SYSTEM
+        //VERIFY UPDATES IN MANAGEMENT SYSTEM
         knows = mgmt.getEdgeLabel("knows");
 
         assertTrue(mgmt.containsRelationIndex(knows, "overTime"));
@@ -1836,7 +1814,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             fail("Expected an exception to be thrown indicating improper index backend configuration");
         } catch (IllegalStateException ex) {
             assertTrue(ex.getMessage().contains("loadWithoutMixedIndex"),
-                    "An exception asking the user to use loadWithoutMixedIndex was expected");
+                "An exception asking the user to use loadWithoutMixedIndex was expected");
         }
     }
 
@@ -1844,13 +1822,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testGotGIndexRemoval() throws InterruptedException, ExecutionException {
         clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ZERO,
                 option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
-                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250));
+                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250)
+        );
 
         final String name = "name";
 
         // Load Graph of the Gods
         GraphOfTheGodsFactory.loadWithoutMixedIndex(graph,
-                true); // True makes the index on names unique. Test fails when this is true.
+                true); // True makes the index on names unique.  Test fails when this is true.
         // Change to false and test will pass.
         newTx();
         finishSchema();
@@ -1864,8 +1843,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals("internalindex", graphIndex.getBackingIndex());
         assertEquals(SchemaStatus.ENABLED, graphIndex.getIndexStatus(graphIndex.getFieldKeys()[0]));
         mgmt.commit();
-        graph.getOpenTransactions().forEach(ItinerisTransaction::rollback); // Never create new indexes while a
-                                                                            // transaction is active
+        graph.getOpenTransactions().forEach(ItinerisTransaction::rollback); //Never create new indexes while a transaction is active
         mgmt = graph.openManagement();
 
         // Disable name index
@@ -1879,10 +1857,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.commit();
 
         assertTrue(ManagementSystem
-                .awaitGraphIndexStatus(graph, name)
-                .status(SchemaStatus.DISCARDED)
-                .call()
-                .getSucceeded());
+            .awaitGraphIndexStatus(graph, name)
+            .status(SchemaStatus.DISCARDED)
+            .call()
+            .getSucceeded()
+        );
         ScanMetrics scanMetrics = future.get();
         // Should have deleted at least one record
         assertNotEquals(0, scanMetrics.getCustom(IndexRemoveJob.DELETED_RECORDS_COUNT));
@@ -1892,13 +1871,13 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testVertexCentricEdgeIndexOnSimpleMultiplicityShouldWork() {
         clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ofMillis(0),
                 option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
-                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250));
+                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250)
+        );
         PropertyKey time = mgmt.makePropertyKey("time").dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
         EdgeLabel friend = mgmt.makeEdgeLabel("friend").multiplicity(Multiplicity.SIMPLE).make();
         mgmt.buildEdgeIndex(friend, "byTime", Direction.OUT, desc, time);
         finishSchema();
-        assertEquals(SchemaStatus.ENABLED,
-                mgmt.getRelationIndex(mgmt.getRelationType("friend"), "byTime").getIndexStatus());
+        assertEquals(SchemaStatus.ENABLED, mgmt.getRelationIndex(mgmt.getRelationType("friend"), "byTime").getIndexStatus());
         ItinerisVertex v = tx.addVertex();
         v = getV(tx, v);
         for (int i = 200; i < 210; i++) {
@@ -1906,7 +1885,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             v.addEdge("friend", o, "time", i);
         }
         evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 199, 210).orderBy("time", desc),
-                EDGE, 10, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+            EDGE, 10, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         tx.commit();
         finishSchema();
     }
@@ -1915,20 +1894,20 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testVertexCentricPropertyIndexOnSetCardinalityShouldWork() {
         clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ofMillis(0),
                 option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
-                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250));
+                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250)
+        );
         PropertyKey time = mgmt.makePropertyKey("time").dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
         PropertyKey name = mgmt.makePropertyKey("name").dataType(String.class).cardinality(Cardinality.SET).make();
         mgmt.buildPropertyIndex(name, "byTime", desc, time);
         finishSchema();
-        assertEquals(SchemaStatus.ENABLED,
-                mgmt.getRelationIndex(mgmt.getRelationType("name"), "byTime").getIndexStatus());
+        assertEquals(SchemaStatus.ENABLED, mgmt.getRelationIndex(mgmt.getRelationType("name"), "byTime").getIndexStatus());
         ItinerisVertex v = tx.addVertex();
         v = getV(tx, v);
         for (int i = 200; i < 210; i++) {
             v.property("name", String.valueOf(i), "time", i);
         }
         evaluateQuery(v.query().keys("name").interval("time", 199, 210).orderBy("time", desc),
-                PROPERTY, 10, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+            PROPERTY, 10, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         tx.commit();
         finishSchema();
     }
@@ -1937,7 +1916,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testVertexCentricIndexOrderingOnEdgePropertyWithCardinalityList() {
         clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ofMillis(0),
                 option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
-                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250));
+                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250)
+        );
         PropertyKey time = mgmt.makePropertyKey("time").dataType(Integer.class).cardinality(Cardinality.LIST).make();
         EdgeLabel friend = mgmt.makeEdgeLabel("friend").multiplicity(Multiplicity.MULTI).make();
         mgmt.buildEdgeIndex(friend, "byTime", Direction.OUT, desc, time);
@@ -1947,10 +1927,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             ItinerisVertex o = tx.addVertex();
             v.addEdge("friend", o, "time", i);
         }
-        assertEquals(SchemaStatus.ENABLED,
-                mgmt.getRelationIndex(mgmt.getRelationType("friend"), "byTime").getIndexStatus());
+        assertEquals(SchemaStatus.ENABLED, mgmt.getRelationIndex(mgmt.getRelationType("friend"), "byTime").getIndexStatus());
         evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 201, 205).orderBy("time", desc),
-                EDGE, 4, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+            EDGE, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         tx.commit();
         finishSchema();
     }
@@ -1959,38 +1938,38 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testVertexCentricIndexOrderingOnMetaPropertyWithCardinalityList() {
         clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ofMillis(0),
                 option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
-                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250));
+                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250)
+        );
         PropertyKey time = mgmt.makePropertyKey("time").dataType(Integer.class).cardinality(Cardinality.LIST).make();
-        PropertyKey sensor = mgmt.makePropertyKey("sensor").dataType(Integer.class).cardinality(Cardinality.LIST)
-                .make();
+        PropertyKey sensor = mgmt.makePropertyKey("sensor").dataType(Integer.class).cardinality(Cardinality.LIST).make();
         mgmt.buildPropertyIndex(sensor, "byTime", desc, time);
         finishSchema();
         ItinerisVertex v = tx.addVertex();
         for (int i = 200; i < 210; i++) {
             v.property("sensor", i, "time", i);
         }
-        assertEquals(SchemaStatus.ENABLED,
-                mgmt.getRelationIndex(mgmt.getRelationType("sensor"), "byTime").getIndexStatus());
+        assertEquals(SchemaStatus.ENABLED, mgmt.getRelationIndex(mgmt.getRelationType("sensor"), "byTime").getIndexStatus());
         evaluateQuery(v.query().keys("sensor").interval("time", 201, 205).orderBy("time", desc),
-                PROPERTY, 4, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+            PROPERTY, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         tx.commit();
         finishSchema();
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/1498
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/1498
     @RepeatedIfExceptionsTest(repeats = 3)
     public void testIndexUpdatesWithReindexAndRemove() throws InterruptedException, ExecutionException {
         clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ofMillis(0),
                 option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
-                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250));
-        // Types without index
+                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250)
+        );
+        //Types without index
         PropertyKey time = mgmt.makePropertyKey("time").dataType(Integer.class).make();
         PropertyKey name = mgmt.makePropertyKey("name").dataType(String.class).cardinality(Cardinality.SET).make();
         EdgeLabel friend = mgmt.makeEdgeLabel("friend").multiplicity(Multiplicity.MULTI).make();
         PropertyKey sensor = mgmt.makePropertyKey("sensor").dataType(Double.class).cardinality(Cardinality.LIST).make();
         finishSchema();
 
-        // Add some sensor & friend data
+        //Add some sensor & friend data
         ItinerisVertex v = tx.addVertex();
         for (int i = 0; i < 10; i++) {
             v.property("sensor", i, "time", i);
@@ -1999,23 +1978,23 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             v.addEdge("friend", o, "time", i);
         }
         newTx();
-        // Indexes should not yet be in use
+        //Indexes should not yet be in use
         v = getV(tx, v);
         evaluateQuery(v.query().keys("sensor").interval("time", 1, 5).orderBy("time", desc),
-                PROPERTY, 4, 1, new boolean[] { false, false }, tx.getPropertyKey("time"), Order.DESC);
+                PROPERTY, 4, 1, new boolean[]{false, false}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().keys("sensor").interval("time", 101, 105).orderBy("time", desc),
-                PROPERTY, 0, 1, new boolean[] { false, false }, tx.getPropertyKey("time"), Order.DESC);
+                PROPERTY, 0, 1, new boolean[]{false, false}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 1, 5).orderBy("time", desc),
-                EDGE, 4, 1, new boolean[] { false, false }, tx.getPropertyKey("time"), Order.DESC);
+                EDGE, 4, 1, new boolean[]{false, false}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 101, 105).orderBy("time", desc),
-                EDGE, 0, 1, new boolean[] { false, false }, tx.getPropertyKey("time"), Order.DESC);
+                EDGE, 0, 1, new boolean[]{false, false}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(tx.query().has("name", "v5"),
-                ElementCategory.VERTEX, 1, new boolean[] { false, true });
+                ElementCategory.VERTEX, 1, new boolean[]{false, true});
         evaluateQuery(tx.query().has("name", "v105"),
-                ElementCategory.VERTEX, 0, new boolean[] { false, true });
+                ElementCategory.VERTEX, 0, new boolean[]{false, true});
         newTx();
 
-        // Create indexes after the fact
+        //Create indexes after the fact
         finishSchema();
         sensor = mgmt.getPropertyKey("sensor");
         time = mgmt.getPropertyKey("time");
@@ -2026,8 +2005,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.buildIndex("bySensorReading", Vertex.class).addKey(name).buildCompositeIndex();
         finishSchema();
         newTx();
-        // Add some sensor & friend data that should already be indexed even though
-        // index is not yet enabled
+        //Add some sensor & friend data that should already be indexed even though index is not yet enabled
         v = getV(tx, v);
         for (int i = 100; i < 110; i++) {
             v.property("sensor", i, "time", i);
@@ -2036,7 +2014,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             v.addEdge("friend", o, "time", i);
         }
         tx.commit();
-        // Should not yet be able to enable since not yet registered
+        //Should not yet be able to enable since not yet registered
         final RelationTypeIndex pindex = mgmt.getRelationIndex(mgmt.getRelationType("sensor"), "byTime");
         final RelationTypeIndex eindex = mgmt.getRelationIndex(mgmt.getRelationType("friend"), "byTime");
         final ItinerisIndex graphIndex = mgmt.getGraphIndex("bySensorReading");
@@ -2045,11 +2023,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertThrows(IllegalArgumentException.class, () -> mgmt.updateIndex(graphIndex, SchemaAction.ENABLE_INDEX));
         mgmt.commit();
 
+
         ManagementUtil.awaitVertexIndexUpdate(graph, "byTime", "sensor", 10, ChronoUnit.SECONDS);
         ManagementUtil.awaitGraphIndexUpdate(graph, "bySensorReading", 5, ChronoUnit.SECONDS);
 
         finishSchema();
-        // Verify new status
+        //Verify new status
         RelationTypeIndex pindex2 = mgmt.getRelationIndex(mgmt.getRelationType("sensor"), "byTime");
         RelationTypeIndex eindex2 = mgmt.getRelationIndex(mgmt.getRelationType("friend"), "byTime");
         ItinerisIndex graphIndex2 = mgmt.getGraphIndex("bySensorReading");
@@ -2057,14 +2036,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(SchemaStatus.REGISTERED, eindex2.getIndexStatus());
         assertEquals(SchemaStatus.REGISTERED, graphIndex2.getIndexStatus(graphIndex2.getFieldKeys()[0]));
         finishSchema();
-        // Simply enable without reindex
+        //Simply enable without reindex
         eindex2 = mgmt.getRelationIndex(mgmt.getRelationType("friend"), "byTime");
         mgmt.updateIndex(eindex2, SchemaAction.ENABLE_INDEX);
         finishSchema();
         assertTrue(ManagementSystem.awaitRelationIndexStatus(graph, "byTime", "friend").status(SchemaStatus.ENABLED)
                 .call().getSucceeded());
 
-        // Reindex the other two
+        //Reindex the other two
         pindex2 = mgmt.getRelationIndex(mgmt.getRelationType("sensor"), "byTime");
         ScanMetrics reindexSensorByTime = mgmt.updateIndex(pindex2, SchemaAction.REINDEX).get();
         finishSchema();
@@ -2075,7 +2054,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertNotEquals(0, reindexSensorByTime.getCustom(IndexRepairJob.ADDED_RECORDS_COUNT));
         assertNotEquals(0, reindexBySensorReading.getCustom(IndexRepairJob.ADDED_RECORDS_COUNT));
 
-        // Every index should now be enabled
+        //Every index should now be enabled
         pindex2 = mgmt.getRelationIndex(mgmt.getRelationType("sensor"), "byTime");
         eindex2 = mgmt.getRelationIndex(mgmt.getRelationType("friend"), "byTime");
         graphIndex2 = mgmt.getGraphIndex("bySensorReading");
@@ -2083,7 +2062,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(SchemaStatus.ENABLED, pindex2.getIndexStatus());
         assertEquals(SchemaStatus.ENABLED, graphIndex2.getIndexStatus(graphIndex2.getFieldKeys()[0]));
 
-        // Add some more sensor & friend data
+
+        //Add some more sensor & friend data
         newTx();
         v = getV(tx, v);
         for (int i = 200; i < 210; i++) {
@@ -2093,26 +2073,26 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             v.addEdge("friend", o, "time", i);
         }
         newTx();
-        // Use indexes now but only see new data for property and graph index
+        //Use indexes now but only see new data for property and graph index
         v = getV(tx, v);
         evaluateQuery(v.query().keys("sensor").interval("time", 1, 5).orderBy("time", desc),
-                PROPERTY, 4, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+                PROPERTY, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().keys("sensor").interval("time", 101, 105).orderBy("time", desc),
-                PROPERTY, 4, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+                PROPERTY, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().keys("sensor").interval("time", 201, 205).orderBy("time", desc),
-                PROPERTY, 4, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+                PROPERTY, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 1, 5).orderBy("time", desc),
-                EDGE, 0, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+                EDGE, 0, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 101, 105).orderBy("time", desc),
-                EDGE, 4, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+                EDGE, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 201, 205).orderBy("time", desc),
-                EDGE, 4, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+                EDGE, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(tx.query().has("name", "v5"),
-                ElementCategory.VERTEX, 1, new boolean[] { true, true }, "bySensorReading");
+                ElementCategory.VERTEX, 1, new boolean[]{true, true}, "bySensorReading");
         evaluateQuery(tx.query().has("name", "v105"),
-                ElementCategory.VERTEX, 1, new boolean[] { true, true }, "bySensorReading");
+                ElementCategory.VERTEX, 1, new boolean[]{true, true}, "bySensorReading");
         evaluateQuery(tx.query().has("name", "v205"),
-                ElementCategory.VERTEX, 1, new boolean[] { true, true }, "bySensorReading");
+                ElementCategory.VERTEX, 1, new boolean[]{true, true}, "bySensorReading");
 
         finishSchema();
         eindex2 = mgmt.getRelationIndex(mgmt.getRelationType("friend"), "byTime");
@@ -2122,14 +2102,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         finishSchema();
         newTx();
-        // It should now have all the answers
+        //It should now have all the answers
         v = getV(tx, v);
         evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 1, 5).orderBy("time", desc),
-                EDGE, 4, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+                EDGE, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 101, 105).orderBy("time", desc),
-                EDGE, 4, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+                EDGE, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 201, 205).orderBy("time", desc),
-                EDGE, 4, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+                EDGE, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
 
         pindex2 = mgmt.getRelationIndex(mgmt.getRelationType("sensor"), "byTime");
         graphIndex2 = mgmt.getGraphIndex("bySensorReading");
@@ -2150,26 +2130,26 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         finishSchema();
 
         newTx();
-        // The two disabled indexes should force full scans
+        //The two disabled indexes should force full scans
         v = getV(tx, v);
         evaluateQuery(v.query().keys("sensor").interval("time", 1, 5).orderBy("time", desc),
-                PROPERTY, 4, 1, new boolean[] { false, false }, tx.getPropertyKey("time"), Order.DESC);
+                PROPERTY, 4, 1, new boolean[]{false, false}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().keys("sensor").interval("time", 101, 105).orderBy("time", desc),
-                PROPERTY, 4, 1, new boolean[] { false, false }, tx.getPropertyKey("time"), Order.DESC);
+                PROPERTY, 4, 1, new boolean[]{false, false}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().keys("sensor").interval("time", 201, 205).orderBy("time", desc),
-                PROPERTY, 4, 1, new boolean[] { false, false }, tx.getPropertyKey("time"), Order.DESC);
+                PROPERTY, 4, 1, new boolean[]{false, false}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 1, 5).orderBy("time", desc),
-                EDGE, 4, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+                EDGE, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 101, 105).orderBy("time", desc),
-                EDGE, 4, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+                EDGE, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 201, 205).orderBy("time", desc),
-                EDGE, 4, 1, new boolean[] { true, true }, tx.getPropertyKey("time"), Order.DESC);
+                EDGE, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
         evaluateQuery(tx.query().has("name", "v5"),
-                ElementCategory.VERTEX, 1, new boolean[] { false, true });
+                ElementCategory.VERTEX, 1, new boolean[]{false, true});
         evaluateQuery(tx.query().has("name", "v105"),
-                ElementCategory.VERTEX, 1, new boolean[] { false, true });
+                ElementCategory.VERTEX, 1, new boolean[]{false, true});
         evaluateQuery(tx.query().has("name", "v205"),
-                ElementCategory.VERTEX, 1, new boolean[] { false, true });
+                ElementCategory.VERTEX, 1, new boolean[]{false, true});
 
         tx.commit();
         finishSchema();
@@ -2187,7 +2167,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testIndexUpdateSyncWithMultipleInstances() throws InterruptedException {
         clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ofMillis(0),
                 option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
-                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250));
+                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250)
+        );
 
         StandardItineris graph2 = (StandardItineris) ItinerisFactory.open(config);
         ItinerisTransaction tx2;
@@ -2197,10 +2178,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         tx.addVertex("name", "v1");
         newTx();
-        evaluateQuery(tx.query().has("name", "v1"), ElementCategory.VERTEX, 1, new boolean[] { false, true });
+        evaluateQuery(tx.query().has("name", "v1"), ElementCategory.VERTEX, 1, new boolean[]{false, true});
         tx2 = graph2.newTransaction();
-        evaluateQuery(tx2.query().has("name", "v1"), ElementCategory.VERTEX, 1, new boolean[] { false, true });
-        // Leave tx2 open to delay acknowledgement
+        evaluateQuery(tx2.query().has("name", "v1"), ElementCategory.VERTEX, 1, new boolean[]{false, true});
+        //Leave tx2 open to delay acknowledgement
 
         mgmt.buildIndex("theIndex", Vertex.class).addKey(mgmt.getPropertyKey("name")).buildCompositeIndex();
         mgmt.commit();
@@ -2215,12 +2196,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         finishSchema();
         try {
             mgmt.updateIndex(mgmt.getGraphIndex("theIndex"), SchemaAction.ENABLE_INDEX);
-            fail(); // Open tx2 should not make this possible
+            fail(); //Open tx2 should not make this possible
         } catch (IllegalArgumentException ignored) {
         }
         finishSchema();
-        tx2.commit(); // Release transaction and wait a little for registration which should make
-                      // enabling possible
+        tx2.commit(); //Release transaction and wait a little for registration which should make enabling possible
         mgmt.rollback();
         assertTrue(ManagementSystem.awaitGraphIndexStatus(graph, "theIndex").status(SchemaStatus.REGISTERED)
                 .timeout(TestGraphConfigs.getSchemaConvergenceTime(ChronoUnit.SECONDS), ChronoUnit.SECONDS)
@@ -2230,31 +2210,23 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         finishSchema();
 
         tx2 = graph2.newTransaction();
-        tx2.addVertex("name", "v4"); // Should be added to index but index not yet enabled
+        tx2.addVertex("name", "v4"); //Should be added to index but index not yet enabled
         tx2.commit();
 
         newTx();
-        evaluateQuery(tx.query().has("name", "v1"), ElementCategory.VERTEX, 0, new boolean[] { true, true },
-                "theIndex");
-        evaluateQuery(tx.query().has("name", "v2"), ElementCategory.VERTEX, 1, new boolean[] { true, true },
-                "theIndex");
-        evaluateQuery(tx.query().has("name", "v3"), ElementCategory.VERTEX, 1, new boolean[] { true, true },
-                "theIndex");
-        evaluateQuery(tx.query().has("name", "v4"), ElementCategory.VERTEX, 1, new boolean[] { true, true },
-                "theIndex");
+        evaluateQuery(tx.query().has("name", "v1"), ElementCategory.VERTEX, 0, new boolean[]{true, true}, "theIndex");
+        evaluateQuery(tx.query().has("name", "v2"), ElementCategory.VERTEX, 1, new boolean[]{true, true}, "theIndex");
+        evaluateQuery(tx.query().has("name", "v3"), ElementCategory.VERTEX, 1, new boolean[]{true, true}, "theIndex");
+        evaluateQuery(tx.query().has("name", "v4"), ElementCategory.VERTEX, 1, new boolean[]{true, true}, "theIndex");
 
         tx2 = graph2.newTransaction();
-        evaluateQuery(tx2.query().has("name", "v1"), ElementCategory.VERTEX, 0, new boolean[] { true, true },
-                "theIndex");
-        evaluateQuery(tx2.query().has("name", "v2"), ElementCategory.VERTEX, 1, new boolean[] { true, true },
-                "theIndex");
-        evaluateQuery(tx2.query().has("name", "v3"), ElementCategory.VERTEX, 1, new boolean[] { true, true },
-                "theIndex");
-        evaluateQuery(tx2.query().has("name", "v4"), ElementCategory.VERTEX, 1, new boolean[] { true, true },
-                "theIndex");
+        evaluateQuery(tx2.query().has("name", "v1"), ElementCategory.VERTEX, 0, new boolean[]{true, true}, "theIndex");
+        evaluateQuery(tx2.query().has("name", "v2"), ElementCategory.VERTEX, 1, new boolean[]{true, true}, "theIndex");
+        evaluateQuery(tx2.query().has("name", "v3"), ElementCategory.VERTEX, 1, new boolean[]{true, true}, "theIndex");
+        evaluateQuery(tx2.query().has("name", "v4"), ElementCategory.VERTEX, 1, new boolean[]{true, true}, "theIndex");
         tx2.commit();
 
-        // Finally test retrieving and closing open instances
+        //Finally test retrieving and closing open instances
 
         Set<String> openInstances = mgmt.getOpenInstances();
         assertEquals(2, openInstances.size());
@@ -2262,7 +2234,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertTrue(openInstances.contains(graph2.getConfiguration().getUniqueGraphId()));
         try {
             mgmt.forceCloseInstance(graph.getConfiguration().getUniqueGraphId());
-            fail(); // Cannot close current instance
+            fail(); //Cannot close current instance
         } catch (IllegalArgumentException ignored) {
         }
         mgmt.forceCloseInstance(graph2.getConfiguration().getUniqueGraphId());
@@ -2276,7 +2248,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testIndexShouldRegisterWhenWeRemoveAnInstance() throws InterruptedException {
         clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ofMillis(0),
                 option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
-                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250));
+                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250)
+        );
 
         StandardItineris graph2 = (StandardItineris) ItinerisFactory.open(config);
         ItinerisTransaction tx2;
@@ -2286,10 +2259,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         tx.addVertex("name", "v1");
         newTx();
-        evaluateQuery(tx.query().has("name", "v1"), ElementCategory.VERTEX, 1, new boolean[] { false, true });
+        evaluateQuery(tx.query().has("name", "v1"), ElementCategory.VERTEX, 1, new boolean[]{false, true});
         tx2 = graph2.newTransaction();
-        evaluateQuery(tx2.query().has("name", "v1"), ElementCategory.VERTEX, 1, new boolean[] { false, true });
-        // Leave tx2 open to delay acknowledgement
+        evaluateQuery(tx2.query().has("name", "v1"), ElementCategory.VERTEX, 1, new boolean[]{false, true});
+        //Leave tx2 open to delay acknowledgement
 
         mgmt.buildIndex("theIndex", Vertex.class).addKey(mgmt.getPropertyKey("name")).buildCompositeIndex();
         mgmt.commit();
@@ -2302,18 +2275,18 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         tx.commit();
 
         finishSchema();
-        assertThrows(IllegalArgumentException.class,
-                () -> mgmt.updateIndex(mgmt.getGraphIndex("theIndex"), SchemaAction.ENABLE_INDEX));
+        assertThrows(IllegalArgumentException.class, () ->
+            mgmt.updateIndex(mgmt.getGraphIndex("theIndex"), SchemaAction.ENABLE_INDEX));
         finishSchema();
 
-        // close second graph instance, so index can move to REGISTERED
+        //close second graph instance, so index can move to REGISTERED
         Set<String> openInstances = mgmt.getOpenInstances();
         assertEquals(2, openInstances.size());
         assertTrue(openInstances.contains(graph.getConfiguration().getUniqueGraphId() + "(current)"));
         assertTrue(openInstances.contains(graph2.getConfiguration().getUniqueGraphId()));
 
-        assertThrows(IllegalArgumentException.class,
-                () -> mgmt.forceCloseInstance(graph.getConfiguration().getUniqueGraphId()));
+        assertThrows(IllegalArgumentException.class, () ->
+            mgmt.forceCloseInstance(graph.getConfiguration().getUniqueGraphId()));
         mgmt.forceCloseInstance(graph2.getConfiguration().getUniqueGraphId());
 
         mgmt.commit();
@@ -2330,7 +2303,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.makePropertyKey("alreadyExistingProperty").dataType(String.class).cardinality(Cardinality.SINGLE).make();
         finishSchema();
 
-        PropertyKey existingPropertyKey = mgmt.getPropertyKey("alreadyExistingProperty");
+        PropertyKey existingPropertyKey  = mgmt.getPropertyKey("alreadyExistingProperty");
         VertexLabel newLabel = mgmt.makeVertexLabel("newLabel").make();
         mgmt.buildIndex("newIndex", Vertex.class).addKey(existingPropertyKey).indexOnly(newLabel).buildCompositeIndex();
         finishSchema();
@@ -2343,7 +2316,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.makePropertyKey("alreadyExistingProperty").dataType(String.class).cardinality(Cardinality.SINGLE).make();
         finishSchema();
 
-        PropertyKey existingPropertyKey = mgmt.getPropertyKey("alreadyExistingProperty");
+        PropertyKey existingPropertyKey  = mgmt.getPropertyKey("alreadyExistingProperty");
         EdgeLabel newLabel = mgmt.makeEdgeLabel("newLabel").make();
         mgmt.buildIndex("newIndex", Edge.class).addKey(existingPropertyKey).indexOnly(newLabel).buildCompositeIndex();
         finishSchema();
@@ -2357,10 +2330,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.makeVertexLabel("alreadyExistingLabel").make();
         finishSchema();
 
-        PropertyKey existingPropertyKey = mgmt.getPropertyKey("alreadyExistingProperty");
+        PropertyKey existingPropertyKey  = mgmt.getPropertyKey("alreadyExistingProperty");
         VertexLabel existingLabel = mgmt.getVertexLabel("alreadyExistingLabel");
-        mgmt.buildIndex("newIndex", Vertex.class).addKey(existingPropertyKey).indexOnly(existingLabel)
-                .buildCompositeIndex();
+        mgmt.buildIndex("newIndex", Vertex.class).addKey(existingPropertyKey).indexOnly(existingLabel).buildCompositeIndex();
         finishSchema();
 
         assertNotEquals(SchemaStatus.ENABLED, mgmt.getGraphIndex("newIndex").getIndexStatus(existingPropertyKey));
@@ -2372,10 +2344,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.makeEdgeLabel("alreadyExistingLabel").make();
         finishSchema();
 
-        PropertyKey existingPropertyKey = mgmt.getPropertyKey("alreadyExistingProperty");
+        PropertyKey existingPropertyKey  = mgmt.getPropertyKey("alreadyExistingProperty");
         EdgeLabel existingLabel = mgmt.getEdgeLabel("alreadyExistingLabel");
-        mgmt.buildIndex("newIndex", Edge.class).addKey(existingPropertyKey).indexOnly(existingLabel)
-                .buildCompositeIndex();
+        mgmt.buildIndex("newIndex", Edge.class).addKey(existingPropertyKey).indexOnly(existingLabel).buildCompositeIndex();
         finishSchema();
 
         assertNotEquals(SchemaStatus.ENABLED, mgmt.getGraphIndex("newIndex").getIndexStatus(existingPropertyKey));
@@ -2386,7 +2357,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.makePropertyKey("alreadyExistingProperty").dataType(String.class).cardinality(Cardinality.SINGLE).make();
         finishSchema();
 
-        PropertyKey existingPropertyKey = mgmt.getPropertyKey("alreadyExistingProperty");
+        PropertyKey existingPropertyKey  = mgmt.getPropertyKey("alreadyExistingProperty");
         mgmt.buildIndex("newIndex", Vertex.class).addKey(existingPropertyKey).buildCompositeIndex();
         finishSchema();
 
@@ -2399,7 +2370,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         finishSchema();
 
         mgmt.makeEdgeLabel("newLabel").make();
-        PropertyKey existingPropertyKey = mgmt.getPropertyKey("alreadyExistingProperty");
+        PropertyKey existingPropertyKey  = mgmt.getPropertyKey("alreadyExistingProperty");
         EdgeLabel newLabel = mgmt.getEdgeLabel("newLabel");
         mgmt.buildEdgeIndex(newLabel, "newIndex", Direction.BOTH, existingPropertyKey);
         finishSchema();
@@ -2413,7 +2384,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         finishSchema();
 
         mgmt.makePropertyKey("newProperty").dataType(String.class).cardinality(Cardinality.SINGLE).make();
-        PropertyKey newPropertyKey = mgmt.getPropertyKey("newProperty");
+        PropertyKey newPropertyKey  = mgmt.getPropertyKey("newProperty");
         EdgeLabel existingLabel = mgmt.getEdgeLabel("alreadyExistingLabel");
         mgmt.buildEdgeIndex(existingLabel, "newIndex", Direction.BOTH, newPropertyKey);
         finishSchema();
@@ -2428,8 +2399,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         finishSchema();
 
         mgmt.makePropertyKey("newProperty").dataType(String.class).cardinality(Cardinality.SINGLE).make();
-        PropertyKey existingPropertyKey = mgmt.getPropertyKey("alreadyExistingProperty");
-        PropertyKey newPropertyKey = mgmt.getPropertyKey("newProperty");
+        PropertyKey existingPropertyKey  = mgmt.getPropertyKey("alreadyExistingProperty");
+        PropertyKey newPropertyKey  = mgmt.getPropertyKey("newProperty");
         EdgeLabel existingLabel = mgmt.getEdgeLabel("alreadyExistingLabel");
         mgmt.buildEdgeIndex(existingLabel, "newIndex", Direction.BOTH, existingPropertyKey, newPropertyKey);
         finishSchema();
@@ -2444,8 +2415,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         mgmt.makeEdgeLabel("newLabel").make();
         mgmt.makePropertyKey("newProperty").dataType(String.class).cardinality(Cardinality.SINGLE).make();
-        PropertyKey existingPropertyKey = mgmt.getPropertyKey("alreadyExistingProperty");
-        PropertyKey newPropertyKey = mgmt.getPropertyKey("newProperty");
+        PropertyKey existingPropertyKey  = mgmt.getPropertyKey("alreadyExistingProperty");
+        PropertyKey newPropertyKey  = mgmt.getPropertyKey("newProperty");
         EdgeLabel newLabel = mgmt.getEdgeLabel("newLabel");
         mgmt.buildEdgeIndex(newLabel, "newIndex", Direction.BOTH, existingPropertyKey, newPropertyKey);
         finishSchema();
@@ -2457,7 +2428,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testRelationTypeIndexShouldBeEnabledForNewPropertyKeyAndNewRelationType() {
         mgmt.makePropertyKey("newProperty").dataType(String.class).cardinality(Cardinality.SINGLE).make();
         mgmt.makeEdgeLabel("newLabel").make();
-        PropertyKey newPropertyKey = mgmt.getPropertyKey("newProperty");
+        PropertyKey newPropertyKey  = mgmt.getPropertyKey("newProperty");
         EdgeLabel newLabel = mgmt.getEdgeLabel("newLabel");
         mgmt.buildEdgeIndex(newLabel, "newIndex", Direction.BOTH, newPropertyKey);
         finishSchema();
@@ -2471,7 +2442,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.makeEdgeLabel("alreadyExistingLabel").make();
         finishSchema();
 
-        PropertyKey existingPropertyKey = mgmt.getPropertyKey("alreadyExistingProperty");
+        PropertyKey existingPropertyKey  = mgmt.getPropertyKey("alreadyExistingProperty");
         EdgeLabel existingLabel = mgmt.getEdgeLabel("alreadyExistingLabel");
         mgmt.buildEdgeIndex(existingLabel, "newIndex", Direction.BOTH, existingPropertyKey);
         finishSchema();
@@ -2479,17 +2450,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertNotEquals(SchemaStatus.ENABLED, mgmt.getRelationIndex(existingLabel, "newIndex").getIndexStatus());
     }
 
-    /*
-     * =============================================================================
-     * =====
-     * ADVANCED
-     * =============================================================================
-     * =====
-     */
+   /* ==================================================================================
+                            ADVANCED
+     ==================================================================================*/
 
     /**
-     * This test exercises different types of updates against cardinality restricted
-     * properties
+     * This test exercises different types of updates against cardinality restricted properties
      * to ensure that the resulting behavior is fully consistent.
      */
     @Test
@@ -2509,9 +2475,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         newTx();
 
         v1 = tx.getVertex(v1.id());
-        v1.property("name", "name2"); // Ensure that the old index record gets removed
+        v1.property("name", "name2"); //Ensure that the old index record gets removed
         v2 = tx.getVertex(v2.id());
-        v2.property("uid", 512); // Ensure that replacement is allowed
+        v2.property("uid", 512); //Ensure that replacement is allowed
 
         newTx();
 
@@ -2521,12 +2487,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     /**
-     * Test the correct application of
-     * {@link com.forwardmeasure.itineris.graphdb.types.system.ImplicitKey}
+     * Test the correct application of {@link com.forwardmeasure.itineris.graphdb.types.system.ImplicitKey}
      * to vertices, edges, and properties.
      * <p>
-     * Additionally tests RelationIdentifier since this is closely related to
-     * ADJACENT and JANUSGRAPHID implicit keys.
+     * Additionally tests RelationIdentifier since this is closely related to ADJACENT and ITINERISID implicit keys.
      */
     @Test
     public void testImplicitKey() {
@@ -2540,18 +2504,17 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals("knows", e.value(LABEL_NAME));
         assertEquals(BaseVertexLabel.DEFAULT_VERTEXLABEL.name(), v.value(LABEL_NAME));
         assertCount(1, v.query().direction(Direction.BOTH).labels("knows").has(ID_NAME, eid).edges());
-        assertCount(0, v.query().direction(Direction.BOTH).labels("knows")
-                .has(ID_NAME, RelationIdentifier.get(new Object[] { 4L, 5L, 6L, 7L })).edges());
+        assertCount(0, v.query().direction(Direction.BOTH).labels("knows").has(ID_NAME, RelationIdentifier.get(new Object[]{4L, 5L, 6L, 7L})).edges());
         assertCount(1, v.query().direction(Direction.BOTH).labels("knows").has("~nid", eid.getRelationId()).edges());
         assertCount(0, v.query().direction(Direction.BOTH).labels("knows").has("~nid", 110111).edges());
-        // Test edge retrieval
+        //Test edge retrieval
         assertNotNull(getE(graph, eid));
         assertEquals(eid, getE(graph, eid).id());
-        // Test adjacent constraint
+        //Test adjacent constraint
         assertEquals(1, v.query().direction(BOTH).has("~adjacent", u.id()).edgeCount());
         assertCount(1, v.query().direction(BOTH).has("~adjacent", getId(u)).edges());
         try {
-            // Not a valid vertex
+            //Not a valid vertex
             assertCount(0, v.query().direction(BOTH).has("~adjacent", 110111).edges());
             fail();
         } catch (IllegalArgumentException ignored) {
@@ -2563,8 +2526,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testArrayEqualityUsingImplicitKey() {
         ItinerisVertex v = graph.addVertex();
 
-        byte[] singleDimension = new byte[] { 127, 0, 0, 1 };
-        byte[] singleDimensionCopy = new byte[] { 127, 0, 0, 1 };
+        byte[] singleDimension = new byte[]{127, 0, 0, 1};
+        byte[] singleDimensionCopy = new byte[]{127, 0, 0, 1};
         final String singlePropName = "single";
 
         v.property(singlePropName, singleDimension);
@@ -2598,8 +2561,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     /**
-     * Tests that elements can be accessed beyond their transactional boundaries if
-     * they
+     * Tests that elements can be accessed beyond their transactional boundaries if they
      * are bound to single-threaded graph transactions
      */
     @Test
@@ -2617,11 +2579,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         Edge e2 = v2.addEdge("knows", v3, "time", 15);
         Edge e3 = v3.addEdge("knows", v1, "time", 25);
         Edge e4 = v2.addEdge("friend", v2, "type", 1);
-        for (ItinerisVertex v : new ItinerisVertex[] { v1, v2, v3 }) {
+        for (ItinerisVertex v : new ItinerisVertex[]{v1, v2, v3}) {
             assertCount(2, v.query().direction(Direction.BOTH).labels("knows").edges());
             assertCount(1, v.query().direction(Direction.OUT).labels("knows").edges());
-            final ItinerisEdge tmpE = Iterables
-                    .getOnlyElement(v.query().direction(Direction.OUT).labels("knows").edges());
+            final ItinerisEdge tmpE = Iterables.getOnlyElement(v.query().direction(Direction.OUT).labels("knows").edges());
             assertEquals(5, tmpE.<Integer>value("time") % 10);
         }
         e3.property("time", 35);
@@ -2650,19 +2611,18 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(65, v3.<Integer>value("age").intValue());
         e1 = getE(graph, e1);
 
-        for (final ItinerisVertex v : new ItinerisVertex[] { v1, v2, v3 }) {
+        for (final ItinerisVertex v : new ItinerisVertex[]{v1, v2, v3}) {
             assertCount(2, v.query().direction(Direction.BOTH).labels("knows").edges());
             assertCount(1, v.query().direction(Direction.OUT).labels("knows").edges());
             assertEquals(5, getOnlyElement(v.query().direction(Direction.OUT).labels("knows").edges())
-                    .<Integer>value("time") % 10);
+                .<Integer>value("time") % 10);
         }
 
         graph.tx().commit();
 
         VertexProperty prop = v1.properties().next();
         assertTrue(((ItinerisVertexProperty<?>) prop).longId() > 0);
-        prop = (VertexProperty) ((Iterable) graph.multiQuery(v1).properties().values().iterator().next()).iterator()
-                .next();
+        prop = (VertexProperty) ((Iterable) graph.multiQuery(v1).properties().values().iterator().next()).iterator().next();
         assertTrue(((ItinerisVertexProperty<?>) prop).longId() > 0);
 
         assertEquals(45, e3.<Integer>value("time").intValue());
@@ -2671,11 +2631,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(35, v1.<Integer>value("age").intValue());
         assertEquals(65, v3.<Integer>value("age").intValue());
 
-        for (ItinerisVertex v : new ItinerisVertex[] { v1, v2, v3 }) {
+        for (ItinerisVertex v : new ItinerisVertex[]{v1, v2, v3}) {
             assertCount(2, v.query().direction(Direction.BOTH).labels("knows").edges());
             assertCount(1, v.query().direction(Direction.OUT).labels("knows").edges());
             assertEquals(5, getOnlyElement(v.query().direction(Direction.OUT).labels("knows").edges())
-                    .<Integer>value("time") % 10);
+                .<Integer>value("time") % 10);
         }
 
         graph.tx().commit();
@@ -2703,18 +2663,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     /**
-     * By default, relations of a vertex is cached once queried within the lifecycle
-     * of that transaction.
-     * This means a subsequent read would hit the cache. However, sometimes users do
-     * want to read from data storage in
-     * the mid of a transaction. Note that even with force refresh, user might still
-     * see old value if the underlying
+     * By default, relations of a vertex is cached once queried within the lifecycle of that transaction.
+     * This means a subsequent read would hit the cache. However, sometimes users do want to read from data storage in
+     * the mid of a transaction. Note that even with force refresh, user might still see old value if the underlying
      * data storage is only eventually consistent.
      */
     @Test
     public void testCacheForceRefresh() {
-        if (features.hasLocking())
-            return;
+        if (features.hasLocking()) return;
 
         graph.addVertex().property("prop", 0);
         graph.tx().commit();
@@ -2779,6 +2735,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.buildIndex("byName", Vertex.class).addKey(name).unique().buildCompositeIndex();
         finishSchema();
 
+
         ItinerisVertex cartman = graph.addVertex("name", "cartman", "age", 10);
         graph.addVertex("name", "stan", "age", 8);
 
@@ -2805,7 +2762,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         ItinerisTransaction tx1 = graph.newTransaction();
         ItinerisTransaction tx2 = graph.newTransaction();
 
-        // Verify that using vertices across transactions is prohibited
+        //Verify that using vertices across transactions is prohibited
         ItinerisVertex v11 = tx1.addVertex();
         ItinerisVertex v12 = tx1.addVertex();
         v11.addEdge("knows", v12);
@@ -2831,7 +2788,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         } catch (IllegalStateException ignored) {
         }
 
-        // Test unidirected edge with and without internal existence check
+        //Test unidirected edge with and without internal existence check
         newTx();
         v21 = getV(tx, v21);
         tx.makeEdgeLabel("link").unidirected().make();
@@ -2855,13 +2812,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         tx3.commit();
     }
 
+
     /**
-     * Tests multi-valued properties with special focus on indexing and incident
-     * unidirectional edges
+     * Tests multi-valued properties with special focus on indexing and incident unidirectional edges
      * which is not tested in {@link #testSchemaTypes()}
      * <p>
-     * --&gt; TODO: split and move this into other test cases: ordering to query,
-     * indexing to index
+     * --&gt; TODO: split and move this into other test cases: ordering to query, indexing to index
      */
     @Test
     public <V> void testMultivaluedVertexProperty() {
@@ -2872,14 +2828,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
          * literals were chosen arbitrarily and have no special significance.
          */
         final String foo = "foo", bar = "bar", weight = "weight";
-        final List<String> values = ImmutableList.of("four", "score", "and", "seven");
+        final List<String> values =
+                ImmutableList.of("four", "score", "and", "seven");
         assertTrue(2 <= values.size(),
-                "Values list must have multiple elements for this test to make sense");
+            "Values list must have multiple elements for this test to make sense");
 
         // Create property with name pname and a vertex
         PropertyKey w = makeKey(weight, Integer.class);
-        PropertyKey f = ((StandardPropertyKeyMaker) mgmt.makePropertyKey(foo)).dataType(String.class)
-                .cardinality(Cardinality.LIST).sortKey(w).sortOrder(Order.DESC).make();
+        PropertyKey f = ((StandardPropertyKeyMaker) mgmt.makePropertyKey(foo)).dataType(String.class).cardinality(Cardinality.LIST).sortKey(w).sortOrder(Order.DESC).make();
         mgmt.buildIndex(foo, Vertex.class).addKey(f).buildCompositeIndex();
         PropertyKey b = mgmt.makePropertyKey(bar).dataType(String.class).cardinality(Cardinality.LIST).make();
         mgmt.buildIndex(bar, Vertex.class).addKey(b).buildCompositeIndex();
@@ -2894,11 +2850,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             v.property(bar, s, weight, i);
         }
 
-        // Verify correct number of properties
+        //Verify correct number of properties
         assertCount(values.size(), v.properties(foo));
         assertCount(values.size(), v.properties(bar));
-        // Verify order
-        for (String prop : new String[] { foo, bar }) {
+        //Verify order
+        for (String prop : new String[]{foo, bar}) {
             int sum = 0;
             int index = values.size();
             for (Object o : v.query().labels(foo).properties()) {
@@ -2906,12 +2862,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                 assertTrue(values.contains(p.value()));
                 int weightAsInteger = p.value(weight);
                 sum += weightAsInteger;
-                if (prop.equals(foo))
-                    assertEquals(index, weightAsInteger);
+                if (prop.equals(foo)) assertEquals(index, weightAsInteger);
                 index--;
             }
             assertEquals(values.size() * (values.size() + 1) / 2, sum);
         }
+
 
         assertCount(1, tx.query().has(foo, values.get(1)).vertices());
         assertCount(1, tx.query().has(foo, values.get(3)).vertices());
@@ -2966,27 +2922,23 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
     @Test
     public void testGlobalOfflineGraphConfig() {
-        setAndCheckGraphOption(IDS_STORE_NAME, ConfigOption.Type.GLOBAL_OFFLINE, "testIdsStoreName",
-                "testIdsStoreName2");
+        setAndCheckGraphOption(IDS_STORE_NAME, ConfigOption.Type.GLOBAL_OFFLINE, "testIdsStoreName", "testIdsStoreName2");
     }
 
     @Test
     public void testFixedGraphConfig() {
-        setIllegalGraphOption(INITIAL_ITINERIS_GRAPH_VERSION, ConfigOption.Type.FIXED, "foo");
+        setIllegalGraphOption(INITIAL_ITINERIS_VERSION, ConfigOption.Type.FIXED, "foo");
     }
 
     @Test
     public void testManagedOptionMasking() throws BackendException {
-        // Can't use clopen(...) for this test, because it's aware local vs global
-        // option types and
-        // uses ManagementSystem where necessary. We want to simulate an erroneous
-        // attempt to
-        // override global options by tweaking the local config file (ignoring
-        // ManagementSystem),
+        // Can't use clopen(...) for this test, because it's aware local vs global option types and
+        // uses ManagementSystem where necessary.  We want to simulate an erroneous attempt to
+        // override global options by tweaking the local config file (ignoring ManagementSystem),
         // so we have to bypass clopen(...).
-        // clopen(
-        // option(ALLOW_STALE_CONFIG), false,
-        // option(ATTRIBUTE_ALLOW_ALL_SERIALIZABLE), false);
+        //clopen(
+        //    option(ALLOW_STALE_CONFIG), false,
+        //    option(ATTRIBUTE_ALLOW_ALL_SERIALIZABLE), false);
 
         // Check this test's assumptions about option default values
 
@@ -3008,16 +2960,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             assertTrue(e.getMessage().contains(ConfigElement.getPath(MAX_COMMIT_TIME)));
         }
 
-        // Allow managed option masking (default config again) and check that the local
-        // value is ignored and
+        // Allow managed option masking (default config again) and check that the local value is ignored and
         // that no exception is thrown
         close();
         wc = getConfiguration();
         wc.set(ConfigElement.getPath(ALLOW_STALE_CONFIG), true);
         wc.set(ConfigElement.getPath(MAX_COMMIT_TIME), customCommitTime);
         graph = (StandardItineris) ItinerisFactory.open(wc);
-        // Local value should be overridden by the default that already exists in the
-        // backend
+        // Local value should be overridden by the default that already exists in the backend
         assertEquals(MAX_COMMIT_TIME.getDefaultValue(), graph.getConfiguration().getMaxCommitTime());
 
         // Wipe the storage backend
@@ -3045,14 +2995,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             assertTrue(e.getMessage().contains(ConfigElement.getPath(MAX_COMMIT_TIME)));
         }
 
-        // Now check that ALLOW_STALE_CONFIG is actually MASKABLE -- enable it in the
-        // local config
+        // Now check that ALLOW_STALE_CONFIG is actually MASKABLE -- enable it in the local config
         wc = getConfiguration();
         wc.set(ConfigElement.getPath(ALLOW_STALE_CONFIG), true);
         wc.set(ConfigElement.getPath(MAX_COMMIT_TIME), customCommitTime);
         graph = (StandardItineris) ItinerisFactory.open(wc);
-        // Local value should be overridden by the default that already exists in the
-        // backend
+        // Local value should be overridden by the default that already exists in the backend
         assertEquals(MAX_COMMIT_TIME.getDefaultValue(), graph.getConfiguration().getMaxCommitTime());
     }
 
@@ -3079,25 +3027,22 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // Test timestamp
         Instant customTimestamp = Instant.ofEpochMilli(-42L);
-        StandardItinerisTx customTimeTx = (StandardItinerisTx) graph.buildTransaction().commitTime(customTimestamp)
-                .start();
+        StandardItinerisTx customTimeTx = (StandardItinerisTx) graph.buildTransaction().commitTime(customTimestamp).start();
         assertTrue(customTimeTx.getConfiguration().hasCommitTime());
         assertEquals(customTimestamp, customTimeTx.getConfiguration().getCommitTime());
         customTimeTx.rollback();
     }
 
-    private <A> void setAndCheckGraphOption(ConfigOption<A> opt, ConfigOption.Type requiredType, A firstValue,
-            A secondValue) {
-        // Sanity check: make sure the Type of the configuration option is what we
-        // expect
+    private <A> void setAndCheckGraphOption(ConfigOption<A> opt, ConfigOption.Type requiredType, A firstValue, A secondValue) {
+        // Sanity check: make sure the Type of the configuration option is what we expect
         Preconditions.checkState(opt.getType().equals(requiredType));
-        final EnumSet<ConfigOption.Type> allowedTypes = EnumSet.of(ConfigOption.Type.GLOBAL,
-                ConfigOption.Type.GLOBAL_OFFLINE,
-                ConfigOption.Type.MASKABLE);
+        final EnumSet<ConfigOption.Type> allowedTypes =
+                EnumSet.of(ConfigOption.Type.GLOBAL,
+                        ConfigOption.Type.GLOBAL_OFFLINE,
+                        ConfigOption.Type.MASKABLE);
         Preconditions.checkState(allowedTypes.contains(opt.getType()));
 
-        // Sanity check: it's kind of pointless for the first and second values to be
-        // identical
+        // Sanity check: it's kind of pointless for the first and second values to be identical
         Preconditions.checkArgument(!firstValue.equals(secondValue));
 
         // Get full string path of config option
@@ -3106,7 +3051,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         // Set and check initial value before and after database restart
         mgmt.set(path, firstValue);
         assertEquals(firstValue.toString(), mgmt.get(path));
-        // Close open tx first. This is specific to BDB + GLOBAL_OFFLINE.
+        // Close open tx first.  This is specific to BDB + GLOBAL_OFFLINE.
         // Basically: the BDB store manager throws a fit if shutdown is called
         // with one or more transactions still open, and GLOBAL_OFFLINE calls
         // shutdown on our behalf when we commit this change.
@@ -3135,8 +3080,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             try {
                 mgmt.set(path, firstValue);
                 mgmt.commit();
-                fail("Option " + path + " with type " + ConfigOption.Type.GLOBAL_OFFLINE
-                        + " should not be modifiable with concurrent instances");
+                fail("Option " + path + " with type " + ConfigOption.Type.GLOBAL_OFFLINE + " should not be modifiable with concurrent instances");
             } catch (RuntimeException e) {
                 log.debug("Caught expected exception", e);
             }
@@ -3155,8 +3099,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     private <A> void setIllegalGraphOption(ConfigOption<A> opt, ConfigOption.Type requiredType, A attemptedValue) {
-        // Sanity check: make sure the Type of the configuration option is what we
-        // expect
+        // Sanity check: make sure the Type of the configuration option is what we expect
         final ConfigOption.Type type = opt.getType();
         Preconditions.checkState(type.equals(requiredType));
         Preconditions.checkArgument(requiredType.equals(ConfigOption.Type.LOCAL) ||
@@ -3164,6 +3107,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // Get full string path of config option
         final String path = ConfigElement.getPath(opt);
+
 
         // Try to read the option
         try {
@@ -3182,17 +3126,13 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         }
     }
 
-    /*
-     * =============================================================================
-     * =====
-     * CONSISTENCY
-     * =============================================================================
-     * =====
-     */
+
+   /* ==================================================================================
+                            CONSISTENCY
+     ==================================================================================*/
 
     /**
-     * Tests the correct application of ConsistencyModifiers across transactional
-     * boundaries
+     * Tests the correct application of ConsistencyModifiers across transactional boundaries
      */
     @Test
     public void testConsistencyEnforcement() {
@@ -3224,7 +3164,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         newTx();
         v1 = getV(tx, v1);
         /*
-         * ==== check fork, no fork behavior
+         ==== check fork, no fork behavior
          */
         Object e1id = getId(e1);
         Object e2id = getId(e2);
@@ -3234,7 +3174,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         e2 = Iterables.getOnlyElement(v1.query().direction(Direction.OUT).labels("related").edges());
         assertEquals("e2", e2.value("name"));
         assertEquals(e2id, getId(e2));
-        // Update edges - one should simply update, the other fork
+        //Update edges - one should simply update, the other fork
         e1.property("name", "e1.2");
         e2.property("name", "e2.2");
 
@@ -3243,19 +3183,19 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         e1 = Iterables.getOnlyElement(v1.query().direction(Direction.OUT).labels("connect").edges());
         assertEquals("e1.2", e1.value("name"));
-        assertEquals(e1id, getId(e1)); // should have same id
+        assertEquals(e1id, getId(e1)); //should have same id
         e2 = Iterables.getOnlyElement(v1.query().direction(Direction.OUT).labels("related").edges());
         assertEquals("e2.2", e2.value("name"));
-        assertNotEquals(e2id, getId(e2)); // should have different id since forked
+        assertNotEquals(e2id, getId(e2)); //should have different id since forked
 
         clopen();
 
         /*
-         * === check cross transaction
+         === check cross transaction
          */
         final Random random = new Random();
-        final Object[] vertexIds = { getId(v1), getId(v2), getId(v3) };
-        // 1) Index uniqueness
+        final Object[] vertexIds = {getId(v1), getId(v2), getId(v3)};
+        //1) Index uniqueness
         executeLockConflictingTransactionJobs(graph, new TransactionJob() {
             private int pos = 0;
 
@@ -3265,17 +3205,17 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                 u.property(VertexProperty.Cardinality.single, "uid", 5);
             }
         });
-        // 2) Property out-uniqueness
+        //2) Property out-uniqueness
         executeLockConflictingTransactionJobs(graph, tx -> {
             final ItinerisVertex u = getV(tx, vertexIds[0]);
             u.property(VertexProperty.Cardinality.single, "name", "v" + random.nextInt(10));
         });
-        // 3) knows simpleness
+        //3) knows simpleness
         executeLockConflictingTransactionJobs(graph, tx -> {
             final ItinerisVertex u1 = getV(tx, vertexIds[0]), u2 = getV(tx, vertexIds[1]);
             u1.addEdge("knows", u2);
         });
-        // 4) knows one2one (in 2 separate configurations)
+        //4) knows one2one (in 2 separate configurations)
         executeLockConflictingTransactionJobs(graph, new TransactionJob() {
             private int pos = 1;
 
@@ -3295,9 +3235,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             }
         });
 
-        // ######### TRY INVALID CONSISTENCY
+        //######### TRY INVALID CONSISTENCY
         try {
-            // Fork does not apply to constrained types
+            //Fork does not apply to constrained types
             mgmt.setConsistency(mgmt.getPropertyKey("name"), ConsistencyModifier.FORK);
             fail();
         } catch (IllegalArgumentException ignored) {
@@ -3312,10 +3252,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     /**
-     * Executes a transaction job in two parallel transactions under the assumptions
-     * that the two transactions
-     * should conflict and the one committed later should throw a locking exception
-     * due to mismatch of expected value.
+     * Executes a transaction job in two parallel transactions under the assumptions that the two transactions
+     * should conflict and the one committed later should throw a locking exception due to mismatch of expected value.
      *
      * @param graph
      * @param job
@@ -3343,16 +3281,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     /**
-     * Execute multiple identical transactions concurrently. Note that since these
-     * transactions are running in the same process,
-     * {@link com.forwardmeasure.itineris.diskstorage.locking.LocalLockMediator} is
-     * used to resolve lock contentions. If there is only
-     * one lock needed in the whole transaction, exactly one transaction shall
-     * succeed and others shall fail due to local
-     * lock contention. If there is more than one lock needed in the transaction, at
-     * most one transaction shall succeed
+     * Execute multiple identical transactions concurrently. Note that since these transactions are running in the same process,
+     * {@link com.forwardmeasure.itineris.diskstorage.locking.LocalLockMediator} is used to resolve lock contentions. If there is only
+     * one lock needed in the whole transaction, exactly one transaction shall succeed and others shall fail due to local
+     * lock contention. If there is more than one lock needed in the transaction, at most one transaction shall succeed
      * and others shall fail due to local lock contention.
-     * 
      * @throws Exception
      */
     @Test
@@ -3383,12 +3316,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(1, numOfSuccess);
         assertEquals(parallelThreads - 1, numOfLockContentions);
 
-        // Two locks are needed. Note that the order of adding/modifying/deleting
-        // elements might not be consistent with
-        // the order of real mutations during commit. Thus, it can be the case that one
-        // thread gets one lock and another
-        // thread gets another, and both fail because they are unable to get the other
-        // lock.
+        // Two locks are needed. Note that the order of adding/modifying/deleting elements might not be consistent with
+        // the order of real mutations during commit. Thus, it can be the case that one thread gets one lock and another
+        // thread gets another, and both fail because they are unable to get the other lock.
         results = executeParallelTransactions(tx -> {
             tx.addVertex("name", nameA);
             final ItinerisVertex b = tx.addVertex("name", nameB);
@@ -3412,18 +3342,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             job.run(tx);
             tx.commit();
         });
-        if (tx.isOpen())
-            tx.rollback();
+        if (tx.isOpen()) tx.rollback();
     }
 
     /**
-     * Execute multiple transactions in different threads concurrently to test
-     * locking
-     * 
-     * @param job         A transaction job which triggers locking
+     * Execute multiple transactions in different threads concurrently to test locking
+     * @param job A transaction job which triggers locking
      * @param concurrency Number of threads, each of which runs a transaction
-     * @return [number of successful transactions, number of transactions failed due
-     *         to local lock contention]
+     * @return [number of successful transactions, number of transactions failed due to local lock contention]
      */
     private int[] executeParallelTransactions(final TransactionJob job, int concurrency) {
         final CountDownLatch startLatch = new CountDownLatch(concurrency);
@@ -3437,18 +3363,16 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                     ItinerisTransaction tx = graph.newTransaction();
                     try {
                         job.run(tx);
-                        // we force all threads to wait until they are all ready to commit, so that we
-                        // can test lock
+                        // we force all threads to wait until they are all ready to commit, so that we can test lock
                         // contention
                         awaitAllThreadsReady();
                         tx.commit();
                         txSuccess.incrementAndGet();
                     } catch (Exception ex) {
                         ex.printStackTrace();
-                        if (tx.isOpen())
-                            tx.rollback();
+                        if (tx.isOpen()) tx.rollback();
                         if (ex.getCause() instanceof PermanentLockingException &&
-                                ex.getCause().getMessage().contains("Local lock contention")) {
+                            ex.getCause().getMessage().contains("Local lock contention")) {
                             lockingExCount.incrementAndGet();
                         }
                     } finally {
@@ -3472,20 +3396,16 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        return new int[] { txSuccess.get(), lockingExCount.get() };
+        return new int[] {txSuccess.get(), lockingExCount.get()};
     }
 
-    /*
-     * =============================================================================
-     * =====
-     * VERTEX CENTRIC QUERIES
-     * =============================================================================
-     * =====
-     */
+   /* ==================================================================================
+                            VERTEX CENTRIC QUERIES
+     ==================================================================================*/
 
     @Test
     public void testVertexCentricQuery() {
-        testVertexCentricQuery(10000 /* noVertices */);
+        testVertexCentricQuery(10000 /*noVertices*/);
     }
 
     public void testVertexCentricQuery(int noVertices) {
@@ -3496,10 +3416,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("connect")).sortKey(time).make();
         ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("connectDesc")).sortKey(time).sortOrder(Order.DESC).make();
-        ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("friend")).sortKey(weight, time).sortOrder(Order.ASC)
-                .signature(number).make();
-        ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("friendDesc")).sortKey(weight, time).sortOrder(Order.DESC)
-                .signature(number).make();
+        ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("friend")).sortKey(weight, time).sortOrder(Order.ASC).signature(number).make();
+        ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("friendDesc")).sortKey(weight, time).sortOrder(Order.DESC).signature(number).make();
         ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("knows")).sortKey(number, weight).make();
         mgmt.makeEdgeLabel("follows").make();
         finishSchema();
@@ -3511,14 +3429,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         for (int i = 0; i < noVertices; i++) {
             vs[i] = tx.addVertex("name", "v" + i);
         }
-        EdgeLabel[] labelsV = { tx.getEdgeLabel("connect"), tx.getEdgeLabel("friend"), tx.getEdgeLabel("knows") };
-        EdgeLabel[] labelsU = { tx.getEdgeLabel("connectDesc"), tx.getEdgeLabel("friendDesc"),
-                tx.getEdgeLabel("knows") };
+        EdgeLabel[] labelsV = {tx.getEdgeLabel("connect"), tx.getEdgeLabel("friend"), tx.getEdgeLabel("knows")};
+        EdgeLabel[] labelsU = {tx.getEdgeLabel("connectDesc"), tx.getEdgeLabel("friendDesc"), tx.getEdgeLabel("knows")};
         for (int i = 1; i < noVertices; i++) {
-            for (final ItinerisVertex vertex : new ItinerisVertex[] { v, u }) {
-                for (final Direction d : new Direction[] { OUT, IN }) {
+            for (final ItinerisVertex vertex : new ItinerisVertex[]{v, u}) {
+                for (final Direction d : new Direction[]{OUT, IN}) {
                     EdgeLabel label = vertex == v ? labelsV[i % 3] : labelsU[i % 3];
-                    ItinerisEdge e = d == OUT ? vertex.addEdge(n(label), vs[i]) : vs[i].addEdge(n(label), vertex);
+                    ItinerisEdge e = d == OUT ? vertex.addEdge(n(label), vs[i]) :
+                            vs[i].addEdge(n(label), vertex);
                     e.property("time", i);
                     e.property("weight", i % 4 + 0.5);
                     e.property("name", "e" + i);
@@ -3527,6 +3445,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             }
         }
         int edgesPerLabel = noVertices / 3;
+
 
         VertexList vl;
         Map<ItinerisVertex, Iterable<ItinerisEdge>> results;
@@ -3538,31 +3457,28 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         clopen();
 
         Object[] vertexIdSubset = new Object[31 - 3];
-        for (int i = 0; i < vertexIdSubset.length; i++)
-            vertexIdSubset[i] = vs[i + 3].id();
+        for (int i = 0; i < vertexIdSubset.length; i++) vertexIdSubset[i] = vs[i + 3].id();
         Arrays.sort(vertexIdSubset);
 
-        // ##################################################
-        // Queries from Cache
-        // ##################################################
+        //##################################################
+        //Queries from Cache
+        //##################################################
         clopen();
-        for (int i = 1; i < noVertices; i++)
-            vs[i] = getV(tx, vs[i].id());
+        for (int i = 1; i < noVertices; i++) vs[i] = getV(tx, vs[i].id());
         v = getV(tx, v.id());
         u = getV(tx, u.id());
-        qvs = new ItinerisVertex[] { vs[6], vs[9], vs[12], vs[15], vs[60] };
+        qvs = new ItinerisVertex[]{vs[6], vs[9], vs[12], vs[15], vs[60]};
 
-        // To trigger queries from cache (don't copy!!!)
+        //To trigger queries from cache (don't copy!!!)
         assertCount(2 * (noVertices - 1), v.query().direction(Direction.BOTH).edges());
+
 
         assertEquals(1, v.query().propertyCount());
 
         assertEquals(10, Iterables.size(v.query().labels("connect").limit(10).vertices()));
         assertEquals(10, Iterables.size(u.query().labels("connectDesc").limit(10).vertices()));
-        assertEquals(10,
-                Iterables.size(v.query().labels("connect").has("time", Cmp.GREATER_THAN, 30).limit(10).vertices()));
-        assertEquals(10,
-                Iterables.size(u.query().labels("connectDesc").has("time", Cmp.GREATER_THAN, 30).limit(10).vertices()));
+        assertEquals(10, Iterables.size(v.query().labels("connect").has("time", Cmp.GREATER_THAN, 30).limit(10).vertices()));
+        assertEquals(10, Iterables.size(u.query().labels("connectDesc").has("time", Cmp.GREATER_THAN, 30).limit(10).vertices()));
 
         lastTime = 0;
         for (final ItinerisEdge e : v.query().labels("connect").direction(OUT).limit(20).edges()) {
@@ -3576,75 +3492,48 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             assertTrue(lastTime >= nowTime, lastTime + " vs. " + nowTime);
             lastTime = nowTime;
         }
-        assertEquals(10, Iterables.size(
-                v.query().labels("connect").direction(OUT).has("time", Cmp.GREATER_THAN, 60).limit(10).vertices()));
-        assertEquals(10, Iterables.size(
-                u.query().labels("connectDesc").direction(OUT).has("time", Cmp.GREATER_THAN, 60).limit(10).vertices()));
+        assertEquals(10, Iterables.size(v.query().labels("connect").direction(OUT).has("time", Cmp.GREATER_THAN, 60).limit(10).vertices()));
+        assertEquals(10, Iterables.size(u.query().labels("connectDesc").direction(OUT).has("time", Cmp.GREATER_THAN, 60).limit(10).vertices()));
 
         outer = v.query().labels("connect").direction(OUT).limit(20).edges().iterator();
         for (final Edge e : v.query().labels("connect").direction(OUT).limit(10).edges()) {
             assertEquals(e, outer.next());
         }
 
-        evaluateQuery(v.query().labels("connect").direction(OUT).interval("time", 3, 31), EDGE, 10, 1,
-                new boolean[] { true, true });
-        evaluateQuery(v.query().labels("connect").direction(OUT).has("time", 15).has("weight", 3.5), EDGE, 1, 1,
-                new boolean[] { false, true });
-        evaluateQuery(u.query().labels("connectDesc").direction(OUT).interval("time", 3, 31), EDGE, 10, 1,
-                new boolean[] { true, true });
+        evaluateQuery(v.query().labels("connect").direction(OUT).interval("time", 3, 31), EDGE, 10, 1, new boolean[]{true, true});
+        evaluateQuery(v.query().labels("connect").direction(OUT).has("time", 15).has("weight", 3.5), EDGE, 1, 1, new boolean[]{false, true});
+        evaluateQuery(u.query().labels("connectDesc").direction(OUT).interval("time", 3, 31), EDGE, 10, 1, new boolean[]{true, true});
         assertEquals(10, v.query().labels("connect").direction(IN).interval("time", 3, 31).edgeCount());
         assertEquals(10, u.query().labels("connectDesc").direction(IN).interval("time", 3, 31).edgeCount());
         assertEquals(0, v.query().labels("connect").direction(OUT).has("time", null).edgeCount());
         assertEquals(10, v.query().labels("connect").direction(OUT).interval("time", 3, 31).vertexIds().size());
-        assertEquals(edgesPerLabel - 10,
-                v.query().labels("connect").direction(OUT).has("time", Cmp.GREATER_THAN, 31).count());
+        assertEquals(edgesPerLabel - 10, v.query().labels("connect").direction(OUT).has("time", Cmp.GREATER_THAN, 31).count());
         assertEquals(10, Iterables.size(v.query().labels("connect").direction(OUT).interval("time", 3, 31).vertices()));
         assertEquals(3, v.query().labels("friend").direction(OUT).limit(3).count());
-        evaluateQuery(v.query().labels("friend").direction(OUT).has("weight", 0.5).limit(3), EDGE, 3, 1,
-                new boolean[] { true, true });
-        evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", 0.5), EDGE, 3, 1,
-                new boolean[] { true, true });
-        evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", Contain.IN,
-                ImmutableList.of(0.5)), EDGE, 3, 1, new boolean[] { true, true });
-        evaluateQuery(v.query().labels("friend").direction(OUT)
-                .has("weight", Contain.IN, ImmutableList.of(0.5, 1.5, 2.5)).interval("time", 3, 33), EDGE, 7, 3,
-                new boolean[] { true, true });
-        int friendsWhoHaveOutEdgesWithWeightBetweenPointFiveAndOnePointFive = (int) Math
-                .round(Math.ceil(1667 * noVertices / 10000.0));
-        evaluateQuery(v.query().labels("friend").direction(OUT).has("weight", Contain.IN, ImmutableList.of(0.5, 1.5)),
-                EDGE,
-                friendsWhoHaveOutEdgesWithWeightBetweenPointFiveAndOnePointFive, 2, new boolean[] { true, true });
-        assertEquals(3,
-                u.query().labels("friendDesc").direction(OUT).interval("time", 3, 33).has("weight", 0.5).edgeCount());
-        assertEquals(1,
-                v.query().labels("friend").direction(OUT).has("weight", 0.5).interval("time", 4, 10).edgeCount());
-        assertEquals(1,
-                u.query().labels("friendDesc").direction(OUT).has("weight", 0.5).interval("time", 4, 10).edgeCount());
-        assertEquals(3,
-                v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", 0.5).edgeCount());
+        evaluateQuery(v.query().labels("friend").direction(OUT).has("weight", 0.5).limit(3), EDGE, 3, 1, new boolean[]{true, true});
+        evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", 0.5), EDGE, 3, 1, new boolean[]{true, true});
+        evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", Contain.IN, ImmutableList.of(0.5)), EDGE, 3, 1, new boolean[]{true, true});
+        evaluateQuery(v.query().labels("friend").direction(OUT).has("weight", Contain.IN, ImmutableList.of(0.5, 1.5, 2.5)).interval("time", 3, 33), EDGE, 7, 3, new boolean[]{true, true});
+        int friendsWhoHaveOutEdgesWithWeightBetweenPointFiveAndOnePointFive = (int) Math.round(Math.ceil(1667 * noVertices / 10000.0));
+        evaluateQuery(v.query().labels("friend").direction(OUT).has("weight", Contain.IN, ImmutableList.of(0.5, 1.5)), EDGE,
+            friendsWhoHaveOutEdgesWithWeightBetweenPointFiveAndOnePointFive, 2, new boolean[]{true, true});
+        assertEquals(3, u.query().labels("friendDesc").direction(OUT).interval("time", 3, 33).has("weight", 0.5).edgeCount());
+        assertEquals(1, v.query().labels("friend").direction(OUT).has("weight", 0.5).interval("time", 4, 10).edgeCount());
+        assertEquals(1, u.query().labels("friendDesc").direction(OUT).has("weight", 0.5).interval("time", 4, 10).edgeCount());
+        assertEquals(3, v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", 0.5).edgeCount());
         assertEquals(4, v.query().labels("friend").direction(OUT).has("time", Cmp.LESS_THAN_EQUAL, 10).edgeCount());
-        assertEquals(2, v.query().labels("friend").direction(OUT).has("time", Cmp.LESS_THAN_EQUAL, 10)
-                .has("time", Cmp.LESS_THAN_EQUAL, 5).edgeCount());
-        assertEquals(edgesPerLabel - 4,
-                v.query().labels("friend").direction(OUT).has("time", Cmp.GREATER_THAN, 10).edgeCount());
+        assertEquals(2, v.query().labels("friend").direction(OUT).has("time", Cmp.LESS_THAN_EQUAL, 10).has("time", Cmp.LESS_THAN_EQUAL, 5).edgeCount());
+        assertEquals(edgesPerLabel - 4, v.query().labels("friend").direction(OUT).has("time", Cmp.GREATER_THAN, 10).edgeCount());
         assertEquals(20, v.query().labels("friend", "connect").direction(OUT).interval("time", 3, 33).edgeCount());
 
-        assertEquals((int) Math.ceil(edgesPerLabel / 5.0),
-                v.query().labels("knows").direction(OUT).has("number", 0).edgeCount());
-        assertEquals((int) Math.ceil(edgesPerLabel / 5.0),
-                v.query().labels("knows").direction(OUT).has("number", 0).interval("weight", 0.0, 4.0).edgeCount());
-        assertEquals((int) Math.ceil(edgesPerLabel / (5.0 * 2)),
-                v.query().labels("knows").direction(OUT).has("number", 0).interval("weight", 0.0, 2.0).edgeCount());
-        assertEquals((int) Math.floor(edgesPerLabel / (5.0 * 2)),
-                v.query().labels("knows").direction(OUT).has("number", 0).interval("weight", 2.1, 4.0).edgeCount());
-        assertEquals(20, Iterables
-                .size(v.query().labels("connect", "friend").direction(OUT).interval("time", 3, 33).vertices()));
-        assertEquals(20, Iterables
-                .size(v.query().labels("connect", "friend").direction(OUT).interval("time", 3, 33).vertexIds()));
-        assertEquals(30,
-                v.query().labels("friend", "connect", "knows").direction(OUT).interval("time", 3, 33).edgeCount());
-        assertEquals(noVertices - 2, v.query().labels("friend", "connect", "knows").direction(OUT)
-                .has("time", Cmp.NOT_EQUAL, 10).edgeCount());
+        assertEquals((int) Math.ceil(edgesPerLabel / 5.0), v.query().labels("knows").direction(OUT).has("number", 0).edgeCount());
+        assertEquals((int) Math.ceil(edgesPerLabel / 5.0), v.query().labels("knows").direction(OUT).has("number", 0).interval("weight", 0.0, 4.0).edgeCount());
+        assertEquals((int) Math.ceil(edgesPerLabel / (5.0 * 2)), v.query().labels("knows").direction(OUT).has("number", 0).interval("weight", 0.0, 2.0).edgeCount());
+        assertEquals((int) Math.floor(edgesPerLabel / (5.0 * 2)), v.query().labels("knows").direction(OUT).has("number", 0).interval("weight", 2.1, 4.0).edgeCount());
+        assertEquals(20, Iterables.size(v.query().labels("connect", "friend").direction(OUT).interval("time", 3, 33).vertices()));
+        assertEquals(20, Iterables.size(v.query().labels("connect", "friend").direction(OUT).interval("time", 3, 33).vertexIds()));
+        assertEquals(30, v.query().labels("friend", "connect", "knows").direction(OUT).interval("time", 3, 33).edgeCount());
+        assertEquals(noVertices - 2, v.query().labels("friend", "connect", "knows").direction(OUT).has("time", Cmp.NOT_EQUAL, 10).edgeCount());
 
         assertEquals(0, v.query().has("age", null).labels("undefined").direction(OUT).edgeCount());
         assertEquals(1, v.query().labels("connect").direction(OUT).adjacent(vs[6]).has("time", 6).edgeCount());
@@ -3669,63 +3558,52 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(2 * edgesPerLabel, v.query().labels("connect").direction(BOTH).edgeCount());
 
         assertEquals(edgesPerLabel, v.query().labels("connect").has("undefined", null).direction(OUT).edgeCount());
-        assertEquals(2 * (int) Math.ceil((noVertices - 1) / 4.0),
-                Iterables.size(v.query().labels("connect", "friend", "knows").has("weight", 1.5).vertexIds()));
+        assertEquals(2 * (int) Math.ceil((noVertices - 1) / 4.0), Iterables.size(v.query().labels("connect", "friend", "knows").has("weight", 1.5).vertexIds()));
         assertEquals(1, v.query().direction(IN).has("time", 1).edgeCount());
         assertEquals(10, v.query().direction(OUT).interval("time", 4, 14).edgeCount());
         assertEquals(9, v.query().direction(IN).interval("time", 4, 14).has("time", Cmp.NOT_EQUAL, 10).edgeCount());
         assertEquals(9, v.query().direction(OUT).interval("time", 4, 14).has("time", Cmp.NOT_EQUAL, 10).edgeCount());
         assertEquals(noVertices - 1, Iterables.size(v.query().direction(OUT).vertices()));
         assertEquals(noVertices - 1, Iterables.size(v.query().direction(IN).vertices()));
-        for (final Direction dir : new Direction[] { IN, OUT }) {
+        for (final Direction dir : new Direction[]{IN, OUT}) {
             vl = v.query().labels().direction(dir).interval("time", 3, 31).vertexIds();
             vl.sort();
-            for (int i = 0; i < vl.size(); i++)
-                assertEquals(vertexIdSubset[i], vl.getID(i));
+            for (int i = 0; i < vl.size(); i++) assertEquals(vertexIdSubset[i], vl.getID(i));
         }
         assertCount(2 * (noVertices - 1), v.query().direction(Direction.BOTH).edges());
 
-        // Property queries
+
+        //Property queries
         assertEquals(1, Iterables.size(v.query().properties()));
         assertEquals(1, Iterables.size(v.query().keys("name").properties()));
 
-        // MultiQueries
+        //MultiQueries
         results = tx.multiQuery(qvs).direction(IN).labels("connect").edges();
-        for (Iterable<ItinerisEdge> result : results.values())
-            assertEquals(1, Iterables.size(result));
+        for (Iterable<ItinerisEdge> result : results.values()) assertEquals(1, Iterables.size(result));
         results = tx.multiQuery(Sets.newHashSet(qvs)).labels("connect").edges();
-        for (Iterable<ItinerisEdge> result : results.values())
-            assertEquals(2, Iterables.size(result));
+        for (Iterable<ItinerisEdge> result : results.values()) assertEquals(2, Iterables.size(result));
         results = tx.multiQuery(qvs).labels("knows").edges();
-        for (Iterable<ItinerisEdge> result : results.values())
-            assertEquals(0, Iterables.size(result));
+        for (Iterable<ItinerisEdge> result : results.values()) assertEquals(0, Iterables.size(result));
         results = tx.multiQuery(qvs).edges();
-        for (Iterable<ItinerisEdge> result : results.values())
-            assertEquals(4, Iterables.size(result));
+        for (Iterable<ItinerisEdge> result : results.values()) assertEquals(4, Iterables.size(result));
         results2 = tx.multiQuery(qvs).properties();
-        for (Iterable<ItinerisVertexProperty> result : results2.values())
-            assertEquals(1, Iterables.size(result));
+        for (Iterable<ItinerisVertexProperty> result : results2.values()) assertEquals(1, Iterables.size(result));
         results2 = tx.multiQuery(qvs).keys("name").properties();
-        for (Iterable<ItinerisVertexProperty> result : results2.values())
-            assertEquals(1, Iterables.size(result));
+        for (Iterable<ItinerisVertexProperty> result : results2.values()) assertEquals(1, Iterables.size(result));
 
-        // ##################################################
-        // Same queries as above but without memory loading (i.e. omitting the first
-        // query)
-        // ##################################################
+        //##################################################
+        //Same queries as above but without memory loading (i.e. omitting the first query)
+        //##################################################
         clopen();
-        for (int i = 1; i < noVertices; i++)
-            vs[i] = getV(tx, vs[i].id());
+        for (int i = 1; i < noVertices; i++) vs[i] = getV(tx, vs[i].id());
         v = getV(tx, v.id());
         u = getV(tx, u.id());
-        qvs = new ItinerisVertex[] { vs[6], vs[9], vs[12], vs[15], vs[60] };
+        qvs = new ItinerisVertex[]{vs[6], vs[9], vs[12], vs[15], vs[60]};
 
         assertEquals(10, Iterables.size(v.query().labels("connect").limit(10).vertices()));
         assertEquals(10, Iterables.size(u.query().labels("connectDesc").limit(10).vertices()));
-        assertEquals(10,
-                Iterables.size(v.query().labels("connect").has("time", Cmp.GREATER_THAN, 30).limit(10).vertices()));
-        assertEquals(10,
-                Iterables.size(u.query().labels("connectDesc").has("time", Cmp.GREATER_THAN, 30).limit(10).vertices()));
+        assertEquals(10, Iterables.size(v.query().labels("connect").has("time", Cmp.GREATER_THAN, 30).limit(10).vertices()));
+        assertEquals(10, Iterables.size(u.query().labels("connectDesc").has("time", Cmp.GREATER_THAN, 30).limit(10).vertices()));
 
         lastTime = 0;
         for (final Edge e : v.query().labels("connect").direction(OUT).limit(20).edges()) {
@@ -3739,71 +3617,46 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             assertTrue(lastTime >= nowTime, lastTime + " vs. " + nowTime);
             lastTime = nowTime;
         }
-        assertEquals(10, Iterables.size(
-                v.query().labels("connect").direction(OUT).has("time", Cmp.GREATER_THAN, 60).limit(10).vertices()));
-        assertEquals(10, Iterables.size(
-                u.query().labels("connectDesc").direction(OUT).has("time", Cmp.GREATER_THAN, 60).limit(10).vertices()));
+        assertEquals(10, Iterables.size(v.query().labels("connect").direction(OUT).has("time", Cmp.GREATER_THAN, 60).limit(10).vertices()));
+        assertEquals(10, Iterables.size(u.query().labels("connectDesc").direction(OUT).has("time", Cmp.GREATER_THAN, 60).limit(10).vertices()));
 
         outer = v.query().labels("connect").direction(OUT).limit(20).edges().iterator();
         for (final Edge e : v.query().labels("connect").direction(OUT).limit(10).edges()) {
             assertEquals(e, outer.next());
         }
 
-        evaluateQuery(v.query().labels("connect").direction(OUT).interval("time", 3, 31), EDGE, 10, 1,
-                new boolean[] { true, true });
-        evaluateQuery(v.query().labels("connect").direction(OUT).has("time", 15).has("weight", 3.5), EDGE, 1, 1,
-                new boolean[] { false, true });
-        evaluateQuery(u.query().labels("connectDesc").direction(OUT).interval("time", 3, 31), EDGE, 10, 1,
-                new boolean[] { true, true });
+        evaluateQuery(v.query().labels("connect").direction(OUT).interval("time", 3, 31), EDGE, 10, 1, new boolean[]{true, true});
+        evaluateQuery(v.query().labels("connect").direction(OUT).has("time", 15).has("weight", 3.5), EDGE, 1, 1, new boolean[]{false, true});
+        evaluateQuery(u.query().labels("connectDesc").direction(OUT).interval("time", 3, 31), EDGE, 10, 1, new boolean[]{true, true});
         assertEquals(10, v.query().labels("connect").direction(IN).interval("time", 3, 31).edgeCount());
         assertEquals(10, u.query().labels("connectDesc").direction(IN).interval("time", 3, 31).edgeCount());
         assertEquals(0, v.query().labels("connect").direction(OUT).has("time", null).edgeCount());
         assertEquals(10, v.query().labels("connect").direction(OUT).interval("time", 3, 31).vertexIds().size());
-        assertEquals(edgesPerLabel - 10,
-                v.query().labels("connect").direction(OUT).has("time", Cmp.GREATER_THAN, 31).count());
+        assertEquals(edgesPerLabel - 10, v.query().labels("connect").direction(OUT).has("time", Cmp.GREATER_THAN, 31).count());
         assertEquals(10, Iterables.size(v.query().labels("connect").direction(OUT).interval("time", 3, 31).vertices()));
         assertEquals(3, v.query().labels("friend").direction(OUT).limit(3).count());
-        evaluateQuery(v.query().labels("friend").direction(OUT).has("weight", 0.5).limit(3), EDGE, 3, 1,
-                new boolean[] { true, true });
-        evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", 0.5), EDGE, 3, 1,
-                new boolean[] { true, true });
-        evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", Contain.IN,
-                ImmutableList.of(0.5)), EDGE, 3, 1, new boolean[] { true, true });
-        evaluateQuery(v.query().labels("friend").direction(OUT)
-                .has("weight", Contain.IN, ImmutableList.of(0.5, 1.5, 2.5)).interval("time", 3, 33), EDGE, 7, 3,
-                new boolean[] { true, true });
-        evaluateQuery(v.query().labels("friend").direction(OUT).has("weight", Contain.IN, ImmutableList.of(0.5, 1.5)),
-                EDGE,
-                friendsWhoHaveOutEdgesWithWeightBetweenPointFiveAndOnePointFive, 2, new boolean[] { true, true });
-        assertEquals(3,
-                u.query().labels("friendDesc").direction(OUT).interval("time", 3, 33).has("weight", 0.5).edgeCount());
-        assertEquals(1,
-                v.query().labels("friend").direction(OUT).has("weight", 0.5).interval("time", 4, 10).edgeCount());
-        assertEquals(1,
-                u.query().labels("friendDesc").direction(OUT).has("weight", 0.5).interval("time", 4, 10).edgeCount());
-        assertEquals(3,
-                v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", 0.5).edgeCount());
+        evaluateQuery(v.query().labels("friend").direction(OUT).has("weight", 0.5).limit(3), EDGE, 3, 1, new boolean[]{true, true});
+        evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", 0.5), EDGE, 3, 1, new boolean[]{true, true});
+        evaluateQuery(v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", Contain.IN, ImmutableList.of(0.5)), EDGE, 3, 1, new boolean[]{true, true});
+        evaluateQuery(v.query().labels("friend").direction(OUT).has("weight", Contain.IN, ImmutableList.of(0.5, 1.5, 2.5)).interval("time", 3, 33), EDGE, 7, 3, new boolean[]{true, true});
+        evaluateQuery(v.query().labels("friend").direction(OUT).has("weight", Contain.IN, ImmutableList.of(0.5, 1.5)), EDGE,
+            friendsWhoHaveOutEdgesWithWeightBetweenPointFiveAndOnePointFive, 2, new boolean[]{true, true});
+        assertEquals(3, u.query().labels("friendDesc").direction(OUT).interval("time", 3, 33).has("weight", 0.5).edgeCount());
+        assertEquals(1, v.query().labels("friend").direction(OUT).has("weight", 0.5).interval("time", 4, 10).edgeCount());
+        assertEquals(1, u.query().labels("friendDesc").direction(OUT).has("weight", 0.5).interval("time", 4, 10).edgeCount());
+        assertEquals(3, v.query().labels("friend").direction(OUT).interval("time", 3, 33).has("weight", 0.5).edgeCount());
         assertEquals(4, v.query().labels("friend").direction(OUT).has("time", Cmp.LESS_THAN_EQUAL, 10).edgeCount());
-        assertEquals(edgesPerLabel - 4,
-                v.query().labels("friend").direction(OUT).has("time", Cmp.GREATER_THAN, 10).edgeCount());
+        assertEquals(edgesPerLabel - 4, v.query().labels("friend").direction(OUT).has("time", Cmp.GREATER_THAN, 10).edgeCount());
         assertEquals(20, v.query().labels("friend", "connect").direction(OUT).interval("time", 3, 33).edgeCount());
 
-        assertEquals((int) Math.ceil(edgesPerLabel / 5.0),
-                v.query().labels("knows").direction(OUT).has("number", 0).edgeCount());
-        assertEquals((int) Math.ceil(edgesPerLabel / 5.0),
-                v.query().labels("knows").direction(OUT).has("number", 0).interval("weight", 0.0, 4.0).edgeCount());
-        assertEquals((int) Math.ceil(edgesPerLabel / (5.0 * 2)),
-                v.query().labels("knows").direction(OUT).has("number", 0).interval("weight", 0.0, 2.0).edgeCount());
-        assertEquals((int) Math.floor(edgesPerLabel / (5.0 * 2)),
-                v.query().labels("knows").direction(OUT).has("number", 0).interval("weight", 2.1, 4.0).edgeCount());
-        assertEquals(20, Iterables
-                .size(v.query().labels("connect", "friend").direction(OUT).interval("time", 3, 33).vertices()));
-        assertEquals(20, Iterables
-                .size(v.query().labels("connect", "friend").direction(OUT).interval("time", 3, 33).vertexIds()));
-        assertEquals(30,
-                v.query().labels("friend", "connect", "knows").direction(OUT).interval("time", 3, 33).edgeCount());
-        assertEquals(noVertices - 2, v.query().labels("friend", "connect", "knows").direction(OUT)
-                .has("time", Cmp.NOT_EQUAL, 10).edgeCount());
+        assertEquals((int) Math.ceil(edgesPerLabel / 5.0), v.query().labels("knows").direction(OUT).has("number", 0).edgeCount());
+        assertEquals((int) Math.ceil(edgesPerLabel / 5.0), v.query().labels("knows").direction(OUT).has("number", 0).interval("weight", 0.0, 4.0).edgeCount());
+        assertEquals((int) Math.ceil(edgesPerLabel / (5.0 * 2)), v.query().labels("knows").direction(OUT).has("number", 0).interval("weight", 0.0, 2.0).edgeCount());
+        assertEquals((int) Math.floor(edgesPerLabel / (5.0 * 2)), v.query().labels("knows").direction(OUT).has("number", 0).interval("weight", 2.1, 4.0).edgeCount());
+        assertEquals(20, Iterables.size(v.query().labels("connect", "friend").direction(OUT).interval("time", 3, 33).vertices()));
+        assertEquals(20, Iterables.size(v.query().labels("connect", "friend").direction(OUT).interval("time", 3, 33).vertexIds()));
+        assertEquals(30, v.query().labels("friend", "connect", "knows").direction(OUT).interval("time", 3, 33).edgeCount());
+        assertEquals(noVertices - 2, v.query().labels("friend", "connect", "knows").direction(OUT).has("time", Cmp.NOT_EQUAL, 10).edgeCount());
 
         assertEquals(0, v.query().has("age", null).labels("undefined").direction(OUT).edgeCount());
         assertEquals(1, v.query().labels("connect").direction(OUT).adjacent(vs[6]).has("time", 6).edgeCount());
@@ -3828,49 +3681,42 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(2 * edgesPerLabel, v.query().labels("connect").direction(BOTH).edgeCount());
 
         assertEquals(edgesPerLabel, v.query().labels("connect").has("undefined", null).direction(OUT).edgeCount());
-        assertEquals(2 * (int) Math.ceil((noVertices - 1) / 4.0),
-                Iterables.size(v.query().labels("connect", "friend", "knows").has("weight", 1.5).vertexIds()));
+        assertEquals(2 * (int) Math.ceil((noVertices - 1) / 4.0), Iterables.size(v.query().labels("connect", "friend", "knows").has("weight", 1.5).vertexIds()));
         assertEquals(1, v.query().direction(IN).has("time", 1).edgeCount());
         assertEquals(10, v.query().direction(OUT).interval("time", 4, 14).edgeCount());
         assertEquals(9, v.query().direction(IN).interval("time", 4, 14).has("time", Cmp.NOT_EQUAL, 10).edgeCount());
         assertEquals(9, v.query().direction(OUT).interval("time", 4, 14).has("time", Cmp.NOT_EQUAL, 10).edgeCount());
         assertEquals(noVertices - 1, Iterables.size(v.query().direction(OUT).vertices()));
         assertEquals(noVertices - 1, Iterables.size(v.query().direction(IN).vertices()));
-        for (final Direction dir : new Direction[] { IN, OUT }) {
+        for (final Direction dir : new Direction[]{IN, OUT}) {
             vl = v.query().labels().direction(dir).interval("time", 3, 31).vertexIds();
             vl.sort();
-            for (int i = 0; i < vl.size(); i++)
-                assertEquals(vertexIdSubset[i], vl.getID(i));
+            for (int i = 0; i < vl.size(); i++) assertEquals(vertexIdSubset[i], vl.getID(i));
         }
         assertCount(2 * (noVertices - 1), v.query().direction(Direction.BOTH).edges());
 
-        // Property queries
+
+        //Property queries
         assertEquals(1, Iterables.size(v.query().properties()));
         assertEquals(1, Iterables.size(v.query().keys("name").properties()));
 
-        // MultiQueries
+        //MultiQueries
         results = tx.multiQuery(qvs).direction(IN).labels("connect").edges();
-        for (final Iterable<ItinerisEdge> result : results.values())
-            assertEquals(1, Iterables.size(result));
+        for (final Iterable<ItinerisEdge> result : results.values()) assertEquals(1, Iterables.size(result));
         results = tx.multiQuery(Sets.newHashSet(qvs)).labels("connect").edges();
-        for (final Iterable<ItinerisEdge> result : results.values())
-            assertEquals(2, Iterables.size(result));
+        for (final Iterable<ItinerisEdge> result : results.values()) assertEquals(2, Iterables.size(result));
         results = tx.multiQuery(qvs).labels("knows").edges();
-        for (final Iterable<ItinerisEdge> result : results.values())
-            assertEquals(0, Iterables.size(result));
+        for (final Iterable<ItinerisEdge> result : results.values()) assertEquals(0, Iterables.size(result));
         results = tx.multiQuery(qvs).edges();
-        for (final Iterable<ItinerisEdge> result : results.values())
-            assertEquals(4, Iterables.size(result));
+        for (final Iterable<ItinerisEdge> result : results.values()) assertEquals(4, Iterables.size(result));
         results2 = tx.multiQuery(qvs).properties();
-        for (final Iterable<ItinerisVertexProperty> result : results2.values())
-            assertEquals(1, Iterables.size(result));
+        for (final Iterable<ItinerisVertexProperty> result : results2.values()) assertEquals(1, Iterables.size(result));
         results2 = tx.multiQuery(qvs).keys("name").properties();
-        for (final Iterable<ItinerisVertexProperty> result : results2.values())
-            assertEquals(1, Iterables.size(result));
+        for (final Iterable<ItinerisVertexProperty> result : results2.values()) assertEquals(1, Iterables.size(result));
 
-        // ##################################################
-        // End copied queries
-        // ##################################################
+        //##################################################
+        //End copied queries
+        //##################################################
 
         newTx();
 
@@ -3886,18 +3732,17 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(2, v.query().has("weight", 1.5).interval("time", 10, 30).limit(2).edgeCount());
         assertEquals(10, v.query().has("weight", 1.5).interval("time", 10, 30).edgeCount());
 
+
         newTx();
-        // Test partially new vertex queries
+        //Test partially new vertex queries
         final ItinerisVertex[] qvs2 = new ItinerisVertex[qvs.length + 2];
         qvs2[0] = tx.addVertex();
-        for (int i = 0; i < qvs.length; i++)
-            qvs2[i + 1] = getV(tx, qvs[i].id());
+        for (int i = 0; i < qvs.length; i++) qvs2[i + 1] = getV(tx, qvs[i].id());
         qvs2[qvs2.length - 1] = tx.addVertex();
         qvs2[0].addEdge("connect", qvs2[qvs2.length - 1]);
         qvs2[qvs2.length - 1].addEdge("connect", qvs2[0]);
         results = tx.multiQuery(qvs2).direction(IN).labels("connect").edges();
-        for (final Iterable<ItinerisEdge> result : results.values())
-            assertEquals(1, Iterables.size(result));
+        for (final Iterable<ItinerisEdge> result : results.values()) assertEquals(1, Iterables.size(result));
 
     }
 
@@ -3957,24 +3802,24 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(3, Iterables.size(mgmt.getRelationIndexes(connect)));
         assertEquals(0, Iterables.size(mgmt.getRelationIndexes(weight)));
         try {
-            // Name already exists
+            //Name already exists
             mgmt.buildEdgeIndex(connect, "weightAsc", Direction.OUT, time);
             fail();
         } catch (SchemaViolationException ignored) {
         }
-        // try {
-        // //Invalid key - must be single valued
-        // mgmt.createEdgeIndex(connect,"blablub",Direction.OUT,name);
-        // fail();
-        // } catch (IllegalArgumentException e) {}
+//        try {
+//           //Invalid key - must be single valued
+//           mgmt.createEdgeIndex(connect,"blablub",Direction.OUT,name);
+//           fail();
+//        } catch (IllegalArgumentException e) {}
         try {
-            // Not valid in this direction due to multiplicity constraint
+            //Not valid in this direction due to multiplicity constraint
             mgmt.buildEdgeIndex(child, "blablub", Direction.IN, time);
             fail();
         } catch (IllegalArgumentException ignored) {
         }
         try {
-            // Not valid in this direction due to unidirectionality
+            //Not valid in this direction due to unidirectionality
             mgmt.buildEdgeIndex(link, "blablub", Direction.BOTH, time);
             fail();
         } catch (IllegalArgumentException ignored) {
@@ -4004,24 +3849,24 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(3, Iterables.size(mgmt.getRelationIndexes(connect)));
         assertEquals(0, Iterables.size(mgmt.getRelationIndexes(weight)));
         try {
-            // Name already exists
+            //Name already exists
             mgmt.buildEdgeIndex(connect, "weightAsc", Direction.OUT, time);
             fail();
         } catch (SchemaViolationException ignored) {
         }
-        // try {
-        // //Invalid key - must be single valued
-        // mgmt.createEdgeIndex(connect,"blablub",Direction.OUT,name);
-        // fail();
-        // } catch (IllegalArgumentException e) {}
+//        try {
+//           //Invalid key - must be single valued
+//           mgmt.createEdgeIndex(connect,"blablub",Direction.OUT,name);
+//           fail();
+//        } catch (IllegalArgumentException e) {}
         try {
-            // Not valid in this direction due to multiplicity constraint
+            //Not valid in this direction due to multiplicity constraint
             mgmt.buildEdgeIndex(child, "blablub", Direction.IN, time);
             fail();
         } catch (IllegalArgumentException ignored) {
         }
         try {
-            // Not valid in this direction due to unidirectionality
+            //Not valid in this direction due to unidirectionality
             mgmt.buildEdgeIndex(link, "blablub", Direction.BOTH, time);
             fail();
         } catch (IllegalArgumentException ignored) {
@@ -4032,8 +3877,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.rollback();
 
         /*
-         * ########## TEST WITHIN TRANSACTION ##################
-         */
+        ########## TEST WITHIN TRANSACTION ##################
+        */
 
         weight = tx.getPropertyKey("weight");
         time = tx.getPropertyKey("time");
@@ -4048,53 +3893,52 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             VertexProperty p = v.property("name", "v" + i, "weight", w, "time", t);
 
             ns[i] = tx.addVertex();
-            for (String label : new String[] { "connect", "child", "link" }) {
+            for (String label : new String[]{"connect", "child", "link"}) {
                 Edge e = v.addEdge(label, ns[i], "weight", w, "time", t);
             }
         }
         ItinerisVertex u = ns[0];
         VertexList vl;
 
-        // ######### QUERIES ##########
+        //######### QUERIES ##########
         v = getV(tx, v);
         u = getV(tx, u);
 
         evaluateQuery(v.query().keys("name").has("weight", Cmp.GREATER_THAN, 3.6),
-                PROPERTY, 2 * numV / 10, 1, new boolean[] { false, true });
+                PROPERTY, 2 * numV / 10, 1, new boolean[]{false, true});
         evaluateQuery(v.query().keys("name").has("weight", Cmp.LESS_THAN, 0.9).orderBy("weight", asc),
-                PROPERTY, 2 * numV / 10, 1, new boolean[] { true, true }, weight, Order.ASC);
+                PROPERTY, 2 * numV / 10, 1, new boolean[]{true, true}, weight, Order.ASC);
         evaluateQuery(v.query().keys("name").interval("weight", 1.1, 2.2).orderBy("weight", desc).limit(numV / 10),
-                PROPERTY, numV / 10, 1, new boolean[] { true, false }, weight, Order.DESC);
+                PROPERTY, numV / 10, 1, new boolean[]{true, false}, weight, Order.DESC);
         evaluateQuery(v.query().keys("name").has("time", Cmp.EQUAL, 5).orderBy("weight", desc),
-                PROPERTY, 1, 1, new boolean[] { false, false }, weight, Order.DESC);
+                PROPERTY, 1, 1, new boolean[]{false, false}, weight, Order.DESC);
         evaluateQuery(v.query().keys("name"),
-                PROPERTY, numV, 1, new boolean[] { true, true });
+                PROPERTY, numV, 1, new boolean[]{true, true});
 
         evaluateQuery(v.query().labels("child").direction(OUT).has("time", Cmp.EQUAL, 5),
-                EDGE, 1, 1, new boolean[] { true, true });
+                EDGE, 1, 1, new boolean[]{true, true});
         evaluateQuery(v.query().labels("child").direction(BOTH).has("time", Cmp.EQUAL, 5),
                 EDGE, 1, 2, new boolean[0]);
-        evaluateQuery(
-                v.query().labels("child").direction(OUT).interval("time", 10, 20).orderBy("weight", desc).limit(5),
-                EDGE, 5, 1, new boolean[] { true, false }, weight, Order.DESC);
+        evaluateQuery(v.query().labels("child").direction(OUT).interval("time", 10, 20).orderBy("weight", desc).limit(5),
+                EDGE, 5, 1, new boolean[]{true, false}, weight, Order.DESC);
         evaluateQuery(v.query().labels("child").direction(BOTH).interval("weight", 0.0, 1.0).orderBy("weight", desc),
-                EDGE, 2 * numV / 10, 2, new boolean[] { false, false }, weight, Order.DESC);
+                EDGE, 2 * numV / 10, 2, new boolean[]{false, false}, weight, Order.DESC);
         evaluateQuery(v.query().labels("child").direction(OUT).interval("weight", 0.0, 1.0),
-                EDGE, 2 * numV / 10, 1, new boolean[] { false, true });
+                EDGE, 2 * numV / 10, 1, new boolean[]{false, true});
         evaluateQuery(v.query().labels("child").direction(BOTH),
-                EDGE, numV, 1, new boolean[] { true, true });
+                EDGE, numV, 1, new boolean[]{true, true});
         vl = v.query().labels("child").direction(BOTH).vertexIds();
         assertEquals(numV, vl.size());
         assertTrue(vl.isSorted());
         assertTrue(isSortedByID(vl));
         evaluateQuery(v.query().labels("child").interval("weight", 0.0, 1.0).direction(OUT),
-                EDGE, 2 * numV / 10, 1, new boolean[] { false, true });
+                EDGE, 2 * numV / 10, 1, new boolean[]{false, true});
         vl = v.query().labels("child").interval("weight", 0.0, 1.0).direction(OUT).vertexIds();
         assertEquals(2 * numV / 10, vl.size());
         assertTrue(vl.isSorted());
         assertTrue(isSortedByID(vl));
         evaluateQuery(v.query().labels("child").interval("time", 70, 80).direction(OUT).orderBy("time", asc),
-                EDGE, 10, 1, new boolean[] { true, true }, time, Order.ASC);
+                EDGE, 10, 1, new boolean[]{true, true}, time, Order.ASC);
         vl = v.query().labels("child").interval("time", 70, 80).direction(OUT).orderBy("time", asc).vertexIds();
         assertEquals(10, vl.size());
         assertFalse(vl.isSorted());
@@ -4104,83 +3948,81 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertTrue(isSortedByID(vl));
 
         evaluateQuery(v.query().labels("connect").has("time", Cmp.EQUAL, 5).interval("weight", 0.0, 5.0).direction(OUT),
-                EDGE, 1, 1, new boolean[] { true, true });
-        evaluateQuery(
-                v.query().labels("connect").has("time", Cmp.EQUAL, 5).interval("weight", 0.0, 5.0).direction(BOTH),
+                EDGE, 1, 1, new boolean[]{true, true});
+        evaluateQuery(v.query().labels("connect").has("time", Cmp.EQUAL, 5).interval("weight", 0.0, 5.0).direction(BOTH),
                 EDGE, 1, 2, new boolean[0]);
         evaluateQuery(v.query().labels("connect").interval("time", 10, 20).interval("weight", 0.0, 5.0).direction(OUT),
-                EDGE, 10, 1, new boolean[] { false, true });
+                EDGE, 10, 1, new boolean[]{false, true});
         evaluateQuery(v.query().labels("connect").direction(OUT).orderBy("weight", asc).limit(10),
-                EDGE, 10, 1, new boolean[] { true, true }, weight, Order.ASC);
+                EDGE, 10, 1, new boolean[]{true, true}, weight, Order.ASC);
         evaluateQuery(v.query().labels("connect").direction(OUT).orderBy("weight", desc).limit(10),
-                EDGE, 10, 1, new boolean[] { true, true }, weight, Order.DESC);
+                EDGE, 10, 1, new boolean[]{true, true}, weight, Order.DESC);
         evaluateQuery(v.query().labels("connect").direction(OUT).interval("weight", 1.4, 2.75).orderBy("weight", desc),
-                EDGE, 3 * numV / 10, 1, new boolean[] { true, true }, weight, Order.DESC);
+                EDGE, 3 * numV / 10, 1, new boolean[]{true, true}, weight, Order.DESC);
         evaluateQuery(v.query().labels("connect").direction(OUT).has("time", Cmp.EQUAL, 22).orderBy("weight", desc),
-                EDGE, 1, 1, new boolean[] { true, true }, weight, Order.DESC);
+                EDGE, 1, 1, new boolean[]{true, true}, weight, Order.DESC);
         evaluateQuery(v.query().labels("connect").direction(OUT).has("time", Cmp.EQUAL, 22).orderBy("weight", asc),
-                EDGE, 1, 1, new boolean[] { true, false }, weight, Order.ASC);
+                EDGE, 1, 1, new boolean[]{true, false}, weight, Order.ASC);
         evaluateQuery(v.query().labels("connect").direction(OUT).adjacent(u),
-                EDGE, 1, 1, new boolean[] { true, true });
+                EDGE, 1, 1, new boolean[]{true, true});
         evaluateQuery(v.query().labels("connect").direction(OUT).has("weight", Cmp.EQUAL, 0.0).adjacent(u),
-                EDGE, 1, 1, new boolean[] { true, true });
+                EDGE, 1, 1, new boolean[]{true, true});
         evaluateQuery(v.query().labels("connect").direction(OUT).interval("weight", 0.0, 1.0).adjacent(u),
-                EDGE, 1, 1, new boolean[] { false, true });
+                EDGE, 1, 1, new boolean[]{false, true});
         evaluateQuery(v.query().labels("connect").direction(OUT).interval("time", 50, 100).adjacent(u),
-                EDGE, 1, 1, new boolean[] { false, true });
+                EDGE, 1, 1, new boolean[]{false, true});
 
         evaluateQuery(v.query(),
-                RELATION, numV * 4, 1, new boolean[] { true, true });
+                RELATION, numV * 4, 1, new boolean[]{true, true});
         evaluateQuery(v.query().direction(OUT),
-                RELATION, numV * 4, 1, new boolean[] { false, true });
+                RELATION, numV * 4, 1, new boolean[]{false, true});
 
-        // --------------
+        //--------------
 
         clopen();
 
         weight = tx.getPropertyKey("weight");
         time = tx.getPropertyKey("time");
 
-        // ######### QUERIES (copied from above) ##########
+        //######### QUERIES (copied from above) ##########
         v = getV(tx, v);
         u = getV(tx, u);
 
         evaluateQuery(v.query().keys("name").has("weight", Cmp.GREATER_THAN, 3.6),
-                PROPERTY, 2 * numV / 10, 1, new boolean[] { false, true });
+                PROPERTY, 2 * numV / 10, 1, new boolean[]{false, true});
         evaluateQuery(v.query().keys("name").has("weight", Cmp.LESS_THAN, 0.9).orderBy("weight", asc),
-                PROPERTY, 2 * numV / 10, 1, new boolean[] { true, true }, weight, Order.ASC);
+                PROPERTY, 2 * numV / 10, 1, new boolean[]{true, true}, weight, Order.ASC);
         evaluateQuery(v.query().keys("name").interval("weight", 1.1, 2.2).orderBy("weight", desc).limit(numV / 10),
-                PROPERTY, numV / 10, 1, new boolean[] { true, false }, weight, Order.DESC);
+                PROPERTY, numV / 10, 1, new boolean[]{true, false}, weight, Order.DESC);
         evaluateQuery(v.query().keys("name").has("time", Cmp.EQUAL, 5).orderBy("weight", desc),
-                PROPERTY, 1, 1, new boolean[] { false, false }, weight, Order.DESC);
+                PROPERTY, 1, 1, new boolean[]{false, false}, weight, Order.DESC);
         evaluateQuery(v.query().keys("name"),
-                PROPERTY, numV, 1, new boolean[] { true, true });
+                PROPERTY, numV, 1, new boolean[]{true, true});
 
         evaluateQuery(v.query().labels("child").direction(OUT).has("time", Cmp.EQUAL, 5),
-                EDGE, 1, 1, new boolean[] { true, true });
+                EDGE, 1, 1, new boolean[]{true, true});
         evaluateQuery(v.query().labels("child").direction(BOTH).has("time", Cmp.EQUAL, 5),
                 EDGE, 1, 2, new boolean[0]);
-        evaluateQuery(
-                v.query().labels("child").direction(OUT).interval("time", 10, 20).orderBy("weight", desc).limit(5),
-                EDGE, 5, 1, new boolean[] { true, false }, weight, Order.DESC);
+        evaluateQuery(v.query().labels("child").direction(OUT).interval("time", 10, 20).orderBy("weight", desc).limit(5),
+                EDGE, 5, 1, new boolean[]{true, false}, weight, Order.DESC);
         evaluateQuery(v.query().labels("child").direction(BOTH).interval("weight", 0.0, 1.0).orderBy("weight", desc),
-                EDGE, 2 * numV / 10, 2, new boolean[] { false, false }, weight, Order.DESC);
+                EDGE, 2 * numV / 10, 2, new boolean[]{false, false}, weight, Order.DESC);
         evaluateQuery(v.query().labels("child").direction(OUT).interval("weight", 0.0, 1.0),
-                EDGE, 2 * numV / 10, 1, new boolean[] { false, true });
+                EDGE, 2 * numV / 10, 1, new boolean[]{false, true});
         evaluateQuery(v.query().labels("child").direction(BOTH),
-                EDGE, numV, 1, new boolean[] { true, true });
+                EDGE, numV, 1, new boolean[]{true, true});
         vl = v.query().labels("child").direction(BOTH).vertexIds();
         assertEquals(numV, vl.size());
         assertTrue(vl.isSorted());
         assertTrue(isSortedByID(vl));
         evaluateQuery(v.query().labels("child").interval("weight", 0.0, 1.0).direction(OUT),
-                EDGE, 2 * numV / 10, 1, new boolean[] { false, true });
+                EDGE, 2 * numV / 10, 1, new boolean[]{false, true});
         vl = v.query().labels("child").interval("weight", 0.0, 1.0).direction(OUT).vertexIds();
         assertEquals(2 * numV / 10, vl.size());
         assertTrue(vl.isSorted());
         assertTrue(isSortedByID(vl));
         evaluateQuery(v.query().labels("child").interval("time", 70, 80).direction(OUT).orderBy("time", asc),
-                EDGE, 10, 1, new boolean[] { true, true }, time, Order.ASC);
+                EDGE, 10, 1, new boolean[]{true, true}, time, Order.ASC);
         vl = v.query().labels("child").interval("time", 70, 80).direction(OUT).orderBy("time", asc).vertexIds();
         assertEquals(10, vl.size());
         assertFalse(vl.isSorted());
@@ -4190,47 +4032,44 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertTrue(isSortedByID(vl));
 
         evaluateQuery(v.query().labels("connect").has("time", Cmp.EQUAL, 5).interval("weight", 0.0, 5.0).direction(OUT),
-                EDGE, 1, 1, new boolean[] { true, true });
-        evaluateQuery(
-                v.query().labels("connect").has("time", Cmp.EQUAL, 5).interval("weight", 0.0, 5.0).direction(BOTH),
+                EDGE, 1, 1, new boolean[]{true, true});
+        evaluateQuery(v.query().labels("connect").has("time", Cmp.EQUAL, 5).interval("weight", 0.0, 5.0).direction(BOTH),
                 EDGE, 1, 2, new boolean[0]);
         evaluateQuery(v.query().labels("connect").interval("time", 10, 20).interval("weight", 0.0, 5.0).direction(OUT),
-                EDGE, 10, 1, new boolean[] { false, true });
+                EDGE, 10, 1, new boolean[]{false, true});
         evaluateQuery(v.query().labels("connect").direction(OUT).orderBy("weight", asc).limit(10),
-                EDGE, 10, 1, new boolean[] { true, true }, weight, Order.ASC);
+                EDGE, 10, 1, new boolean[]{true, true}, weight, Order.ASC);
         evaluateQuery(v.query().labels("connect").direction(OUT).orderBy("weight", desc).limit(10),
-                EDGE, 10, 1, new boolean[] { true, true }, weight, Order.DESC);
+                EDGE, 10, 1, new boolean[]{true, true}, weight, Order.DESC);
         evaluateQuery(v.query().labels("connect").direction(OUT).interval("weight", 1.4, 2.75).orderBy("weight", desc),
-                EDGE, 3 * numV / 10, 1, new boolean[] { true, true }, weight, Order.DESC);
+                EDGE, 3 * numV / 10, 1, new boolean[]{true, true}, weight, Order.DESC);
         evaluateQuery(v.query().labels("connect").direction(OUT).has("time", Cmp.EQUAL, 22).orderBy("weight", desc),
-                EDGE, 1, 1, new boolean[] { true, true }, weight, Order.DESC);
+                EDGE, 1, 1, new boolean[]{true, true}, weight, Order.DESC);
         evaluateQuery(v.query().labels("connect").direction(OUT).has("time", Cmp.EQUAL, 22).orderBy("weight", asc),
-                EDGE, 1, 1, new boolean[] { true, false }, weight, Order.ASC);
+                EDGE, 1, 1, new boolean[]{true, false}, weight, Order.ASC);
         evaluateQuery(v.query().labels("connect").direction(OUT).adjacent(u),
-                EDGE, 1, 1, new boolean[] { true, true });
+                EDGE, 1, 1, new boolean[]{true, true});
         evaluateQuery(v.query().labels("connect").direction(OUT).has("weight", Cmp.EQUAL, 0.0).adjacent(u),
-                EDGE, 1, 1, new boolean[] { true, true });
+                EDGE, 1, 1, new boolean[]{true, true});
         evaluateQuery(v.query().labels("connect").direction(OUT).interval("weight", 0.0, 1.0).adjacent(u),
-                EDGE, 1, 1, new boolean[] { false, true });
+                EDGE, 1, 1, new boolean[]{false, true});
         evaluateQuery(v.query().labels("connect").direction(OUT).interval("time", 50, 100).adjacent(u),
-                EDGE, 1, 1, new boolean[] { false, true });
+                EDGE, 1, 1, new boolean[]{false, true});
 
         evaluateQuery(v.query(),
-                RELATION, numV * 4, 1, new boolean[] { true, true });
+                RELATION, numV * 4, 1, new boolean[]{true, true});
         evaluateQuery(v.query().direction(OUT),
-                RELATION, numV * 4, 1, new boolean[] { false, true });
+                RELATION, numV * 4, 1, new boolean[]{false, true});
 
-        // --------------
+        //--------------
 
-        // Update in transaction
+        //Update in transaction
         for (Object o : v.query().labels("name").properties()) {
             ItinerisVertexProperty<String> p = (ItinerisVertexProperty<String>) o;
-            if (p.<Long>value("time") < (numV / 2))
-                p.remove();
+            if (p.<Long>value("time") < (numV / 2)) p.remove();
         }
         for (ItinerisEdge o : v.query().direction(BOTH).edges()) {
-            if (o.<Long>value("time") < (numV / 2))
-                o.remove();
+            if (o.<Long>value("time") < (numV / 2)) o.remove();
         }
         ns = new ItinerisVertex[numV * 3 / 2];
         for (int i = numV; i < numV * 3 / 2; i++) {
@@ -4238,40 +4077,38 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             v.property("name", "v" + i, "weight", w, "time", (long) i);
 
             ns[i] = tx.addVertex();
-            for (String label : new String[] { "connect", "child", "link" }) {
+            for (String label : new String[]{"connect", "child", "link"}) {
                 ItinerisEdge e = v.addEdge(label, ns[i], "weight", w, "time", (long) i);
             }
         }
 
-        // ######### UPDATED QUERIES ##########
+        //######### UPDATED QUERIES ##########
 
         evaluateQuery(v.query().keys("name").has("weight", Cmp.GREATER_THAN, 3.6),
-                PROPERTY, 2 * numV / 10, 1, new boolean[] { false, true });
+                PROPERTY, 2 * numV / 10, 1, new boolean[]{false, true});
         evaluateQuery(v.query().keys("name").interval("time", numV / 2 - 10, numV / 2 + 10),
-                PROPERTY, 10, 1, new boolean[] { false, true });
+                PROPERTY, 10, 1, new boolean[]{false, true});
         evaluateQuery(v.query().keys("name").interval("time", numV / 2 - 10, numV / 2 + 10).orderBy("weight", desc),
-                PROPERTY, 10, 1, new boolean[] { false, false }, weight, Order.DESC);
+                PROPERTY, 10, 1, new boolean[]{false, false}, weight, Order.DESC);
         evaluateQuery(v.query().keys("name").interval("time", numV, numV + 10).limit(5),
-                PROPERTY, 5, 1, new boolean[] { false, true });
+                PROPERTY, 5, 1, new boolean[]{false, true});
 
         evaluateQuery(v.query().labels("child").direction(OUT).has("time", Cmp.EQUAL, 5),
-                EDGE, 0, 1, new boolean[] { true, true });
+                EDGE, 0, 1, new boolean[]{true, true});
         evaluateQuery(v.query().labels("child").direction(OUT).has("time", Cmp.EQUAL, numV + 5),
-                EDGE, 1, 1, new boolean[] { true, true });
-        evaluateQuery(
-                v.query().labels("child").direction(OUT).interval("time", 10, 20).orderBy("weight", desc).limit(5),
-                EDGE, 0, 1, new boolean[] { true, false }, weight, Order.DESC);
-        evaluateQuery(
-                v.query().labels("child").direction(OUT).interval("time", numV + 10, numV + 20).orderBy("weight", desc)
-                        .limit(5),
-                EDGE, 5, 1, new boolean[] { true, false }, weight, Order.DESC);
+                EDGE, 1, 1, new boolean[]{true, true});
+        evaluateQuery(v.query().labels("child").direction(OUT).interval("time", 10, 20).orderBy("weight", desc).limit(5),
+                EDGE, 0, 1, new boolean[]{true, false}, weight, Order.DESC);
+        evaluateQuery(v.query().labels("child").direction(OUT).interval("time", numV + 10, numV + 20).orderBy("weight", desc).limit(5),
+                EDGE, 5, 1, new boolean[]{true, false}, weight, Order.DESC);
+
 
         evaluateQuery(v.query(),
-                RELATION, numV * 4, 1, new boolean[] { true, true });
+                RELATION, numV * 4, 1, new boolean[]{true, true});
         evaluateQuery(v.query().direction(OUT),
-                RELATION, numV * 4, 1, new boolean[] { false, true });
+                RELATION, numV * 4, 1, new boolean[]{false, true});
 
-        // ######### END UPDATED QUERIES ##########
+        //######### END UPDATED QUERIES ##########
 
         newTx();
 
@@ -4281,35 +4118,33 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         v = getV(tx, v);
         u = getV(tx, u);
 
-        // ######### UPDATED QUERIES (copied from above) ##########
+        //######### UPDATED QUERIES (copied from above) ##########
 
         evaluateQuery(v.query().keys("name").has("weight", Cmp.GREATER_THAN, 3.6),
-                PROPERTY, 2 * numV / 10, 1, new boolean[] { false, true });
+                PROPERTY, 2 * numV / 10, 1, new boolean[]{false, true});
         evaluateQuery(v.query().keys("name").interval("time", numV / 2 - 10, numV / 2 + 10),
-                PROPERTY, 10, 1, new boolean[] { false, true });
+                PROPERTY, 10, 1, new boolean[]{false, true});
         evaluateQuery(v.query().keys("name").interval("time", numV / 2 - 10, numV / 2 + 10).orderBy("weight", desc),
-                PROPERTY, 10, 1, new boolean[] { false, false }, weight, Order.DESC);
+                PROPERTY, 10, 1, new boolean[]{false, false}, weight, Order.DESC);
         evaluateQuery(v.query().keys("name").interval("time", numV, numV + 10).limit(5),
-                PROPERTY, 5, 1, new boolean[] { false, true });
+                PROPERTY, 5, 1, new boolean[]{false, true});
 
         evaluateQuery(v.query().labels("child").direction(OUT).has("time", Cmp.EQUAL, 5),
-                EDGE, 0, 1, new boolean[] { true, true });
+                EDGE, 0, 1, new boolean[]{true, true});
         evaluateQuery(v.query().labels("child").direction(OUT).has("time", Cmp.EQUAL, numV + 5),
-                EDGE, 1, 1, new boolean[] { true, true });
-        evaluateQuery(
-                v.query().labels("child").direction(OUT).interval("time", 10, 20).orderBy("weight", desc).limit(5),
-                EDGE, 0, 1, new boolean[] { true, false }, weight, Order.DESC);
-        evaluateQuery(
-                v.query().labels("child").direction(OUT).interval("time", numV + 10, numV + 20).orderBy("weight", desc)
-                        .limit(5),
-                EDGE, 5, 1, new boolean[] { true, false }, weight, Order.DESC);
+                EDGE, 1, 1, new boolean[]{true, true});
+        evaluateQuery(v.query().labels("child").direction(OUT).interval("time", 10, 20).orderBy("weight", desc).limit(5),
+                EDGE, 0, 1, new boolean[]{true, false}, weight, Order.DESC);
+        evaluateQuery(v.query().labels("child").direction(OUT).interval("time", numV + 10, numV + 20).orderBy("weight", desc).limit(5),
+                EDGE, 5, 1, new boolean[]{true, false}, weight, Order.DESC);
+
 
         evaluateQuery(v.query(),
-                RELATION, numV * 4, 1, new boolean[] { true, true });
+                RELATION, numV * 4, 1, new boolean[]{true, true});
         evaluateQuery(v.query().direction(OUT),
-                RELATION, numV * 4, 1, new boolean[] { false, true });
+                RELATION, numV * 4, 1, new boolean[]{false, true});
 
-        // ######### END UPDATED QUERIES ##########
+        //######### END UPDATED QUERIES ##########
 
     }
 
@@ -4348,13 +4183,13 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     @Test
-    public void testAutoSchemaMakerAllowsToSetCardinalityList() {
+    public void testAutoSchemaMakerAllowsToSetCardinalityList(){
         GraphTraversalSource g = graph.traversal();
 
         Vertex next = g.addV()
-                .property(VertexProperty.Cardinality.list, "name", "marko a. rodriguez")
-                .property(VertexProperty.Cardinality.list, "name", "sdsdsd")
-                .next();
+            .property(VertexProperty.Cardinality.list, "name", "marko a. rodriguez")
+            .property(VertexProperty.Cardinality.list, "name", "sdsdsd")
+            .next();
         g.tx().commit();
 
         next = g.V(next.id()).property("name", "sdsdsd").next();
@@ -4363,14 +4198,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     @Test
-    public void testAutoSchemaMakerAllowsToSetCardinalitySet() {
+    public void testAutoSchemaMakerAllowsToSetCardinalitySet(){
         GraphTraversalSource g = graph.traversal();
 
         Vertex next = g.addV()
-                .property(VertexProperty.Cardinality.set, "name", "marko a. rodriguez")
-                .property(VertexProperty.Cardinality.set, "name", "sdsdsd")
-                .property(VertexProperty.Cardinality.set, "name", "sdsdsd")
-                .next();
+            .property(VertexProperty.Cardinality.set, "name", "marko a. rodriguez")
+            .property(VertexProperty.Cardinality.set, "name", "sdsdsd")
+            .property(VertexProperty.Cardinality.set, "name", "sdsdsd")
+            .next();
         g.tx().commit();
 
         next = g.V(next.id()).property("name", "sdsdsd").next();
@@ -4379,14 +4214,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     @Test
-    public void testAutoSchemaMakerAllowsToSetCardinalitySingle() {
+    public void testAutoSchemaMakerAllowsToSetCardinalitySingle(){
         GraphTraversalSource g = graph.traversal();
 
         Vertex next = g.addV()
-                .property(VertexProperty.Cardinality.single, "name", "marko a. rodriguez")
-                .property("name", "sdsdsd")
-                .property("name", "sdsdsd")
-                .next();
+            .property(VertexProperty.Cardinality.single, "name", "marko a. rodriguez")
+            .property("name", "sdsdsd")
+            .property("name", "sdsdsd")
+            .next();
 
         assertEquals(1, g.V(next).values("name").toList().size());
     }
@@ -4549,8 +4384,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         clopen(option(AUTO_TYPE), "none", option(SCHEMA_CONSTRAINTS), true);
         EdgeLabel edge = mgmt.makeEdgeLabel("knows").make();
 
-        PropertyKey propertyKey1 = mgmt.makePropertyKey("propertyKey1").cardinality(Cardinality.SINGLE)
-                .dataType(Integer.class).make();
+        PropertyKey propertyKey1 = mgmt.makePropertyKey("propertyKey1").cardinality(Cardinality.SINGLE).dataType(Integer.class).make();
         mgmt.addProperties(edge, propertyKey1);
 
         PropertyKey propertyKey2 = mgmt.makePropertyKey("propertyKey2").dataType(Integer.class).make();
@@ -4730,10 +4564,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertThrows(IllegalArgumentException.class, () -> v1.addEdge("E1", v4));
     }
 
+
     private boolean isSortedByID(VertexList vl) {
         for (int i = 1; i < vl.size(); i++) {
-            if (IDUtils.compare(vl.getID(i - 1), vl.getID(i)) > 0)
-                return false;
+            if (IDUtils.compare(vl.getID(i - 1), vl.getID(i)) > 0) return false;
         }
         return true;
     }
@@ -4748,8 +4582,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         extraConfig.put(SCHEMA_INIT_STRATEGY.toStringWithoutRoot(), SchemaInitType.JSON.getConfigName());
         extraConfig.put(SCHEMA_DROP_BEFORE_INIT.toStringWithoutRoot(), true);
         extraConfig.put(SCHEMA_INIT_JSON_STR.toStringWithoutRoot(), jsonSchemaExample);
-        extraConfig.put(SCHEMA_INIT_JSON_INDICES_ACTIVATION_TYPE.toStringWithoutRoot(),
-                IndicesActivationType.REINDEX_AND_ENABLE_UPDATED_ONLY.getConfigName());
+        extraConfig.put(SCHEMA_INIT_JSON_INDICES_ACTIVATION_TYPE.toStringWithoutRoot(), IndicesActivationType.REINDEX_AND_ENABLE_UPDATED_ONLY.getConfigName());
         clopenNoDelimiterUsage(extraConfig, true);
 
         assertEquals(Long.class, mgmt.getPropertyKey("time").dataType());
@@ -4790,7 +4623,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         // add vertices to hit limit of tx-cache-size
         int cacheSize = graph.getConfiguration().getTxVertexCacheSize();
         List<Object> vertexIds = new ArrayList<>();
-        for (int i = 0; i < cacheSize; i++) {
+        for (int i = 0 ; i < cacheSize; i++) {
             ItinerisVertex vertex = graph.addVertex();
             vertexIds.add(vertex.id());
         }
@@ -4819,7 +4652,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         GraphTraversalSource g = graph.traversal();
 
         /*
-         * P.within
+         P.within
          */
 
         // unnested
@@ -4839,7 +4672,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(0, g.V().and(__.has("id", P.within(2, 3, 4)), __.has("id", P.within())).count().next());
 
         /*
-         * P.without
+         P.without
          */
 
         // unnested
@@ -4848,35 +4681,26 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // or
         assertEquals(graphSize - 3, g.V().or(__.has("id", P.without(2, 3, 4))).count().next());
-        assertEquals(graphSize,
-                g.V().or(__.has("id", P.without(2, 3, 4)), __.has("id", P.without(6, 7, 8))).count().next());
-        assertEquals(graphSize - 1,
-                g.V().or(__.has("id", P.without(2, 3, 4)), __.has("id", P.without(4, 5, 6))).count().next());
+        assertEquals(graphSize, g.V().or(__.has("id", P.without(2, 3, 4)), __.has("id", P.without(6, 7, 8))).count().next());
+        assertEquals(graphSize - 1, g.V().or(__.has("id", P.without(2, 3, 4)), __.has("id", P.without(4, 5, 6))).count().next());
         assertEquals(graphSize, g.V().or(__.has("id", P.without(2, 3, 4)), __.has("id", P.without())).count().next());
 
         // and
         assertEquals(graphSize - 3, g.V().and(__.has("id", P.without(2, 3, 4))).count().next());
-        assertEquals(graphSize - 6,
-                g.V().and(__.has("id", P.without(2, 3, 4)), __.has("id", P.without(6, 7, 8))).count().next());
-        assertEquals(graphSize - 5,
-                g.V().and(__.has("id", P.without(2, 3, 4)), __.has("id", P.without(4, 5, 6))).count().next());
-        assertEquals(graphSize - 3,
-                g.V().and(__.has("id", P.without(2, 3, 4)), __.has("id", P.without())).count().next());
+        assertEquals(graphSize - 6, g.V().and(__.has("id", P.without(2, 3, 4)), __.has("id", P.without(6, 7, 8))).count().next());
+        assertEquals(graphSize - 5, g.V().and(__.has("id", P.without(2, 3, 4)), __.has("id", P.without(4, 5, 6))).count().next());
+        assertEquals(graphSize - 3, g.V().and(__.has("id", P.without(2, 3, 4)), __.has("id", P.without())).count().next());
 
         /*
-         * both P.within and P.without
+         both P.within and P.without
          */
 
         // or
-        assertEquals(graphSize - 3,
-                g.V().or(__.has("id", P.within(2, 3, 4)), __.has("id", P.without(6, 7, 8))).count().next());
-        assertEquals(graphSize - 2,
-                g.V().or(__.has("id", P.within(2, 3, 4)), __.has("id", P.without(4, 5, 6))).count().next());
-        assertEquals(graphSize,
-                g.V().or(__.has("id", P.within(2, 3, 4)), __.has("id", P.without(2, 3, 4))).count().next());
+        assertEquals(graphSize - 3, g.V().or(__.has("id", P.within(2, 3, 4)), __.has("id", P.without(6, 7, 8))).count().next());
+        assertEquals(graphSize - 2, g.V().or(__.has("id", P.within(2, 3, 4)), __.has("id", P.without(4, 5, 6))).count().next());
+        assertEquals(graphSize, g.V().or(__.has("id", P.within(2, 3, 4)), __.has("id", P.without(2, 3, 4))).count().next());
         assertEquals(graphSize, g.V().or(__.has("id", P.within(2, 3, 4)), __.has("id", P.without())).count().next());
-        assertEquals(graphSize - 3,
-                g.V().or(__.has("id", P.within()), __.has("id", P.without(2, 3, 4))).count().next());
+        assertEquals(graphSize - 3, g.V().or(__.has("id", P.within()), __.has("id", P.without(2, 3, 4))).count().next());
 
         // and
         assertEquals(3, g.V().and(__.has("id", P.within(2, 3, 4)), __.has("id", P.without(6, 7, 8))).count().next());
@@ -4934,15 +4758,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         clopen(option(USE_MULTIQUERY), true);
         GraphTraversalSource gts = graph.traversal();
 
-        // Verify traversal metrics when having to read from backend [same query as
-        // above]
-        Traversal t = gts.V().has("id", sid).local(
-                __.outE("knows").has("weight", P.gte(1)).has("weight", P.lt(3)).order().by("weight", desc).limit(10))
-                .profile("~metrics");
+        //Verify traversal metrics when having to read from backend [same query as above]
+        Traversal t = gts.V().has("id", sid).local(__.outE("knows").has("weight", P.gte(1)).has("weight", P.lt(3)).order().by("weight", desc).limit(10)).profile("~metrics");
         assertCount(superV * 10, t);
         assertTrue(queryProfilerAnnotationIsPresent(t, QueryProfiler.MULTIQUERY_ANNOTATION));
 
-        // Verify that properties also use multi query [same query as above]
+        //Verify that properties also use multi query [same query as above]
         t = gts.V().has("id", sid).values("names").profile("~metrics");
         assertCount(superV * numV, t);
         assertTrue(queryProfilerAnnotationIsPresent(t, QueryProfiler.MULTIQUERY_ANNOTATION));
@@ -4961,73 +4782,59 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         a.property("levelVertexNumber", 1);
         a.property("parentNumber", -1);
         Map<Integer, Integer> levelToNumberOfVertices = new HashMap<>();
-        addTestAdjacentVertices(a, levelVerticesAmount, depth, levelToNumberOfVertices);
+        addTestAdjacentVertices(a,  levelVerticesAmount, depth, levelToNumberOfVertices);
         graph.tx().commit();
 
         TraversalMetrics profile;
 
         // repeat until with outer barrier steps
-        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize)
-                .repeat(__.barrier(barrierSize).out("knows").barrier(barrierSize))
-                .until(__.out("knows").has("depth", "3")).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).repeat(__.barrier(barrierSize).out("knows").barrier(barrierSize)).until(__.out("knows").has("depth", "3")).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 2);
 
         // repeat until with local barrier step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(a).repeat(__.barrier(barrierSize).out("knows").barrier(barrierSize))
-                        .until(__.barrier(barrierSize).out("knows").has("depth", "3")).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).repeat(__.barrier(barrierSize).out("knows").barrier(barrierSize)).until(__.barrier(barrierSize).out("knows").has("depth", "3")).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 2);
 
         // repeat emit. Test early abort with limit
-        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize)
-                .repeat(__.out("knows").barrier(barrierSize)).emit(__.out("knows")).limit(limit).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).repeat(__.out("knows").barrier(barrierSize)).emit(__.out("knows")).limit(limit).count());
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile);
 
         // repeat emit with unlimited barrier steps (unlimited batches)
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(a).repeat(__.out("knows")).emit(__.out("knows").hasId(P.neq(-100L))).count(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(LIMITED_BATCH_SIZE),
-                Integer.MAX_VALUE);
+        profile = testLimitedBatch(() -> graph.traversal().V(a).repeat(__.out("knows")).emit(__.out("knows").hasId(P.neq(-100L))).count(),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(LIMITED_BATCH_SIZE), Integer.MAX_VALUE);
         assertTrue(countBackendQueriesOfSize(s -> s > barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, Integer.MAX_VALUE, profile);
 
         // until repeat
-        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize)
-                .until(__.out("knows").has("depth", "3")).repeat(__.out("knows").barrier(barrierSize)).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).until(__.out("knows").has("depth", "3")).repeat(__.out("knows").barrier(barrierSize)).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 2);
 
         // emit repeat
-        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).emit()
-                .repeat(__.out("knows").barrier(barrierSize)).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).emit().repeat(__.out("knows").barrier(barrierSize)).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile);
 
         // repeat emit
-        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize)
-                .repeat(__.out("knows").barrier(barrierSize)).emit().count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).repeat(__.out("knows").barrier(barrierSize)).emit().count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile);
 
         // repeat emit(predicate)
-        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize)
-                .repeat(__.out("knows").barrier(barrierSize)).emit(__.out("knows").has("depth", "3")).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).repeat(__.out("knows").barrier(barrierSize)).emit(__.out("knows").has("depth", "3")).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 2);
 
         // emit(predicate) repeat
-        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize)
-                .emit(__.in("knows").has("depth", "3")).repeat(__.out("knows").barrier(barrierSize)).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).emit(__.in("knows").has("depth", "3")).repeat(__.out("knows").barrier(barrierSize)).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 3);
 
         // until repeat emit(predicate).
         // This case is using batches per iteration and not batches per loop
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(a).barrier(barrierSize).until(__.in("knows").has("depth", "3"))
-                        .repeat(__.out("knows").barrier(barrierSize)).emit(__.in("knows").has("depth", "3")).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).until(__.in("knows").has("depth", "3")).repeat(__.out("knows").barrier(barrierSize)).emit(__.in("knows").has("depth", "3")).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertEquals(0, countBackendQueriesOfSize(s -> s > barrierSize * levelVerticesAmount, profile.getMetrics()));
         // DEBUG
@@ -5038,67 +4845,49 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             log.info("DEBUG REPEAT3 METRIC name={} counts={}", m.getName(), m.getCounts());
             m.getNested().forEach(n -> log.info("DEBUG REPEAT3 NESTED name={} counts={}", n.getName(), n.getCounts()));
         });
-        assertTrue(countBackendQueriesOfSize(levelVerticesAmount,
-                profile.getMetrics()) > ((int) Math.pow(levelVerticesAmount, depth)));
+        assertTrue(countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()) > ((int) Math.pow(levelVerticesAmount, depth)));
 
         // until emit(predicate) repeat
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(a).barrier(barrierSize).until(__.in("knows").has("depth", "3"))
-                        .emit(__.in("knows").has("depth", "3")).repeat(__.out("knows").barrier(barrierSize)).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).until(__.in("knows").has("depth", "3")).emit(__.in("knows").has("depth", "3")).repeat(__.out("knows").barrier(barrierSize)).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 2);
 
         // emit(predicate) repeat until
         // This case is using batches per iteration and not batches per loop
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(a).barrier(barrierSize).emit(__.in("knows").has("depth", "3"))
-                        .repeat(__.out("knows").barrier(barrierSize)).until(__.in("knows").has("depth", "3")).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).emit(__.in("knows").has("depth", "3")).repeat(__.out("knows").barrier(barrierSize)).until(__.in("knows").has("depth", "3")).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertEquals(0, countBackendQueriesOfSize(s -> s > barrierSize * levelVerticesAmount, profile.getMetrics()));
-        assertTrue(countBackendQueriesOfSize(levelVerticesAmount,
-                profile.getMetrics()) > ((int) Math.pow(levelVerticesAmount, depth)));
+        assertTrue(countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()) > ((int) Math.pow(levelVerticesAmount, depth)));
 
         // repeat emit(predicate) until
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(a).barrier(barrierSize).repeat(__.out("knows").barrier(barrierSize))
-                        .emit(__.in("knows").has("depth", "3")).until(__.in("knows").has("depth", "3")).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).repeat(__.out("knows").barrier(barrierSize)).emit(__.in("knows").has("depth", "3")).until(__.in("knows").has("depth", "3")).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 3);
 
         // until repeat emit
-        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize)
-                .until(__.in("knows").has("depth", "3")).repeat(__.out("knows").barrier(barrierSize)).emit().count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).until(__.in("knows").has("depth", "3")).repeat(__.out("knows").barrier(barrierSize)).emit().count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 3);
 
         // until emit repeat
-        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize)
-                .until(__.in("knows").has("depth", "3")).emit().repeat(__.out("knows").barrier(barrierSize)).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).until(__.in("knows").has("depth", "3")).emit().repeat(__.out("knows").barrier(barrierSize)).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 3);
 
         // emit repeat until
         // This case is using batches per iteration and not batches per loop
-        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).emit()
-                .repeat(__.out("knows").barrier(barrierSize)).until(__.in("knows").has("depth", "3")).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).emit().repeat(__.out("knows").barrier(barrierSize)).until(__.in("knows").has("depth", "3")).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertEquals(0, countBackendQueriesOfSize(s -> s > barrierSize * levelVerticesAmount, profile.getMetrics()));
-        assertTrue(countBackendQueriesOfSize(levelVerticesAmount,
-                profile.getMetrics()) > ((int) Math.pow(levelVerticesAmount, depth)));
+        assertTrue(countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()) > ((int) Math.pow(levelVerticesAmount, depth)));
 
         // repeat emit until
-        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize)
-                .repeat(__.out("knows").barrier(barrierSize)).emit().until(__.in("knows").has("depth", "3")).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).repeat(__.out("knows").barrier(barrierSize)).emit().until(__.in("knows").has("depth", "3")).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 3);
 
-        // MultiQueriable inside multi-query compatible parent which is inside repeat
-        // step
-        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize)
-                .repeat(__.union(
-                        __.out("knows"),
-                        __.<Vertex>has(T.id, P.within(Collections.emptyList()))).barrier(barrierSize))
-                .emit().count());
+        // MultiQueriable inside multi-query compatible parent which is inside repeat step
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).repeat(__.union(__.out("knows"), __.<Vertex>has(T.id, P.within(Collections.emptyList()))).barrier(barrierSize)).emit().count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertEquals(0, countBackendQueriesOfSize(s -> s > barrierSize * levelVerticesAmount, profile.getMetrics()));
         assertTrue(countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()) <= 2);
@@ -5106,128 +4895,89 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(2, countBackendQueriesOfSize((long) Math.pow(levelVerticesAmount, 3), profile.getMetrics()));
 
         // repeat start step of union
-        profile = testLimitedBatch(() -> graph.traversal().V(a).out("knows").barrier(barrierSize)
-                .union(__.repeat(__.out("knows").barrier(barrierSize)).emit(), __.identity()).count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).out("knows").barrier(barrierSize).union(__.repeat(__.out("knows").barrier(barrierSize)).emit(), __.identity()).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 2);
 
         // Multi-nested repeat tests
 
         // double nested repeat
-        profile = testLimitedBatch(() -> graph.traversal().V(a)
-                .repeat(__.repeat(__.barrier(barrierSize).out("knows").barrier(barrierSize))).emit().count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).repeat(__.repeat(__.barrier(barrierSize).out("knows").barrier(barrierSize))).emit().count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 2);
 
         // repeat in until
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(a).repeat(__.barrier(barrierSize).out("knows").barrier(barrierSize))
-                        .until(__.out("knows").has("depth", "3")).emit().count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).repeat(__.barrier(barrierSize).out("knows").barrier(barrierSize)).until(__.out("knows").has("depth", "3")).emit().count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 3);
 
         clopen(option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true);
-        Vertex[] middleVertices = graph.traversal().V(a).repeat(__.out("knows")).times(depth / 2 + 1).toList()
-                .toArray(new Vertex[0]);
-        ;
+        Vertex[] middleVertices = graph.traversal().V(a).repeat(__.out("knows")).times(depth/2+1).toList().toArray(new Vertex[0]);;
 
-        // Repeat step mode: CLOSEST_REPEAT_PARENT. multi-nested `repeat` start steps.
-        // Early drop.
-        profile = testLimitedBatch(
-                () -> graph.traversal().V((Object[]) middleVertices).barrier(barrierSize)
-                        .repeat(__.barrier(barrierSize)
-                                .union(__.repeat(__.out("knows").barrier(barrierSize)).until(__.identity()))
-                                .barrier(barrierSize))
-                        .until(__.identity()).limit(1),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(REPEAT_STEP_BATCH_MODE),
-                MultiQueryStrategyRepeatStepMode.CLOSEST_REPEAT_PARENT.getConfigName());
-        assertEquals(1, countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()));
-        assertEquals(0, countBackendQueriesOfSize(s -> s > levelVerticesAmount, profile.getMetrics()));
+        // Repeat step mode: CLOSEST_REPEAT_PARENT. multi-nested `repeat` start steps. Early drop.
+        profile = testLimitedBatch(() -> graph.traversal().V((Object[]) middleVertices).barrier(barrierSize).repeat(__.barrier(barrierSize).union(__.repeat(__.out("knows").barrier(barrierSize)).until(__.identity())).barrier(barrierSize)).until(__.identity()).limit(1),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(REPEAT_STEP_BATCH_MODE), MultiQueryStrategyRepeatStepMode.CLOSEST_REPEAT_PARENT.getConfigName());
+        assertEquals(1,countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()));
+        assertEquals(0,countBackendQueriesOfSize(s -> s > levelVerticesAmount, profile.getMetrics()));
 
-        // Repeat step mode: ALL_REPEAT_PARENTS. multi-nested `repeat` start steps.
-        // Early drop.
-        profile = testLimitedBatch(
-                () -> graph.traversal().V((Object[]) middleVertices).barrier(barrierSize)
-                        .repeat(__.barrier(barrierSize)
-                                .union(__.repeat(__.out("knows").barrier(barrierSize)).until(__.identity()))
-                                .barrier(barrierSize))
-                        .until(__.identity()).limit(1),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(REPEAT_STEP_BATCH_MODE),
-                MultiQueryStrategyRepeatStepMode.ALL_REPEAT_PARENTS.getConfigName());
-        assertEquals(1, countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()));
-        assertEquals(0, countBackendQueriesOfSize(s -> s < barrierSize * levelVerticesAmount, profile.getMetrics()));
+        // Repeat step mode: ALL_REPEAT_PARENTS. multi-nested `repeat` start steps. Early drop.
+        profile = testLimitedBatch(() -> graph.traversal().V((Object[]) middleVertices).barrier(barrierSize).repeat(__.barrier(barrierSize).union(__.repeat(__.out("knows").barrier(barrierSize)).until(__.identity())).barrier(barrierSize)).until(__.identity()).limit(1),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(REPEAT_STEP_BATCH_MODE), MultiQueryStrategyRepeatStepMode.ALL_REPEAT_PARENTS.getConfigName());
+        assertEquals(1,countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()));
+        assertEquals(0,countBackendQueriesOfSize(s -> s < barrierSize * levelVerticesAmount, profile.getMetrics()));
 
-        // Repeat step mode: STARTS_ONLY_OF_ALL_REPEAT_PARENTS. multi-nested `repeat`
-        // start steps. Early drop.
-        profile = testLimitedBatch(
-                () -> graph.traversal().V((Object[]) middleVertices).barrier(barrierSize)
-                        .repeat(__.barrier(barrierSize)
-                                .union(__.repeat(__.out("knows").barrier(barrierSize)).until(__.identity()))
-                                .barrier(barrierSize))
-                        .until(__.identity()).limit(1),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(REPEAT_STEP_BATCH_MODE),
-                MultiQueryStrategyRepeatStepMode.STARTS_ONLY_OF_ALL_REPEAT_PARENTS.getConfigName());
-        assertEquals(1, countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()));
-        assertEquals(0, countBackendQueriesOfSize(s -> s < barrierSize * levelVerticesAmount, profile.getMetrics()));
+        // Repeat step mode: STARTS_ONLY_OF_ALL_REPEAT_PARENTS. multi-nested `repeat` start steps. Early drop.
+        profile = testLimitedBatch(() -> graph.traversal().V((Object[]) middleVertices).barrier(barrierSize).repeat(__.barrier(barrierSize).union(__.repeat(__.out("knows").barrier(barrierSize)).until(__.identity())).barrier(barrierSize)).until(__.identity()).limit(1),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(REPEAT_STEP_BATCH_MODE), MultiQueryStrategyRepeatStepMode.STARTS_ONLY_OF_ALL_REPEAT_PARENTS.getConfigName());
+        assertEquals(1,countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()));
+        assertEquals(0,countBackendQueriesOfSize(s -> s < barrierSize * levelVerticesAmount, profile.getMetrics()));
 
-        // Repeat step mode: ALL_REPEAT_PARENTS. multi-nested `repeat` start steps. Most
-        // outer repeat step next iteration registering new vertices.
+        // Repeat step mode: ALL_REPEAT_PARENTS. multi-nested `repeat` start steps. Most outer repeat step next iteration registering new vertices.
         profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize)
                 .repeat(__.<Vertex>barrier(1)
-                        .repeat(__.out("knows").barrier(barrierSize)).until(__.identity().loops().is(P.gt(0)))
-                        .barrier(barrierSize))
-                .until(__.identity().loops().is(P.gt(1))),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(REPEAT_STEP_BATCH_MODE),
-                MultiQueryStrategyRepeatStepMode.ALL_REPEAT_PARENTS.getConfigName());
-        assertEquals(1, countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()));
-        assertEquals(1, countBackendQueriesOfSize(levelVerticesAmount * levelVerticesAmount, profile.getMetrics()));
-        assertEquals(0,
-                countBackendQueriesOfSize(s -> s > levelVerticesAmount * levelVerticesAmount, profile.getMetrics()));
+                    .repeat(__.out("knows").barrier(barrierSize)).until(__.identity().loops().is(P.gt(0))).barrier(barrierSize)
+                ).until(__.identity().loops().is(P.gt(1))),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(REPEAT_STEP_BATCH_MODE), MultiQueryStrategyRepeatStepMode.ALL_REPEAT_PARENTS.getConfigName());
+        assertEquals(1,countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()));
+        assertEquals(1,countBackendQueriesOfSize(levelVerticesAmount*levelVerticesAmount, profile.getMetrics()));
+        assertEquals(0, countBackendQueriesOfSize(s -> s > levelVerticesAmount*levelVerticesAmount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(s -> s < levelVerticesAmount, profile.getMetrics()));
 
-        // Repeat step mode: STARTS_ONLY_OF_ALL_REPEAT_PARENTS. multi-nested `repeat`
-        // start steps. Most outer repeat step next iteration not registering new
-        // vertices.
+        // Repeat step mode: STARTS_ONLY_OF_ALL_REPEAT_PARENTS. multi-nested `repeat` start steps. Most outer repeat step next iteration not registering new vertices.
         profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize)
                 .repeat(__.<Vertex>barrier(1)
-                        .repeat(__.out("knows").barrier(barrierSize)).until(__.identity().loops().is(P.gt(0)))
-                        .barrier(barrierSize))
-                .until(__.identity().loops().is(P.gt(1))),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(REPEAT_STEP_BATCH_MODE),
-                MultiQueryStrategyRepeatStepMode.STARTS_ONLY_OF_ALL_REPEAT_PARENTS.getConfigName());
-        assertEquals(1 + levelVerticesAmount, countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()));
+                    .repeat(__.out("knows").barrier(barrierSize)).until(__.identity().loops().is(P.gt(0))).barrier(barrierSize)
+                ).until(__.identity().loops().is(P.gt(1))),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(REPEAT_STEP_BATCH_MODE), MultiQueryStrategyRepeatStepMode.STARTS_ONLY_OF_ALL_REPEAT_PARENTS.getConfigName());
+        assertEquals(1+levelVerticesAmount,countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(s -> s > levelVerticesAmount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(s -> s < levelVerticesAmount, profile.getMetrics()));
     }
 
-    private void assertRepeatBatchSizeByLoop(int depth, int levelVerticesAmount, int barrierSize,
-            TraversalMetrics profile) {
+    private void assertRepeatBatchSizeByLoop(int depth, int levelVerticesAmount, int barrierSize, TraversalMetrics profile){
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 1);
     }
 
-    private void assertRepeatBatchSizeByLoop(int depth, int levelVerticesAmount, int barrierSize,
-            TraversalMetrics profile, int uniqueBatchRequestsAmount) {
+    private void assertRepeatBatchSizeByLoop(int depth, int levelVerticesAmount, int barrierSize, TraversalMetrics profile, int uniqueBatchRequestsAmount){
         int calculatedMaxReturnSize;
-        try {
+        try{
             calculatedMaxReturnSize = Math.multiplyExact(levelVerticesAmount, barrierSize);
-        } catch (Exception e) {
+        } catch (Exception e){
             calculatedMaxReturnSize = Integer.MAX_VALUE;
         }
         final int maxReturnSize = calculatedMaxReturnSize;
         int currentReturnSize = 1;
         int currentLoop = 0;
-        while (currentReturnSize < maxReturnSize && currentLoop <= depth) {
-            assertTrue(countBackendQueriesOfSize(currentReturnSize, profile.getMetrics()) <= uniqueBatchRequestsAmount
-                    * 2);
-            currentReturnSize *= levelVerticesAmount;
+        while (currentReturnSize < maxReturnSize && currentLoop <= depth){
+            assertTrue(countBackendQueriesOfSize(currentReturnSize, profile.getMetrics()) <= uniqueBatchRequestsAmount * 2);
+            currentReturnSize*=levelVerticesAmount;
             ++currentLoop;
         }
         assertEquals(0, countBackendQueriesOfSize(s -> s > maxReturnSize, profile.getMetrics()));
     }
 
-    private void addTestAdjacentVertices(Vertex vertex, int levelVerticesAmount, int depth,
-            Map<Integer, Integer> levelToNumberOfVertices) {
-        if (depth < 0) {
+    private void addTestAdjacentVertices(Vertex vertex, int levelVerticesAmount, int depth, Map<Integer, Integer> levelToNumberOfVertices){
+        if(depth<0){
             return;
         }
         int addedVertices = 0;
@@ -5241,7 +4991,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             adjacentVertex.property("levelVertexNumber", levelToNumberOfVertices.get(depth));
             adjacentVertex.property("parentNumber", parentNumber);
             vertex.addEdge("knows", adjacentVertex);
-            addTestAdjacentVertices(adjacentVertex, levelVerticesAmount, depth - 1, levelToNumberOfVertices);
+            addTestAdjacentVertices(adjacentVertex, levelVerticesAmount, depth-1, levelToNumberOfVertices);
         }
     }
 
@@ -5250,15 +5000,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         ItinerisVertex[] cs = setupDataForMultiQueryMultiCardinalityProperties();
         int barrierSize = 27;
         // test batching for `values()`
-        TraversalMetrics profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).values("foo", "setProperty", "listProperty"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
-        assertEquals(3,
-                countBackendQueriesOfSize(barrierSize + barrierSize * 4 + barrierSize * 4, profile.getMetrics()));
+        TraversalMetrics profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo", "setProperty", "listProperty"),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+        assertEquals(3, countBackendQueriesOfSize(barrierSize + barrierSize * 4 + barrierSize * 4, profile.getMetrics()));
         int lastBatch = cs.length - 3 * barrierSize;
         assertEquals(1, countBackendQueriesOfSize(lastBatch + lastBatch * 4 + lastBatch * 4, profile.getMetrics()));
     }
@@ -5270,14 +5017,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         verityMultiQueryPropertiesWithLimit(cs);
     }
 
-    protected void verityMultiQueryPropertiesWithLimit(ItinerisVertex[] cs) {
+    protected void verityMultiQueryPropertiesWithLimit(ItinerisVertex[] cs){
         cs = graph.traversal().V(cs).toList().toArray(new ItinerisVertex[0]);
 
-        for (String[] keys : Arrays.asList(new String[] { "foo", "fooBar", "barFoo" }, new String[] { "foo" },
-                new String[] { "fooBar" }, new String[] { "barFoo" })) {
+        for(String[] keys : Arrays.asList(new String[]{"foo", "fooBar", "barFoo"}, new String[]{"foo"}, new String[]{"fooBar"}, new String[]{"barFoo"})){
 
-            Map<ItinerisVertex, Iterable<ItinerisVertexProperty>> properties = graph.multiQuery(cs[0], cs[1], cs[3])
-                    .limit(1).keys(keys).properties();
+            Map<ItinerisVertex, Iterable<ItinerisVertexProperty>> properties = graph.multiQuery(cs[0], cs[1], cs[3]).limit(1).keys(keys).properties();
             Map<ItinerisVertex, Map<String, Object>> deserializedProperties = new HashMap<>();
 
             Assertions.assertEquals(3, properties.size());
@@ -5285,23 +5030,22 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             properties.forEach((janusGraphVertex, janusGraphVertexProperties) -> {
                 Map<String, Object> props = new HashMap<>();
                 janusGraphVertexProperties.forEach(janusGraphVertexProperty -> {
-                    ((ArrayList) props.computeIfAbsent(janusGraphVertexProperty.key(), k -> new ArrayList<>()))
-                            .add(janusGraphVertexProperty.value());
+                    ((ArrayList) props.computeIfAbsent(janusGraphVertexProperty.key(), k -> new ArrayList<>())).add(janusGraphVertexProperty.value());
                 });
                 deserializedProperties.put(janusGraphVertex, props);
             });
 
-            for (Map<String, Object> vertexProps : deserializedProperties.values()) {
+            for(Map<String, Object> vertexProps : deserializedProperties.values()){
                 int numOfValues = 0;
-                for (Object val : vertexProps.values()) {
-                    numOfValues += ((List) val).size();
+                for(Object val : vertexProps.values()){
+                    numOfValues+= ((List) val).size();
                 }
                 Assertions.assertEquals(1, numOfValues);
             }
         }
     }
 
-    protected ItinerisVertex[] setupDataForMultiQueryMultiCardinalityProperties() {
+    protected ItinerisVertex[] setupDataForMultiQueryMultiCardinalityProperties(){
         mgmt.makeVertexLabel("testVertex").make();
         mgmt.makePropertyKey("setProperty").cardinality(Cardinality.SET).dataType(String.class).make();
         mgmt.makePropertyKey("listProperty").cardinality(Cardinality.LIST).dataType(String.class).make();
@@ -5359,19 +5103,16 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // test early abort with limit for `out()`
         profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).out().limit(limit));
-        assertEquals((int) Math.ceil((double) limit / barrierSize),
-                countBackendQueriesOfSize(barrierSize * 2, profile.getMetrics()));
+        assertEquals((int) Math.ceil((double) limit / barrierSize), countBackendQueriesOfSize(barrierSize * 2, profile.getMetrics()));
 
         // test batching with unlimited batch size
-        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).out(), option(USE_MULTIQUERY),
-                true, option(LIMITED_BATCH), false);
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).out(), option(USE_MULTIQUERY), true, option(LIMITED_BATCH), false);
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize * 2, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(bs.length * 2, profile.getMetrics()));
 
         // test nested VertexStep with unlimited batch size
-        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).where(__.out()),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), false);
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).where(__.out()), option(USE_MULTIQUERY), true, option(LIMITED_BATCH), false);
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize * 2, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(bs.length * 2, profile.getMetrics()));
@@ -5389,38 +5130,32 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 2, profile.getMetrics()));
 
         // test batching for `out` step in `project` parent step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(bs).barrier(barrierSize).project("a", "b").by(__.id()).by(__.out("knows")));
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).project("a", "b").by(__.id()).by(__.out("knows")));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
         // test batching for `out` step in `choose` parent step
-        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).choose(__.hasId(P.gte(0L)),
-                __.out("knows"), __.identity()));
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).choose(__.hasId(P.gte(0L)), __.out("knows"), __.identity()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
         // test batching for `out` step in `coalesce` parent step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(bs).barrier(barrierSize).coalesce(__.out("knows"), __.identity()));
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).coalesce(__.out("knows"), __.identity()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
         // test batching for `out` step in `and` parent step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(bs).barrier(barrierSize).and(__.out("knows"), __.hasId(P.gte(0))));
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).and(__.out("knows"), __.hasId(P.gte(0))));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
         // test batching for `out` step in `or` parent step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(bs).barrier(barrierSize).or(__.out("knows"), __.hasId(P.gte(0))));
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).or(__.out("knows"), __.hasId(P.gte(0))));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
         // test batching for `out` step in `sideEffect` parent step
-        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize)
-                .sideEffect(__.out("knows").sideEffect(Traverser::get)));
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).sideEffect(__.out("knows").sideEffect(Traverser::get)));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
@@ -5450,8 +5185,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
         // test batching for `out` step in `union` parent step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(bs).barrier(barrierSize).union(__.identity(), __.out("knows")));
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).union(__.identity(), __.out("knows")));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
@@ -5461,8 +5195,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
         // test batching for `out` step in `group` parent step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(bs).barrier(barrierSize).group().by(__.out("knows").count()));
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).group().by(__.out("knows").count()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
@@ -5474,186 +5207,150 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         testLimitBatchSizeForMultiQueryOfConnectiveSteps(bs, barrierSize, limit);
     }
 
-    private void testLimitBatchSizeForPropertySteps(int numV, int barrierSize, int limit, ItinerisVertex[] cs) {
+    private void testLimitBatchSizeForPropertySteps(int numV, int barrierSize, int limit, ItinerisVertex[] cs){
         TraversalMetrics profile;
 
         // Test required properties prefetching only
 
         // test batching for `values()`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
         // test early abort with limit for `values()`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
-        assertEquals((int) Math.ceil((double) limit / barrierSize),
-                countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+        assertEquals((int) Math.ceil((double) limit / barrierSize), countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
 
-        // test batching for `values()` (enabled prefetching should not influence the
-        // query)
+        // test batching for `values()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test early abort with limit for `values()` (enabled prefetching should not
-        // influence the query)
+        // test early abort with limit for `values()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
-        assertEquals((int) Math.ceil((double) limit / barrierSize),
-                countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+        assertEquals((int) Math.ceil((double) limit / barrierSize), countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
 
-        // test batching for `properties()` (enabled prefetching should not influence
-        // the query)
+        // test batching for `properties()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).properties("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test early abort with limit for `values()` (enabled prefetching should not
-        // influence the query)
+        // test early abort with limit for `values()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).properties("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
-        assertEquals((int) Math.ceil((double) limit / barrierSize),
-                countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+        assertEquals((int) Math.ceil((double) limit / barrierSize), countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
 
         // test batching for `valueMap()`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test early abort with limit for `valueMap()`. Limit is going to be placed
-        // before valueMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used.
+        // test early abort with limit for `valueMap()`. Limit is going to be placed before valueMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used.
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(1, countBackendQueriesOfSize(limit, profile.getMetrics()));
 
-        // test batching for `valueMap()` (enabled prefetching should not influence the
-        // query)
+        // test batching for `valueMap()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test early abort with limit for `valueMap()`. Limit is going to be placed
-        // before valueMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used.
+        // test early abort with limit for `valueMap()`. Limit is going to be placed before valueMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used.
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(1, countBackendQueriesOfSize(limit, profile.getMetrics()));
 
-        // test batching for `propertyMap()` (enabled prefetching should not influence
-        // the query)
+        // test batching for `propertyMap()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).propertyMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test early abort with limit for `propertyMap()`. Limit is going to be placed
-        // before propertyMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used.
+        // test early abort with limit for `propertyMap()`. Limit is going to be placed before propertyMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used.
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).propertyMap("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(1, countBackendQueriesOfSize(limit, profile.getMetrics()));
 
         // test batching for `elementMap()`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(6, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(2, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test early abort with limit for `elementMap()`. Limit is going to be placed
-        // before elementMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used.
+        // test early abort with limit for `elementMap()`. Limit is going to be placed before elementMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used.
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(2, countBackendQueriesOfSize(limit, profile.getMetrics()));
 
-        // test batching for `elementMap()` (enabled prefetching should not influence
-        // the query)
+        // test batching for `elementMap()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(6, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(2, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test early abort with limit for `elementMap()`. Limit is going to be placed
-        // before elementMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used.
+        // test early abort with limit for `elementMap()`. Limit is going to be placed before elementMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used.
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(2, countBackendQueriesOfSize(limit, profile.getMetrics()));
 
         // Test all properties prefetching
@@ -5662,10 +5359,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // test batching for `values()` single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(0, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
@@ -5673,10 +5370,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // test batching for `values()` multiple properties
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo", "fooBar"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
@@ -5684,125 +5381,108 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // test early abort with limit for `values()` single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
-        assertEquals(0, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
-        assertEquals((int) Math.ceil((double) limit / barrierSize),
-                countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+        assertEquals(0, countBackendQueriesOfSize(barrierSize*propertiesCount, profile.getMetrics()));
+        assertEquals((int) Math.ceil((double) limit / barrierSize), countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
 
         // test early abort with limit for `values()` multiple properties
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).values("foo", "fooBar").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
-        assertEquals((int) Math.ceil((double) limit / barrierSize / 2),
-                countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo", "fooBar").limit(limit),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+        assertEquals((int) Math.ceil((double) limit / barrierSize / 2), countBackendQueriesOfSize(barrierSize*propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
 
-        // test batching for `values()` (enabled prefetching should not influence the
-        // query). Single property
+        // test batching for `values()` (enabled prefetching should not influence the query). Single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(0, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test batching for `values()` (enabled prefetching should not influence the
-        // query). Multiple properties
+        // test batching for `values()` (enabled prefetching should not influence the query). Multiple properties
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo", "fooBar"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test early abort with limit for `values()` (enabled prefetching should not
-        // influence the query). single property
+        // test early abort with limit for `values()` (enabled prefetching should not influence the query). single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
-        assertEquals(0, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
-        assertEquals((int) Math.ceil((double) limit / barrierSize),
-                countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+        assertEquals(0, countBackendQueriesOfSize(barrierSize*propertiesCount, profile.getMetrics()));
+        assertEquals((int) Math.ceil((double) limit / barrierSize), countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
 
-        // test early abort with limit for `values()` (enabled prefetching should not
-        // influence the query). multiple properties
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).values("foo", "fooBar").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
-        assertEquals((int) Math.ceil((double) limit / barrierSize / 2),
-                countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
+        // test early abort with limit for `values()` (enabled prefetching should not influence the query). multiple properties
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo", "fooBar").limit(limit),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+        assertEquals((int) Math.ceil((double) limit / barrierSize / 2), countBackendQueriesOfSize(barrierSize*propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
 
-        // test batching for `properties()` (enabled prefetching should not influence
-        // the query). Single property
+        // test batching for `properties()` (enabled prefetching should not influence the query). Single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).properties("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(0, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test batching for `properties()` (enabled prefetching should not influence
-        // the query). Multiple properties
+        // test batching for `properties()` (enabled prefetching should not influence the query). Multiple properties
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).properties("foo", "fooBar"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test early abort with limit for `values()` (enabled prefetching should not
-        // influence the query). Single property
+        // test early abort with limit for `values()` (enabled prefetching should not influence the query). Single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).properties("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
-        assertEquals(0, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
-        assertEquals((int) Math.ceil((double) limit / barrierSize),
-                countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+        assertEquals(0, countBackendQueriesOfSize(barrierSize*propertiesCount, profile.getMetrics()));
+        assertEquals((int) Math.ceil((double) limit / barrierSize), countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
 
-        // test early abort with limit for `values()` (enabled prefetching should not
-        // influence the query). Multiple properties
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).properties("foo", "fooBar").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
-        assertEquals((int) Math.ceil((double) limit / barrierSize / 2),
-                countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
+        // test early abort with limit for `values()` (enabled prefetching should not influence the query). Multiple properties
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).properties("foo", "fooBar").limit(limit),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+        assertEquals((int) Math.ceil((double) limit / barrierSize / 2), countBackendQueriesOfSize(barrierSize*propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
 
         // test batching for `valueMap()`. Single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(0, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
@@ -5810,144 +5490,126 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // test batching for `valueMap()`. Multiple properties
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo", "fooBar"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test early abort with limit for `valueMap()`. Limit is going to be placed
-        // before valueMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used. Single property
+
+        // test early abort with limit for `valueMap()`. Limit is going to be placed before valueMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used. Single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(1, countBackendQueriesOfSize(limit, profile.getMetrics()));
-        assertEquals(0, countBackendQueriesOfSize(limit * propertiesCount, profile.getMetrics()));
+        assertEquals(0, countBackendQueriesOfSize(limit*propertiesCount, profile.getMetrics()));
 
-        // test early abort with limit for `valueMap()`. Limit is going to be placed
-        // before valueMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used. Multiple properties
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo", "fooBar").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+        // test early abort with limit for `valueMap()`. Limit is going to be placed before valueMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used. Multiple properties
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo", "fooBar").limit(limit),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(0, countBackendQueriesOfSize(limit, profile.getMetrics()));
-        assertEquals(1, countBackendQueriesOfSize(limit * propertiesCount, profile.getMetrics()));
+        assertEquals(1, countBackendQueriesOfSize(limit*propertiesCount, profile.getMetrics()));
 
-        // test batching for `valueMap()` (enabled prefetching should not influence the
-        // query). Single property
+        // test batching for `valueMap()` (enabled prefetching should not influence the query). Single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
 
-        // test batching for `valueMap()` (enabled prefetching should not influence the
-        // query). Multiple properties
+        // test batching for `valueMap()` (enabled prefetching should not influence the query). Multiple properties
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo", "fooBar"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
 
-        // test early abort with limit for `valueMap()`. Limit is going to be placed
-        // before valueMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used. Single property
+        // test early abort with limit for `valueMap()`. Limit is going to be placed before valueMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used. Single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(1, countBackendQueriesOfSize(limit, profile.getMetrics()));
-        assertEquals(0, countBackendQueriesOfSize(limit * propertiesCount, profile.getMetrics()));
+        assertEquals(0, countBackendQueriesOfSize(limit*propertiesCount, profile.getMetrics()));
 
-        // test early abort with limit for `valueMap()`. Limit is going to be placed
-        // before valueMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used. Multiple properties
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo", "fooBar").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+        // test early abort with limit for `valueMap()`. Limit is going to be placed before valueMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used. Multiple properties
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo", "fooBar").limit(limit),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(0, countBackendQueriesOfSize(limit, profile.getMetrics()));
-        assertEquals(1, countBackendQueriesOfSize(limit * propertiesCount, profile.getMetrics()));
+        assertEquals(1, countBackendQueriesOfSize(limit*propertiesCount, profile.getMetrics()));
 
-        // test batching for `propertyMap()` (enabled prefetching should not influence
-        // the query). Single property
+        // test batching for `propertyMap()` (enabled prefetching should not influence the query). Single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).propertyMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
 
-        // test batching for `propertyMap()` (enabled prefetching should not influence
-        // the query). Multiple properties
+        // test batching for `propertyMap()` (enabled prefetching should not influence the query). Multiple properties
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).propertyMap("foo", "fooBar"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
 
-        // test early abort with limit for `propertyMap()`. Limit is going to be placed
-        // before propertyMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used. Single property
+        // test early abort with limit for `propertyMap()`. Limit is going to be placed before propertyMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used. Single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).propertyMap("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(1, countBackendQueriesOfSize(limit, profile.getMetrics()));
-        assertEquals(0, countBackendQueriesOfSize(limit * propertiesCount, profile.getMetrics()));
+        assertEquals(0, countBackendQueriesOfSize(limit*propertiesCount, profile.getMetrics()));
 
-        // test early abort with limit for `propertyMap()`. Limit is going to be placed
-        // before propertyMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used. Multiple properties
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).propertyMap("foo", "fooBar").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+        // test early abort with limit for `propertyMap()`. Limit is going to be placed before propertyMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used. Multiple properties
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).propertyMap("foo", "fooBar").limit(limit),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(0, countBackendQueriesOfSize(limit, profile.getMetrics()));
-        assertEquals(1, countBackendQueriesOfSize(limit * propertiesCount, profile.getMetrics()));
+        assertEquals(1, countBackendQueriesOfSize(limit*propertiesCount, profile.getMetrics()));
 
         // test batching for `elementMap()`. Single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(6, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(2, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
@@ -5955,108 +5617,92 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // test batching for `elementMap()`. Multiple properties
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo", "fooBar"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
 
-        // test early abort with limit for `elementMap()`. Limit is going to be placed
-        // before elementMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used. Single property
+        // test early abort with limit for `elementMap()`. Limit is going to be placed before elementMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used. Single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
-        assertEquals(0, countBackendQueriesOfSize(limit * propertiesCount, profile.getMetrics()));
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+        assertEquals(0, countBackendQueriesOfSize(limit*propertiesCount, profile.getMetrics()));
         assertEquals(2, countBackendQueriesOfSize(limit, profile.getMetrics()));
 
-        // test early abort with limit for `elementMap()`. Limit is going to be placed
-        // before elementMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used. Multiple properties
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo", "fooBar").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
-        assertEquals(1, countBackendQueriesOfSize(limit * propertiesCount, profile.getMetrics()));
+        // test early abort with limit for `elementMap()`. Limit is going to be placed before elementMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used. Multiple properties
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo", "fooBar").limit(limit),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+        assertEquals(1, countBackendQueriesOfSize(limit*propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(limit, profile.getMetrics()));
 
-        // test batching for `elementMap()` (enabled prefetching should not influence
-        // the query). Single property
+        // test batching for `elementMap()` (enabled prefetching should not influence the query). Single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(0, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(6, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(2, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test batching for `elementMap()` (enabled prefetching should not influence
-        // the query). Multiple properties
+        // test batching for `elementMap()` (enabled prefetching should not influence the query). Multiple properties
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo", "fooBar"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // test early abort with limit for `elementMap()`. Limit is going to be placed
-        // before elementMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used. Single property
+        // test early abort with limit for `elementMap()`. Limit is going to be placed before elementMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used. Single property
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
-        assertEquals(0, countBackendQueriesOfSize(limit * propertiesCount, profile.getMetrics()));
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+        assertEquals(0, countBackendQueriesOfSize(limit*propertiesCount, profile.getMetrics()));
         assertEquals(2, countBackendQueriesOfSize(limit, profile.getMetrics()));
 
-        // test early abort with limit for `elementMap()`. Limit is going to be placed
-        // before elementMap.
-        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500)
-        // is used. Multiple properties
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo", "fooBar").limit(limit),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
-        assertEquals(1, countBackendQueriesOfSize(limit * propertiesCount, profile.getMetrics()));
+        // test early abort with limit for `elementMap()`. Limit is going to be placed before elementMap.
+        // Thus, `barrier(barrierSize)` is ignored and instead the default barrier(2500) is used. Multiple properties
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo", "fooBar").limit(limit),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.ALL_PROPERTIES.getConfigName());
+        assertEquals(1, countBackendQueriesOfSize(limit*propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(limit, profile.getMetrics()));
 
-        // Should prefetch all properties with mode REQUIRED_PROPERTIES_ONLY and
-        // disabled PROPERTY_PREFETCHING when all properties are needed
+        // Should prefetch all properties with mode REQUIRED_PROPERTIES_ONLY and disabled PROPERTY_PREFETCHING when all properties are needed
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap(),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
 
-        // Should prefetch all properties with mode REQUIRED_PROPERTIES_ONLY and enabled
-        // PROPERTY_PREFETCHING when all properties are needed
+        // Should prefetch all properties with mode REQUIRED_PROPERTIES_ONLY and enabled PROPERTY_PREFETCHING when all properties are needed
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap(),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
 
@@ -6064,166 +5710,146 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // test no batching used for `values()`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
         assertEquals(100, countBackendQueriesOfSize(s -> true, profile.getMetrics()));
         assertNull(getLastStepMetrics(profile, ItinerisPropertiesStep.class).getAnnotation("multi"));
 
-        // test no batching used for `values()` (enabled prefetching should not
-        // influence the query)
+        // test no batching used for `values()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).values("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
         assertEquals(100, countOptimizationQueries(profile.getMetrics()));
         assertNull(getLastStepMetrics(profile, ItinerisPropertiesStep.class).getAnnotation("multi"));
 
-        // test no batching used for `properties()` (enabled prefetching should not
-        // influence the query)
+        // test no batching used for `properties()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).properties("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
         assertEquals(100, countBackendQueriesOfSize(s -> true, profile.getMetrics()));
         assertNull(getLastStepMetrics(profile, ItinerisPropertiesStep.class).getAnnotation("multi"));
 
-        // test no batching used for `properties()` (enabled prefetching should not
-        // influence the query)
+        // test no batching used for `properties()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).properties("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
         assertEquals(100, countOptimizationQueries(profile.getMetrics()));
         assertNull(getLastStepMetrics(profile, ItinerisPropertiesStep.class).getAnnotation("multi"));
 
         // test no batching used for `valueMap()`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
         assertNull(getLastStepMetrics(profile, ItinerisPropertyMapStep.class).getAnnotation("multi"));
 
-        // test no batching used for `valueMap()` (enabled prefetching should not
-        // influence the query)
+        // test no batching used for `valueMap()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
         assertNull(getLastStepMetrics(profile, ItinerisPropertyMapStep.class).getAnnotation("multi"));
 
-        // test no batching used for `propertyMap()` (enabled prefetching should not
-        // influence the query)
+        // test no batching used for `propertyMap()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).propertyMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
         assertNull(getLastStepMetrics(profile, ItinerisPropertyMapStep.class).getAnnotation("multi"));
 
-        // test no batching used for `propertyMap()` (enabled prefetching should not
-        // influence the query)
+        // test no batching used for `propertyMap()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).propertyMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
         assertNull(getLastStepMetrics(profile, ItinerisPropertyMapStep.class).getAnnotation("multi"));
 
         // test no batching used for `elementMap()`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
         assertNull(getLastStepMetrics(profile, ItinerisElementMapStep.class).getAnnotation("multi"));
 
-        // test no batching used for `elementMap()` (enabled prefetching should not
-        // influence the query)
+        // test no batching used for `elementMap()` (enabled prefetching should not influence the query)
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).elementMap("foo"),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.NONE.getConfigName());
         assertNull(getLastStepMetrics(profile, ItinerisElementMapStep.class).getAnnotation("multi"));
 
         // Test valueMap labels and ids prefetching
 
         // Should prefetch ids
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).valueMap().with(WithOptions.tokens, WithOptions.ids),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap().with(WithOptions.tokens, WithOptions.ids),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
         // Should prefetch labels
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).valueMap().with(WithOptions.tokens,
-                        WithOptions.labels),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap().with(WithOptions.tokens, WithOptions.labels),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
         // Should prefetch ids and labels
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).valueMap().with(WithOptions.tokens,
-                        WithOptions.ids | WithOptions.labels),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap().with(WithOptions.tokens, WithOptions.ids | WithOptions.labels),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).valueMap().with(WithOptions.tokens, WithOptions.all),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).valueMap().with(WithOptions.tokens, WithOptions.all),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * propertiesCount, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * propertiesCount, profile.getMetrics()));
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // Should prefetch vertex properties in batches when Subgraph property strategy
-        // is used
+        // Should prefetch vertex properties in batches when Subgraph property strategy is used
         profile = testLimitedBatch(() -> graph.traversal().withStrategies(
-                SubgraphStrategy.create(new MapConfiguration(
-                        Collections.singletonMap(SubgraphStrategy.VERTEX_PROPERTIES, hasNot("fooBar")))))
-                .V(cs).barrier(barrierSize).propertyMap("foo").select(Column.values).unfold().unfold(),
-                option(USE_MULTIQUERY), true,
-                option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+                    SubgraphStrategy.create(new MapConfiguration(Collections.singletonMap(SubgraphStrategy.VERTEX_PROPERTIES, hasNot("fooBar"))))
+                ).V(cs).barrier(barrierSize).propertyMap("foo").select(Column.values).unfold().unfold(),
+            option(USE_MULTIQUERY), true,
+            option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
     }
 
-    private void testLimitBatchSizeForHasStep(int numV, int barrierSize, int limit, ItinerisVertex[] bs,
-            ItinerisVertex[] cs) {
+    private void testLimitBatchSizeForHasStep(int numV, int barrierSize, int limit, ItinerisVertex[] bs, ItinerisVertex[] cs){
+
         TraversalMetrics profile;
 
         log.info("DEBUG cs[0] id=" + cs[0].id());
@@ -6232,8 +5858,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // test batching for `has()`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
@@ -6251,62 +5877,54 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // test batching for `has()` in a parent step
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).union(__.has("foo", "bar")),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
         // test batching for `has()` with `limit`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").limit(limit),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
-        assertEquals(Math.ceil((double) limit / barrierSize),
-                countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+        assertEquals(Math.ceil((double) limit / barrierSize), countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
 
         // test batching for `has()` with `limit(1)`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").limit(1),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(1, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
 
         // test batching for `hasLabel()`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).hasLabel("testVertex"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
         // test batching for `hasId()`
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize)
-                        .hasId(P.within(cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).hasId(P.within(cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(0, countBackendQueriesOfSize(s -> s > 0, profile.getMetrics()));
 
         // test batching for `hasId()` and `hasLabel()`
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).hasLabel("testVertex")
-                        .hasId(P.within(cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).hasLabel("testVertex").hasId(P.within(cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(1, countBackendQueriesOfSize(4, profile.getMetrics()));
-        assertEquals(0, countBackendQueriesOfSize(s -> s != 4, profile.getMetrics()));
+        assertEquals(0, countBackendQueriesOfSize(s -> s!=4, profile.getMetrics()));
 
         // test batching for multiple `has()` steps
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
         // test batching for multiple `has()` steps with label
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar")
-                        .hasLabel("testVertex"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").hasLabel("testVertex"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         // Check property queries
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
@@ -6315,16 +5933,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
         // test batching for multiple `has()` steps with id
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar")
-                        .hasId(P.within(cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
-        // Check property queries only for 4 required vertices (cs[0].id(), cs[1].id(),
-        // cs[2].id(), cs[3].id())
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").hasId(P.within(cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+        // Check property queries only for 4 required vertices (cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())
         assertEquals(1, countBackendQueriesOfSize(4 * 3, profile.getMetrics()));
-        // Check properties or labels are not prefetched for other vertices not matching
-        // a specific id (cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())
+        // Check properties or labels are not prefetched for other vertices not matching a specific id (cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())
         assertEquals(0, countBackendQueriesOfSize(4, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
@@ -6332,19 +5946,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(0, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
         // test batching for multiple `has()` steps with label and id
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar")
-                        .hasLabel("testVertex").hasId(P.within(cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
-        // Check property queries only for 4 required vertices (cs[0].id(), cs[1].id(),
-        // cs[2].id(), cs[3].id())
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").hasLabel("testVertex").hasId(P.within(cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+        // Check property queries only for 4 required vertices (cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())
         assertEquals(1, countBackendQueriesOfSize(4 * 3, profile.getMetrics()));
-        // Check label queries only for 4 required vertices (cs[0].id(), cs[1].id(),
-        // cs[2].id(), cs[3].id())
+        // Check label queries only for 4 required vertices (cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())
         assertEquals(1, countBackendQueriesOfSize(4, profile.getMetrics()));
-        // Check properties or labels are not prefetched for other vertices not matching
-        // a specific id (cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())
+        // Check properties or labels are not prefetched for other vertices not matching a specific id (cs[0].id(), cs[1].id(), cs[2].id(), cs[3].id())
         assertEquals(0, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
@@ -6352,10 +5961,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // test batching for multiple `has()` label only
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).hasLabel("testVertex"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
-        // Check properties are not preFetched because they are not needed for has step
-        // evaluation
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+        // Check properties are not preFetched because they are not needed for has step evaluation
         assertEquals(0, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
         // Check labels are preFetched because they are needed for has step evaluation
@@ -6367,262 +5975,199 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         allVertices.addAll(Arrays.asList(bs));
         ItinerisVertex[] allVerticesArr = allVertices.toArray(new ItinerisVertex[0]);
 
-        // test batching for `has()` label and properties where some vertices not match
-        // label
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(allVerticesArr).barrier(barrierSize).hasLabel("testVertex").has("foo", "bar"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+        // test batching for `has()` label and properties where some vertices not match label
+        profile = testLimitedBatch(() -> graph.traversal().V(allVerticesArr).barrier(barrierSize).hasLabel("testVertex").has("foo", "bar"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         // Check labels are preFetched for all vertices
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
         assertEquals(4, countBackendQueriesOfSize(0, profile.getMetrics()));
-        // Check properties are preFetched only for those vertices which match
-        // `hasLabel`
+        // Check properties are preFetched only for those vertices which match `hasLabel`
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
         // test batching for multiple `has()` steps of required properties only
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         // `foo` and `fooBar` properties are prefetched separately
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 2, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 2, profile.getMetrics()));
 
         // test batching for 3 `has()` steps of required properties only
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").has("barFoo",
-                        "Foo"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").has("barFoo", "Foo"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         // `foo`, `fooBar`, and `barFoo` properties are prefetched separately
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with not following any
-        // properties steps
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with not following any properties steps
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // `foo` and `fooBar` properties are prefetched separately
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 2, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 2, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following valueMap
-        // step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar")
-                        .valueMap("barFoo"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following valueMap step
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").valueMap("barFoo"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // `foo`, `fooBar`, and `barFoo` properties are prefetched separately
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following
-        // properties step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar")
-                        .properties("barFoo"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following properties step
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").properties("barFoo"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // `foo`, `fooBar`, and `barFoo` properties are prefetched separately
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following values
-        // step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar")
-                        .values("barFoo"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following values step
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").values("barFoo"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // `foo`, `fooBar`, and `barFoo` properties are prefetched separately
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following
-        // elementMap step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar")
-                        .elementMap("barFoo"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following elementMap step
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").elementMap("barFoo"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // `foo`, `fooBar`, and `barFoo` properties are prefetched separately
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following valueMap
-        // step (all properties)
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").valueMap(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following valueMap step (all properties)
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").valueMap(),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // all properties are prefetched together
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following
-        // properties step (all properties)
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").properties(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following properties step (all properties)
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").properties(),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // all properties are prefetched together
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following values
-        // step (all properties)
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").values(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following values step (all properties)
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").values(),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // all properties are prefetched together
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following
-        // propertyMap step (all properties)
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").propertyMap(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following propertyMap step (all properties)
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").propertyMap(),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // all properties are prefetched together
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following valueMap
-        // step (all properties)
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").valueMap(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following valueMap step (all properties)
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").valueMap(),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // all properties are prefetched together
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following
-        // ElementMap step (all properties)
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").elementMap(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following ElementMap step (all properties)
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").elementMap(),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // all properties are prefetched together
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following values
-        // step (all properties) after `identity` step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").identity()
-                        .values(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following values step (all properties) after `identity` step
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").identity().values(),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // all properties are prefetched together
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following
-        // elementMap step (all properties)
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").elementMap(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following elementMap step (all properties)
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").elementMap(),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // all properties are prefetched together
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following
-        // `barrier` and `identity` steps before elementMap step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar")
-                        .barrier(5000).identity().barrier(100).identity().elementMap(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES` mode with following `barrier` and `identity` steps before elementMap step
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar")
+            .barrier(5000).identity().barrier(100).identity().elementMap(),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         // all properties are prefetched together
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
         // test `has()` step optimization with tx-cache size smaller than barrier size
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(TX_CACHE_SIZE), barrierSize / 4,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(TX_CACHE_SIZE), barrierSize/4,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         // all properties are prefetched together
-        assertEquals(15, countBackendQueriesOfSize((barrierSize / 4) * 3, profile.getMetrics()));
-        // In this situation the last vertex is not preFetched because it happens to be
-        // the last one in batch prefetching and
+        assertEquals(15, countBackendQueriesOfSize( (barrierSize /4) * 3, profile.getMetrics()));
+        // In this situation the last vertex is not preFetched because it happens to be the last one in batch prefetching and
         // preFetching is used for vertices of size 2 or more.
         assertEquals(3, countBackendQueriesOfSize(9, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES_OR_ALL` mode with following
-        // values step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar")
-                        .values("barFoo"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES_OR_ALL.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES_OR_ALL` mode with following values step
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar").values("barFoo"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES_OR_ALL.getConfigName());
         // `foo`, `fooBar`, and `barFoo` properties are prefetched separately
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES_OR_ALL` mode with not
-        // following values step
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar")
-                        .map(Traverser::get).values("barFoo"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES_OR_ALL.getConfigName());
+        // test `has()` step `REQUIRED_AND_NEXT_PROPERTIES_OR_ALL` mode with not following values step
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar")
+            .map(Traverser::get).values("barFoo"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES_OR_ALL.getConfigName());
         // all properties are prefetched together
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
         // test `has()` step `NONE` mode
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.NONE.getConfigName());
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).has("foo", "bar").has("fooBar", "Bar"),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.NONE.getConfigName());
         // `HasStep` should not be replaced by `ItinerisHasStep`
         assertFalse(profile.toString().contains(ItinerisHasStep.class.getSimpleName()));
         assertTrue(profile.toString().contains(HasStep.class.getSimpleName()));
@@ -6631,169 +6176,142 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         // TinkerPop 3.8.0: repeat() is now a global parent, barrier() inside repeat()
         // operates
         // across all traversers collectively (TINKERPOP-3200)
-        profile = testLimitedBatch(
-                () -> graph.traversal().V(cs).barrier(barrierSize).repeat(__.has("foo", "bar").in("knows")).emit(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+        profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).repeat(__.has("foo", "bar").in("knows")).emit(),
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         // All 100 vertices processed in one global batch (100 * 3 properties = 300)
         assertEquals(1, countBackendQueriesOfSize(numV * 3, profile.getMetrics()));
-        assertEquals(0, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
+        assertEquals(0, countBackendQueriesOfSize( barrierSize * 3, profile.getMetrics()));
 
         // All properties prefetching is used with `PROPERTY_PREFETCHING` == `true`
         profile = testLimitedBatch(() -> graph.traversal().V(bs).out("knows").barrier(barrierSize).has("foo", "bar"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // when `PROPERTY_PREFETCHING` is `true` then any `HAS_STEP_BATCH_MODE` is
-        // treated as `ALL_PROPERTIES` (except `NONE` mode).
+        // when `PROPERTY_PREFETCHING` is `true` then any `HAS_STEP_BATCH_MODE` is treated as `ALL_PROPERTIES` (except `NONE` mode).
         profile = testLimitedBatch(() -> graph.traversal().V(bs).out("knows").barrier(barrierSize).has("foo", "bar"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // When `HAS_STEP_BATCH_MODE` is `NONE` then the ItinerisHasStrategy
-        // optimization should be skipped even if
+        // When `HAS_STEP_BATCH_MODE` is `NONE` then the ItinerisHasStrategy optimization should be skipped even if
         // `PROPERTY_PREFETCHING` is `true`.
         profile = testLimitedBatch(() -> graph.traversal().V(bs).out("knows").barrier(barrierSize).has("foo", "bar"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.NONE.getConfigName());
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.NONE.getConfigName());
         // `HasStep` should not be replaced by `ItinerisHasStep`
         assertFalse(profile.toString().contains(ItinerisHasStep.class.getSimpleName()));
         assertTrue(profile.toString().contains(HasStep.class.getSimpleName()));
 
-        // When `HAS_STEP_BATCH_MODE` is `ALL_PROPERTIES` can be used when
-        // `PROPERTY_PREFETCHING` is `false`
+        // When `HAS_STEP_BATCH_MODE` is `ALL_PROPERTIES` can be used when `PROPERTY_PREFETCHING` is `false`
         profile = testLimitedBatch(() -> graph.traversal().V(bs).out("knows").barrier(barrierSize).has("foo", "bar"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize * 3, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize) * 3, profile.getMetrics()));
 
-        // When `HAS_STEP_BATCH_MODE` is `REQUIRED_AND_NEXT_PROPERTIES` can be used when
-        // `PROPERTY_PREFETCHING` is `false`
+        // When `HAS_STEP_BATCH_MODE` is `REQUIRED_AND_NEXT_PROPERTIES` can be used when `PROPERTY_PREFETCHING` is `false`
         profile = testLimitedBatch(() -> graph.traversal().V(bs).out("knows").barrier(barrierSize).has("foo", "bar"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE),
-                MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
-        assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_AND_NEXT_PROPERTIES.getConfigName());
+        assertEquals(3, countBackendQueriesOfSize(barrierSize , profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize(numV - 3 * barrierSize, profile.getMetrics()));
 
-        // When `HAS_STEP_BATCH_MODE` is `NONE` then the ItinerisHasStrategy
-        // optimization should be skipped
+        // When `HAS_STEP_BATCH_MODE` is `NONE` then the ItinerisHasStrategy optimization should be skipped
         profile = testLimitedBatch(() -> graph.traversal().V(bs).out("knows").barrier(barrierSize).has("foo", "bar"),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(PROPERTY_PREFETCHING), false,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.NONE.getConfigName());
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(PROPERTY_PREFETCHING), false,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.NONE.getConfigName());
         // `HasStep` should not be replaced by `ItinerisHasStep`
         assertFalse(profile.toString().contains(ItinerisHasStep.class.getSimpleName()));
         assertTrue(profile.toString().contains(HasStep.class.getSimpleName()));
     }
 
-    private void testLimitBatchSizeForMultiQueryOfConnectiveSteps(ItinerisVertex[] bs, int barrierSize, int limit) {
+    private void testLimitBatchSizeForMultiQueryOfConnectiveSteps(ItinerisVertex[] bs, int barrierSize, int limit){
         TraversalMetrics profile;
 
         // test batching for `out()` inside `and()`
-        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize)
-                .and(__.out("knows").count().is(P.gte(0)), __.inE("knows").count().is(P.gte(0))));
-        assertEquals((int) Math.ceil((double) bs.length / barrierSize) * 2,
-                countOptimizationQueries(profile.getMetrics()));
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).and(__.out("knows").count().is(P.gte(0)), __.inE("knows").count().is(P.gte(0))));
+        assertEquals((int) Math.ceil((double) bs.length / barrierSize) * 2, countOptimizationQueries(profile.getMetrics()));
 
         // test batching for `out()` inside `and()` limited
-        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize)
-                .and(__.out("knows").count().is(P.gte(0)), __.inE("knows").count().is(P.gte(0))).limit(limit));
-        assertEquals((int) Math.ceil((double) Math.min(bs.length, limit) / barrierSize) * 2,
-                countOptimizationQueries(profile.getMetrics()));
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).and(__.out("knows").count().is(P.gte(0)), __.inE("knows").count().is(P.gte(0))).limit(limit));
+        assertEquals((int) Math.ceil((double) Math.min(bs.length, limit) / barrierSize) * 2, countOptimizationQueries(profile.getMetrics()));
 
-        // test batching for `out()` inside `and()` with second filter not being
-        // executed due to first filter is false
-        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize)
-                .and(__.out("knows").count().is(P.gte(1000000)), __.inE("knows").count().is(P.gte(0))));
+        // test batching for `out()` inside `and()` with second filter not being executed due to first filter is false
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).and(__.out("knows").count().is(P.gte(1000000)), __.inE("knows").count().is(P.gte(0))));
         assertEquals((int) Math.ceil((double) bs.length / barrierSize), countOptimizationQueries(profile.getMetrics()));
 
-        // test batching for `out()` inside `and()` limited with second filter not being
-        // executed due to first filter is false
-        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize)
-                .and(__.out("knows").count().is(P.gte(1000000)), __.inE("knows").count().is(P.gte(0))).limit(limit));
+        // test batching for `out()` inside `and()` limited with second filter not being executed due to first filter is false
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).and(__.out("knows").count().is(P.gte(1000000)), __.inE("knows").count().is(P.gte(0))).limit(limit));
         assertEquals((int) Math.ceil((double) bs.length / barrierSize), countOptimizationQueries(profile.getMetrics()));
 
         // test batching for `out()` inside `or()`
-        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize)
-                .or(__.out("knows").count().is(P.gte(1000000)), __.inE("knows").count().is(P.gte(0))));
-        assertEquals((int) Math.ceil((double) bs.length / barrierSize) * 2,
-                countOptimizationQueries(profile.getMetrics()));
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).or(__.out("knows").count().is(P.gte(1000000)), __.inE("knows").count().is(P.gte(0))));
+        assertEquals((int) Math.ceil((double) bs.length / barrierSize) * 2, countOptimizationQueries(profile.getMetrics()));
 
         // test batching for `out()` inside `or()` limited
-        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize)
-                .or(__.out("knows").count().is(P.gte(1000000)), __.inE("knows").count().is(P.gte(0))).limit(limit));
-        assertEquals((int) Math.ceil((double) Math.min(bs.length, limit) / barrierSize) * 2,
-                countOptimizationQueries(profile.getMetrics()));
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).or(__.out("knows").count().is(P.gte(1000000)), __.inE("knows").count().is(P.gte(0))).limit(limit));
+        assertEquals((int) Math.ceil((double) Math.min(bs.length, limit) / barrierSize) * 2, countOptimizationQueries(profile.getMetrics()));
 
-        // test batching for `out()` inside `or()` with second filter not being executed
-        // due to first filter is true
-        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize)
-                .or(__.out("knows").count().is(P.gte(0)), __.inE("knows").count().is(P.gte(0))));
+        // test batching for `out()` inside `or()` with second filter not being executed due to first filter is true
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).or(__.out("knows").count().is(P.gte(0)), __.inE("knows").count().is(P.gte(0))));
         assertEquals((int) Math.ceil((double) bs.length / barrierSize), countOptimizationQueries(profile.getMetrics()));
 
-        // test batching for `out()` inside `or()` limited with second filter not being
-        // executed due to first filter is true
-        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize)
-                .or(__.out("knows").count().is(P.gte(0)), __.inE("knows").count().is(P.gte(0))).limit(limit));
-        assertEquals((int) Math.ceil((double) Math.min(bs.length, limit) / barrierSize),
-                countOptimizationQueries(profile.getMetrics()));
+        // test batching for `out()` inside `or()` limited with second filter not being executed due to first filter is true
+        profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).or(__.out("knows").count().is(P.gte(0)), __.inE("knows").count().is(P.gte(0))).limit(limit));
+        assertEquals((int) Math.ceil((double) Math.min(bs.length, limit) / barrierSize), countOptimizationQueries(profile.getMetrics()));
     }
 
-    private void testLimitBatchSizeForLabelStep(int numV, int barrierSize, int limit, ItinerisVertex[] bs,
-            ItinerisVertex[] cs) {
+    private void testLimitBatchSizeForLabelStep(int numV, int barrierSize, int limit, ItinerisVertex[] bs, ItinerisVertex[] cs) {
 
         TraversalMetrics profile;
 
         // test batching for `label()`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).label(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(LABEL_STEP_BATCH_MODE), MultiQueryLabelStepStrategyMode.ALL.getConfigName());
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(LABEL_STEP_BATCH_MODE), MultiQueryLabelStepStrategyMode.ALL.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize), profile.getMetrics()));
 
         // test batching for `label()` with default labels
         profile = testLimitedBatch(() -> graph.traversal().V(bs).barrier(barrierSize).label(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(LABEL_STEP_BATCH_MODE), MultiQueryLabelStepStrategyMode.ALL.getConfigName());
-        assertEquals(Math.ceil(bs.length / (double) barrierSize), countOptimizationQueries(profile.getMetrics()));
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(LABEL_STEP_BATCH_MODE), MultiQueryLabelStepStrategyMode.ALL.getConfigName());
+        assertEquals( Math.ceil(bs.length / (double) barrierSize), countOptimizationQueries(profile.getMetrics()));
 
         // test batching for `label()` in a parent step
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).union(__.label()),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(LABEL_STEP_BATCH_MODE), MultiQueryLabelStepStrategyMode.ALL.getConfigName());
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(LABEL_STEP_BATCH_MODE), MultiQueryLabelStepStrategyMode.ALL.getConfigName());
         assertEquals(3, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(1, countBackendQueriesOfSize((numV - 3 * barrierSize), profile.getMetrics()));
 
-        // test batching for `label()` with `limit`. In this case TinkerPop optimizes
-        // the usage by moving limit before
+        // test batching for `label()` with `limit`. In this case TinkerPop optimizes the usage by moving limit before
         // `label` step.
         profile = testLimitedBatch(() -> graph.traversal().V(cs).label().limit(limit),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(LABEL_STEP_BATCH_MODE), MultiQueryLabelStepStrategyMode.ALL.getConfigName());
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(LABEL_STEP_BATCH_MODE), MultiQueryLabelStepStrategyMode.ALL.getConfigName());
         assertEquals(1, countBackendQueriesOfSize(limit, profile.getMetrics()));
 
         // test disabled batching for `label()`
         profile = testLimitedBatch(() -> graph.traversal().V(cs).barrier(barrierSize).label(),
-                option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(LABEL_STEP_BATCH_MODE), MultiQueryLabelStepStrategyMode.NONE.getConfigName());
+            option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
+            option(LABEL_STEP_BATCH_MODE), MultiQueryLabelStepStrategyMode.NONE.getConfigName());
         assertEquals(0, countBackendQueriesOfSize(barrierSize, profile.getMetrics()));
         assertEquals(0, countOptimizationQueries(profile.getMetrics()));
     }
 
     @Test
-    public void testMultiSliceDBCachedRequests() {
+    public void testMultiSliceDBCachedRequests(){
         clopen(option(DB_CACHE), false);
         mgmt.makeVertexLabel("testVertex").make();
         finishSchema();
@@ -6812,10 +6330,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         }
 
         clopen(option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(DB_CACHE), true, option(DB_CACHE_TIME), 1000000L,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName(),
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(DB_CACHE), true, option(DB_CACHE_TIME), 1000000L,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName(),
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(numV, graph.traversal().V(cs).values("foo").toList().size());
         graph.tx().rollback();
         assertEquals(numV, graph.traversal().V(cs).values("foo").toList().size());
@@ -6829,20 +6346,18 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(numV * 3, graph.traversal().V(cs).values("foo", "barFoo", "fooBar").toList().size());
 
         clopen(option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(DB_CACHE), true, option(DB_CACHE_TIME), 1000000L,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName(),
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(DB_CACHE), true, option(DB_CACHE_TIME), 1000000L,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName(),
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(numV, graph.traversal().V(cs).values("foo").toList().size());
         graph.tx().rollback();
         assertEquals(numV * 3, graph.traversal().V(cs).values("foo", "barFoo", "fooBar").toList().size());
         graph.tx().rollback();
 
         clopen(option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                option(DB_CACHE), true, option(DB_CACHE_TIME), 1000000L,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName(),
-                option(PROPERTIES_BATCH_MODE),
-                MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
+            option(DB_CACHE), true, option(DB_CACHE_TIME), 1000000L,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName(),
+            option(PROPERTIES_BATCH_MODE), MultiQueryPropertiesStrategyMode.REQUIRED_PROPERTIES_ONLY.getConfigName());
         assertEquals(3, graph.traversal().V(cs[1], cs[5], cs[10]).values("foo").toList().size());
         graph.tx().rollback();
         assertEquals(3, graph.traversal().V(cs[1], cs[7], cs[10]).values("foo").toList().size());
@@ -6859,11 +6374,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(numV * 3, graph.traversal().V().values("foo", "barFoo", "fooBar").toList().size());
     }
 
-    protected TraversalMetrics testLimitedBatch(Supplier<GraphTraversal<?, ?>> traversal, Object... settings) {
+    protected TraversalMetrics testLimitedBatch(Supplier<GraphTraversal<?, ?>> traversal, Object... settings){
         assertEqualResultWithAndWithoutLimitBatchSize(traversal);
-        if (settings.length == 0) {
+        if(settings.length == 0){
             clopen(option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true,
-                    option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
+                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName());
         } else {
             clopen(settings);
         }
@@ -6888,24 +6403,24 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
     private long countBackendQueriesOfSize(Predicate<Long> sizePredicate, Collection<? extends Metrics> metrics) {
         long count = metrics.stream()
-                .filter(m -> m.getName().equals("backend-query"))
-                .map(Metrics::getCounts)
-                .flatMap(c -> c.values().stream())
-                .filter(sizePredicate)
-                .count();
+            .filter(m -> m.getName().equals("backend-query"))
+            .map(Metrics::getCounts)
+            .flatMap(c -> c.values().stream())
+            .filter(sizePredicate)
+            .count();
         long nestedCount = metrics.stream()
-                .mapToLong(m -> countBackendQueriesOfSize(sizePredicate, m.getNested()))
-                .sum();
+            .mapToLong(m -> countBackendQueriesOfSize(sizePredicate, m.getNested()))
+            .sum();
         return count + nestedCount;
     }
 
     private long countOptimizationQueries(Collection<? extends Metrics> metrics) {
         long count = metrics.stream()
-                .filter(m -> m.getName().equals("optimization"))
-                .count();
+            .filter(m -> m.getName().equals("optimization"))
+            .count();
         long nestedCount = metrics.stream()
-                .mapToLong(m -> countOptimizationQueries(m.getNested()))
-                .sum();
+            .mapToLong(m -> countOptimizationQueries(m.getNested()))
+            .sum();
         return count + nestedCount;
     }
 
@@ -6914,10 +6429,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         Vertex v1 = graph.addVertex("name", "josh");
         Vertex v2 = graph.addVertex("name", "lop");
         v1.addEdge("created", v2);
-        // graph.tx().commit();
+        //graph.tx().commit();
 
-        Object id = graph.traversal().V().has("name", "josh").outE("created").as("e").inV().has("name", "lop")
-                .<Edge>select("e").next().id();
+        Object id = graph.traversal().V().has("name", "josh").outE("created").as("e").inV().has("name", "lop").<Edge>select("e").next().id();
         assertNotNull(id);
     }
 
@@ -6946,15 +6460,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         Vertex vertex = prepareDataForEdgePropertyFilterTest();
 
-        List<Object> result = graph.traversal().V(vertex).bothE().properties().hasKey("weight").hasValue(P.lt(3))
-                .value().toList();
+        List<Object> result = graph.traversal().V(vertex).bothE().properties().hasKey("weight").hasValue(P.lt(3)).value().toList();
         assertEquals(1, result.size());
         assertEquals(result.get(0), 2);
     }
 
     @ParameterizedTest
-    @ValueSource(ints = { 0, 1, 2, 3, 10, 15, Integer.MAX_VALUE })
-    public void testBatchPropertiesPrefetching(int txCacheSize) {
+    @ValueSource(ints = {0, 1, 2, 3, 10, 15, Integer.MAX_VALUE})
+    public void testBatchPropertiesPrefetching(int txCacheSize){
         boolean inmemoryBackend = getConfig().get(STORAGE_BACKEND).equals("inmemory");
         int numV = 10;
         int expectedVerticesPrefetch = Math.min(txCacheSize, numV);
@@ -6965,22 +6478,20 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         }
         graph.tx().commit();
 
-        if (!inmemoryBackend) {
-            clopen(option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName(),
-                    option(TX_CACHE_SIZE), txCacheSize);
+        if(!inmemoryBackend){
+            clopen(option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName(), option(TX_CACHE_SIZE), txCacheSize);
         }
         GraphTraversalSource gts = graph.traversal();
 
-        TraversalMetrics traversalMetrics = gts.V().has("id", 0).out("knows").has("id", P.within(4, 5, 6, 7))
-                .values("id").profile().next();
+        TraversalMetrics traversalMetrics = gts.V().has("id", 0).out("knows").has("id", P.within(4,5,6,7)).values("id").profile().next();
 
         Metrics janusGraphVertexStepMetrics = getStepMetrics(traversalMetrics, ItinerisHasStep.class);
         assertNotNull(janusGraphVertexStepMetrics);
-        if (expectedVerticesPrefetch > 1 && !inmemoryBackend) {
+        if(expectedVerticesPrefetch>1 && !inmemoryBackend){
             assertContains(janusGraphVertexStepMetrics, "multiPreFetch", "true");
-            int latestBatchVerticesSize = txCacheSize > 1 && txCacheSize < numV ? numV % txCacheSize
-                    : expectedVerticesPrefetch;
-            if (latestBatchVerticesSize == 0) {
+            int latestBatchVerticesSize = txCacheSize > 1 && txCacheSize < numV ?
+                numV % txCacheSize : expectedVerticesPrefetch;
+            if(latestBatchVerticesSize == 0){
                 latestBatchVerticesSize = txCacheSize;
             }
             assertContains(janusGraphVertexStepMetrics, "vertices", latestBatchVerticesSize);
@@ -6988,8 +6499,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = { 0, 1, 2, 3, 10, 15, Integer.MAX_VALUE })
-    public void testBatchPropertiesPrefetchingFromEdges(int txCacheSize) {
+    @ValueSource(ints = {0, 1, 2, 3, 10, 15, Integer.MAX_VALUE})
+    public void testBatchPropertiesPrefetchingFromEdges(int txCacheSize){
         boolean inmemoryBackend = getConfig().get(STORAGE_BACKEND).equals("inmemory");
         int numV = 10;
         int expectedVerticesPrefetch = Math.min(txCacheSize, 4);
@@ -7000,44 +6511,35 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         }
         graph.tx().commit();
 
-        if (!inmemoryBackend) {
-            clopen(option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName(),
-                    option(TX_CACHE_SIZE), txCacheSize);
+        if(!inmemoryBackend){
+            clopen(option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.ALL_PROPERTIES.getConfigName(), option(TX_CACHE_SIZE), txCacheSize);
         }
         GraphTraversalSource gts = graph.traversal();
 
-        for (Direction direction : Direction.values()) {
+        for(Direction direction : Direction.values()){
             GraphTraversal<Vertex, Edge> graphEdgeTraversal = gts.V().has("id", 0).outE("knows")
-                    .has("id", P.within(4, 5, 6, 7));
+                .has("id", P.within(4,5,6,7));
             GraphTraversal<Vertex, Vertex> graphVertexTraversal;
 
-            switch (direction) {
-                case IN:
-                    graphVertexTraversal = graphEdgeTraversal.inV();
-                    break;
-                case OUT:
-                    graphVertexTraversal = graphEdgeTraversal.outV();
-                    break;
-                case BOTH:
-                    graphVertexTraversal = graphEdgeTraversal.bothV();
-                    break;
-                default:
-                    throw new NotImplementedException("No implementation found for direction: " + direction.name());
+            switch (direction){
+                case IN: graphVertexTraversal = graphEdgeTraversal.inV(); break;
+                case OUT: graphVertexTraversal = graphEdgeTraversal.outV(); break;
+                case BOTH: graphVertexTraversal = graphEdgeTraversal.bothV(); break;
+                default: throw new NotImplementedException("No implementation found for direction: "+direction.name());
             }
 
             TraversalMetrics traversalMetrics = graphVertexTraversal
-                    .has("id", P.within(4, 5, 6, 7)).values("id").profile().next();
+                .has("id", P.within(4,5,6,7)).values("id").profile().next();
 
             Metrics janusGraphEdgeVertexStepMetrics = getLastStepMetrics(traversalMetrics, ItinerisHasStep.class);
             assertNotNull(janusGraphEdgeVertexStepMetrics);
 
-            if (!inmemoryBackend && expectedVerticesPrefetch > 1 && !OUT.equals(direction)) {
+            if(!inmemoryBackend && expectedVerticesPrefetch>1 && !OUT.equals(direction)){
                 assertContains(janusGraphEdgeVertexStepMetrics, "multiPreFetch", "true");
                 boolean withAdditionalOutVertex = BOTH.equals(direction); // 4 is the number of retrieved IN vertices
-                int latestBatchVerticesSize = txCacheSize > 1 && txCacheSize < numV
-                        ? (4 + (withAdditionalOutVertex ? 1 : 0)) % txCacheSize
-                        : expectedVerticesPrefetch + (withAdditionalOutVertex ? 1 : 0);
-                if (latestBatchVerticesSize == 0) {
+                int latestBatchVerticesSize = txCacheSize > 1 && txCacheSize < numV ?
+                    (4 + (withAdditionalOutVertex?1:0)) % txCacheSize : expectedVerticesPrefetch + (withAdditionalOutVertex?1:0);
+                if(latestBatchVerticesSize == 0){
                     latestBatchVerticesSize = txCacheSize;
                 }
                 assertContains(janusGraphEdgeVertexStepMetrics, "vertices", latestBatchVerticesSize);
@@ -7045,7 +6547,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         }
     }
 
-    private Vertex prepareDataForEdgePropertyFilterTest() {
+    private Vertex prepareDataForEdgePropertyFilterTest(){
 
         Vertex v1 = graph.addVertex("name", "josh");
         Vertex v2 = graph.addVertex("name", "lop");
@@ -7057,27 +6559,22 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         return v1;
     }
 
-    /*
-     * =============================================================================
-     * =====
-     * LOGGING
-     * =============================================================================
-     * =====
-     */
+   /* ==================================================================================
+                            LOGGING
+     ==================================================================================*/
+
 
     @ParameterizedTest
-    @ValueSource(booleans = { true, false })
+    @ValueSource(booleans = {true, false})
     public void simpleLogTest(boolean useStringId) throws InterruptedException {
-        if (useStringId && getStoreFeatures().isKeyOrdered())
-            return;
+        if(useStringId && getStoreFeatures().isKeyOrdered()) return;
         simpleLogTest(false, useStringId);
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = { true, false })
+    @ValueSource(booleans = {true, false})
     public void simpleLogTestWithFailure(boolean useStringId) throws InterruptedException {
-        if (useStringId && getStoreFeatures().isKeyOrdered())
-            return;
+        if(useStringId && getStoreFeatures().isKeyOrdered()) return;
         simpleLogTest(true, useStringId);
     }
 
@@ -7088,8 +6585,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         final TimestampProvider times = graph.getConfiguration().getTimestampProvider();
         final Instant startTime = times.getTime();
         clopen(option(SYSTEM_LOG_TRANSACTIONS), true,
-                option(LOG_BACKEND, USER_LOG),
-                (withLogFailure ? TestMockLog.class.getName() : LOG_BACKEND.getDefaultValue()),
+                option(LOG_BACKEND, USER_LOG), (withLogFailure ? TestMockLog.class.getName() : LOG_BACKEND.getDefaultValue()),
                 option(TestMockLog.LOG_MOCK_FAILADD, USER_LOG), withLogFailure,
                 option(KCVSLog.LOG_READ_LAG_TIME, USER_LOG), Duration.ofMillis(50),
                 option(LOG_READ_INTERVAL, USER_LOG), Duration.ofMillis(250),
@@ -7098,7 +6594,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                 option(LOG_READ_INTERVAL, TRANSACTION_LOG), Duration.ofMillis(250),
                 option(MAX_COMMIT_TIME), Duration.ofSeconds(1),
                 option(ALLOW_CUSTOM_VERTEX_ID_TYPES), useStringId,
-                option(ALLOW_SETTING_VERTEX_ID), useStringId);
+                option(ALLOW_SETTING_VERTEX_ID), useStringId
+        );
         final String instanceId = graph.getConfiguration().getUniqueGraphId();
 
         PropertyKey weight = tx.makePropertyKey("weight").dataType(Float.class).cardinality(Cardinality.SINGLE).make();
@@ -7113,7 +6610,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         newTx();
 
         final Instant[] txTimes = new Instant[4];
-        // Transaction with custom user log name
+        //Transaction with custom user log name
         txTimes[0] = times.getTime();
         ItinerisTransaction tx2 = graph.buildTransaction().logIdentifier(userLogName).start();
         ItinerisVertex v1;
@@ -7136,20 +6633,20 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         v2.addEdge("knows", getV(tx2, v1id));
         tx2.commit();
         final Object v2id = getId(v2);
-        // Only read tx
+        //Only read tx
         tx2 = graph.buildTransaction().logIdentifier(userLogName).start();
         v1 = getV(tx2, v1id);
         assertEquals(111.1, v1.<Float>value("weight").doubleValue(), 0.01);
         assertEquals(222.2, getV(tx2, v2).<Float>value("weight").doubleValue(), 0.01);
         tx2.commit();
-        // Deleting transaction
+        //Deleting transaction
         txTimes[2] = times.getTime();
         tx2 = graph.buildTransaction().logIdentifier(userLogName).start();
         v2 = getV(tx2, v2id);
         assertEquals(222.2, v2.<Float>value("weight").doubleValue(), 0.01);
         v2.remove();
         tx2.commit();
-        // Edge modifying transaction
+        //Edge modifying transaction
         txTimes[3] = times.getTime();
         tx2 = graph.buildTransaction().logIdentifier(userLogName).start();
         v1 = getV(tx2, v1id);
@@ -7166,8 +6663,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         final Log transactionLog = openTxLog();
         final Log userLog = openUserLog(userLogName);
         final EnumMap<LogTxStatus, AtomicInteger> txMsgCounter = new EnumMap<>(LogTxStatus.class);
-        for (final LogTxStatus status : LogTxStatus.values())
-            txMsgCounter.put(status, new AtomicInteger(0));
+        for (final LogTxStatus status : LogTxStatus.values()) txMsgCounter.put(status, new AtomicInteger(0));
         final AtomicInteger userLogMeta = new AtomicInteger(0);
         transactionLog.registerReader(startMarker, new MessageReader() {
             @Override
@@ -7175,10 +6671,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                 final Instant msgTime = message.getTimestamp();
                 assertTrue(msgTime.isAfter(startTime) || msgTime.equals(startTime));
                 assertNotNull(message.getSenderId());
-                final TransactionLogHeader.Entry txEntry = TransactionLogHeader.parse(message.getContent(), serializer,
-                        times);
+                final TransactionLogHeader.Entry txEntry = TransactionLogHeader.parse(message.getContent(), serializer, times);
                 final TransactionLogHeader header = txEntry.getHeader();
-                // System.out.println(header.getTimestamp(TimeUnit.MILLISECONDS));
+//                    System.out.println(header.getTimestamp(TimeUnit.MILLISECONDS));
                 assertTrue(header.getTimestamp().isAfter(startTime) || header.getTimestamp().equals(startTime));
                 assertTrue(header.getTimestamp().isBefore(msgTime) || header.getTimestamp().equals(msgTime));
                 assertNotNull(txEntry.getMetadata());
@@ -7195,8 +6690,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                 } else if (withLogFailure) {
                     assertTrue(status.isPrimarySuccess() || status == LogTxStatus.SECONDARY_FAILURE);
                     if (status == LogTxStatus.SECONDARY_FAILURE) {
-                        final TransactionLogHeader.SecondaryFailures secFail = txEntry
-                                .getContentAsSecondaryFailures(serializer);
+                        final TransactionLogHeader.SecondaryFailures secFail = txEntry.getContentAsSecondaryFailures(serializer);
                         assertTrue(secFail.failedIndexes.isEmpty());
                         assertTrue(secFail.userLogFailure);
                     }
@@ -7207,13 +6701,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                 txMsgCounter.get(txEntry.getStatus()).incrementAndGet();
             }
 
-            @Override
-            public void updateState() {
-            }
+            @Override public void updateState() {}
         });
         final EnumMap<Change, AtomicInteger> userChangeCounter = new EnumMap<>(Change.class);
-        for (final Change change : Change.values())
-            userChangeCounter.put(change, new AtomicInteger(0));
+        for (final Change change : Change.values()) userChangeCounter.put(change, new AtomicInteger(0));
         final AtomicInteger userLogMsgCounter = new AtomicInteger(0);
         userLog.registerReader(startMarker, new MessageReader() {
             @Override
@@ -7223,8 +6714,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                 assertNotNull(message.getSenderId());
                 final StaticBuffer content = message.getContent();
                 assertTrue(content != null && content.length() > 0);
-                final TransactionLogHeader.Entry transactionEntry = TransactionLogHeader.parse(content, serializer,
-                        times);
+                final TransactionLogHeader.Entry transactionEntry = TransactionLogHeader.parse(content, serializer, times);
 
                 final Instant txTime = transactionEntry.getHeader().getTimestamp();
                 assertTrue(txTime.isBefore(msgTime) || txTime.equals(msgTime));
@@ -7238,20 +6728,16 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                 userLogMsgCounter.incrementAndGet();
             }
 
-            @Override
-            public void updateState() {
-            }
+            @Override public void updateState() {}
         });
         Thread.sleep(4000);
         assertEquals(5, txMsgCounter.get(LogTxStatus.PRECOMMIT).get());
         assertEquals(4, txMsgCounter.get(LogTxStatus.PRIMARY_SUCCESS).get());
         assertEquals(1, txMsgCounter.get(LogTxStatus.COMPLETE_SUCCESS).get());
         assertEquals(4, userLogMeta.get());
-        if (withLogFailure)
-            assertEquals(4, txMsgCounter.get(LogTxStatus.SECONDARY_FAILURE).get());
-        else
-            assertEquals(4, txMsgCounter.get(LogTxStatus.SECONDARY_SUCCESS).get());
-        // User-Log
+        if (withLogFailure) assertEquals(4, txMsgCounter.get(LogTxStatus.SECONDARY_FAILURE).get());
+        else assertEquals(4, txMsgCounter.get(LogTxStatus.SECONDARY_SUCCESS).get());
+        //User-Log
         if (withLogFailure) {
             assertEquals(0, userLogMsgCounter.get());
         } else {
@@ -7262,12 +6748,13 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         clopen(option(VERBOSE_TX_RECOVERY), true);
         /*
-         * Transaction Recovery
+        Transaction Recovery
          */
         final TransactionRecovery recovery = ItinerisFactory.startTransactionRecovery(graph, startTime);
 
+
         /*
-         * Use user log processing framework
+        Use user log processing framework
          */
         final AtomicInteger userLogCount = new AtomicInteger(0);
         final LogProcessorFramework userLogs = ItinerisFactory.openTransactionLog(graph);
@@ -7279,9 +6766,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                     final Instant txTime = txId.getTransactionTime();
                     // Times should be within a second
                     assertTrue((txTime.isAfter(startTime) || txTime.equals(startTime))
-                            && (txTime.isBefore(endTime) || txTime.equals(endTime)),
-                            String.format("tx timestamp %s not between start %s and end time %s",
-                                    txTime, startTime, endTime));
+                                                        && (txTime.isBefore(endTime) || txTime.equals(endTime)),
+                        String.format("tx timestamp %s not between start %s and end time %s",
+                                                        txTime, startTime, endTime));
 
                     assertTrue(tx.containsRelationType("knows"));
                     assertTrue(tx.containsRelationType("weight"));
@@ -7293,7 +6780,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                     int txNo;
                     if (txTimeMicro.isBefore(txTimes[1])) {
                         txNo = 1;
-                        // v1 addition transaction
+                        //v1 addition transaction
                         assertEquals(1, Iterables.size(changes.getVertices(Change.ADDED)));
                         assertEquals(0, Iterables.size(changes.getVertices(Change.REMOVED)));
                         assertEquals(1, Iterables.size(changes.getVertices(Change.ANY)));
@@ -7305,14 +6792,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
                         final ItinerisVertex v = Iterables.getOnlyElement(changes.getVertices(Change.ADDED));
                         assertEquals(v1id, getId(v));
-                        final VertexProperty<Float> p = Iterables
-                                .getOnlyElement(changes.getProperties(v, Change.ADDED, "weight"));
+                        final VertexProperty<Float> p
+                                = Iterables.getOnlyElement(changes.getProperties(v, Change.ADDED, "weight"));
                         assertEquals(111.1, p.value().doubleValue(), 0.01);
                         assertEquals(1, Iterables.size(changes.getEdges(v, Change.ADDED, OUT)));
                         assertEquals(1, Iterables.size(changes.getEdges(v, Change.ADDED, BOTH)));
                     } else if (txTimeMicro.isBefore(txTimes[2])) {
                         txNo = 2;
-                        // v2 addition transaction
+                        //v2 addition transaction
                         assertEquals(1, Iterables.size(changes.getVertices(Change.ADDED)));
                         assertEquals(0, Iterables.size(changes.getVertices(Change.REMOVED)));
                         assertEquals(2, Iterables.size(changes.getVertices(Change.ANY)));
@@ -7324,14 +6811,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
                         final ItinerisVertex v = Iterables.getOnlyElement(changes.getVertices(Change.ADDED));
                         assertEquals(v2id, getId(v));
-                        final VertexProperty<Float> p = Iterables
-                                .getOnlyElement(changes.getProperties(v, Change.ADDED, "weight"));
+                        final VertexProperty<Float> p
+                                = Iterables.getOnlyElement(changes.getProperties(v, Change.ADDED, "weight"));
                         assertEquals(222.2, p.value().doubleValue(), 0.01);
                         assertEquals(1, Iterables.size(changes.getEdges(v, Change.ADDED, OUT)));
                         assertEquals(1, Iterables.size(changes.getEdges(v, Change.ADDED, BOTH)));
                     } else if (txTimeMicro.isBefore(txTimes[3])) {
                         txNo = 3;
-                        // v2 deletion transaction
+                        //v2 deletion transaction
                         assertEquals(0, Iterables.size(changes.getVertices(Change.ADDED)));
                         assertEquals(1, Iterables.size(changes.getVertices(Change.REMOVED)));
                         assertEquals(2, Iterables.size(changes.getVertices(Change.ANY)));
@@ -7343,14 +6830,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
                         final ItinerisVertex v = Iterables.getOnlyElement(changes.getVertices(Change.REMOVED));
                         assertEquals(v2id, getId(v));
-                        final VertexProperty<Float> p = Iterables
-                                .getOnlyElement(changes.getProperties(v, Change.REMOVED, "weight"));
+                        final VertexProperty<Float> p
+                                = Iterables.getOnlyElement(changes.getProperties(v, Change.REMOVED, "weight"));
                         assertEquals(222.2, p.value().doubleValue(), 0.01);
                         assertEquals(1, Iterables.size(changes.getEdges(v, Change.REMOVED, OUT)));
                         assertEquals(0, Iterables.size(changes.getEdges(v, Change.ADDED, BOTH)));
                     } else {
                         txNo = 4;
-                        // v1 edge modification
+                        //v1 edge modification
                         assertEquals(0, Iterables.size(changes.getVertices(Change.ADDED)));
                         assertEquals(0, Iterables.size(changes.getVertices(Change.REMOVED)));
                         assertEquals(1, Iterables.size(changes.getVertices(Change.ANY)));
@@ -7361,8 +6848,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
                         final ItinerisVertex v = Iterables.getOnlyElement(changes.getVertices(Change.ANY));
                         assertEquals(v1id, getId(v));
-                        ItinerisEdge e1 = Iterables
-                                .getOnlyElement(changes.getEdges(v, Change.REMOVED, Direction.OUT, "knows"));
+                        ItinerisEdge e1
+                                = Iterables.getOnlyElement(changes.getEdges(v, Change.REMOVED, Direction.OUT, "knows"));
                         assertFalse(e1.property("weight").isPresent());
                         assertEquals(v, e1.vertex(Direction.IN));
                         e1 = Iterables.getOnlyElement(changes.getEdges(v, Change.ADDED, Direction.OUT, "knows"));
@@ -7370,14 +6857,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                         assertEquals(v, e1.vertex(Direction.IN));
                     }
 
-                    // See only current state of graph in transaction
+                    //See only current state of graph in transaction
                     final ItinerisVertex v11 = getV(tx, v1id);
                     assertNotNull(v11);
                     assertTrue(v11.isLoaded());
                     if (txNo != 2) {
-                        // In the transaction that adds v2, v2 will be considered "loaded"
+                        //In the transaction that adds v2, v2 will be considered "loaded"
                         assertMissing(tx, v2id);
-                        // assertTrue(txNo + " - " + v2, v2 == null || v2.isRemoved());
+//                    assertTrue(txNo + " - " + v2, v2 == null || v2.isRemoved());
                     }
                     assertEquals(111.1, v11.<Float>value("weight").doubleValue(), 0.01);
                     assertCount(1, v11.query().direction(Direction.OUT).edges());
@@ -7385,7 +6872,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                     userLogCount.incrementAndGet();
                 }).build();
 
-        // wait
+        //wait
         Thread.sleep(22000L);
 
         recovery.shutdown();
@@ -7404,17 +6891,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(4, userLogCount.get());
     }
 
-    /*
-     * =============================================================================
-     * =====
-     * GLOBAL GRAPH QUERIES
-     * =============================================================================
-     * =====
-     */
+
+   /* ==================================================================================
+                            GLOBAL GRAPH QUERIES
+     ==================================================================================*/
+
 
     /**
-     * Tests index definitions and their correct application for internal indexes
-     * only
+     * Tests index definitions and their correct application for internal indexes only
      */
     @Test
     public void testGlobalGraphIndexingAndQueriesForInternalIndexes() {
@@ -7446,6 +6930,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                 .indexOnly(organization).buildCompositeIndex();
         ItinerisIndex vertex3 = mgmt.buildIndex("vertex3", Vertex.class).addKey(name).buildCompositeIndex();
 
+
         // ########### INSPECTION & FAILURE ##############
         assertTrue(mgmt.containsRelationType("name"));
         assertTrue(mgmt.containsGraphIndex("prop1"));
@@ -7474,25 +6959,25 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(1, vertex1.getFieldKeys().length);
 
         try {
-            // Parameters not supported
+            //Parameters not supported
             mgmt.buildIndex("blablub", Vertex.class).addKey(text, Mapping.TEXT.asParameter()).buildCompositeIndex();
             fail();
         } catch (IllegalArgumentException ignored) {
         }
         try {
-            // Name already in use
+            //Name already in use
             mgmt.buildIndex("edge1", Vertex.class).addKey(weight).buildCompositeIndex();
             fail();
         } catch (IllegalArgumentException ignored) {
         }
         try {
-            // ImplicitKeys not allowed
+            //ImplicitKeys not allowed
             mgmt.buildIndex("jupdup", Vertex.class).addKey(ImplicitKey.ID).buildCompositeIndex();
             fail();
         } catch (IllegalArgumentException ignored) {
         }
         try {
-            // Unique is only allowed for vertex
+            //Unique is only allowed for vertex
             mgmt.buildIndex("edgexyz", Edge.class).addKey(time).unique().buildCompositeIndex();
             fail();
         } catch (IllegalArgumentException ignored) {
@@ -7534,25 +7019,25 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(1, vertex1.getFieldKeys().length);
 
         try {
-            // Parameters not supported
+            //Parameters not supported
             mgmt.buildIndex("blablub", Vertex.class).addKey(text, Mapping.TEXT.asParameter()).buildCompositeIndex();
             fail();
         } catch (IllegalArgumentException ignored) {
         }
         try {
-            // Name already in use
+            //Name already in use
             mgmt.buildIndex("edge1", Vertex.class).addKey(weight).buildCompositeIndex();
             fail();
         } catch (IllegalArgumentException ignored) {
         }
         try {
-            // ImplicitKeys not allowed
+            //ImplicitKeys not allowed
             mgmt.buildIndex("jupdup", Vertex.class).addKey(ImplicitKey.ID).buildCompositeIndex();
             fail();
         } catch (IllegalArgumentException ignored) {
         }
         try {
-            // Unique is only allowed for vertex
+            //Unique is only allowed for vertex
             mgmt.buildIndex("edgexyz", Edge.class).addKey(time).unique().buildCompositeIndex();
             fail();
         } catch (IllegalArgumentException ignored) {
@@ -7563,7 +7048,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         final int numV = 100;
         final boolean sorted = true;
         ItinerisVertex[] ns = new ItinerisVertex[numV];
-        String[] strings = { "aaa", "bbb", "ccc", "ddd" };
+        String[] strings = {"aaa", "bbb", "ccc", "ddd"};
 
         for (int i = 0; i < numV; i++) {
             ns[i] = tx.addVertex(i % 2 == 0 ? "person" : "organization");
@@ -7577,158 +7062,152 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             ns[i].property(VertexProperty.Cardinality.single, "time", (long) i);
             ns[i].property(VertexProperty.Cardinality.single, "text", txt);
 
-            for (VertexProperty p : new VertexProperty[] { p1, p2 }) {
+            for (VertexProperty p : new VertexProperty[]{p1, p2}) {
                 p.property("weight", w);
                 p.property("time", (long) i);
                 p.property("text", txt);
             }
 
-            ItinerisVertex u = ns[(i > 0 ? i - 1 : i)]; // previous or self-loop
-            for (String label : new String[] { "connect", "related" }) {
+            ItinerisVertex u = ns[(i > 0 ? i - 1 : i)]; //previous or self-loop
+            for (String label : new String[]{"connect", "related"}) {
                 Edge e = ns[i].addEdge(label, u, "weight", (w++) % 5, "time", (long) i, "text", txt);
             }
         }
 
-        // ########## QUERIES ################
+        //########## QUERIES ################
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 10).has("weight", Cmp.EQUAL, 0),
-                ElementCategory.EDGE, 1, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 1, new boolean[]{true, sorted}, edge1.name());
         evaluateQuery(tx.query().has("time", Contain.IN, ImmutableList.of(10, 20, 30)).has("weight", Cmp.EQUAL, 0),
-                ElementCategory.EDGE, 3, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 3, new boolean[]{true, sorted}, edge1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 10).has("weight", Cmp.EQUAL, 0)
                 .has("text", Cmp.EQUAL, strings[10 % strings.length]),
-                ElementCategory.EDGE, 1, new boolean[] { false, sorted }, edge1.name());
+                ElementCategory.EDGE, 1, new boolean[]{false, sorted}, edge1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 10).has("weight", Cmp.EQUAL, 1),
-                ElementCategory.EDGE, 1, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 1, new boolean[]{true, sorted}, edge1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 20).has("weight", Cmp.EQUAL, 0),
-                ElementCategory.EDGE, 1, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 1, new boolean[]{true, sorted}, edge1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 20).has("weight", Cmp.EQUAL, 3),
-                ElementCategory.EDGE, 0, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 0, new boolean[]{true, sorted}, edge1.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[0]).has(LABEL_NAME, "connect"),
-                ElementCategory.EDGE, numV / strings.length, new boolean[] { true, sorted }, edge2.name());
+                ElementCategory.EDGE, numV / strings.length, new boolean[]{true, sorted}, edge2.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[0]).has(LABEL_NAME, "connect").limit(10),
-                ElementCategory.EDGE, 10, new boolean[] { true, sorted }, edge2.name());
+                ElementCategory.EDGE, 10, new boolean[]{true, sorted}, edge2.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[0]),
-                ElementCategory.EDGE, numV / strings.length * 2, new boolean[] { false, sorted });
+                ElementCategory.EDGE, numV / strings.length * 2, new boolean[]{false, sorted});
         evaluateQuery(tx.query().has("weight", Cmp.EQUAL, 1.5),
-                ElementCategory.EDGE, numV / 10 * 2, new boolean[] { false, sorted });
+                ElementCategory.EDGE, numV / 10 * 2, new boolean[]{false, sorted});
 
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 50),
-                ElementCategory.PROPERTY, 2, new boolean[] { true, sorted }, prop1.name());
+                ElementCategory.PROPERTY, 2, new boolean[]{true, sorted}, prop1.name());
         evaluateQuery(tx.query().has("weight", Cmp.EQUAL, 0.0).has("text", Cmp.EQUAL, strings[0]),
-                ElementCategory.PROPERTY, 2 * numV / (4 * 5), new boolean[] { true, sorted }, prop2.name());
+                ElementCategory.PROPERTY, 2 * numV / (4 * 5), new boolean[]{true, sorted}, prop2.name());
         evaluateQuery(tx.query().has("weight", Cmp.EQUAL, 0.0).has("text", Cmp.EQUAL, strings[0])
                 .has("time", Cmp.EQUAL, 0),
-                ElementCategory.PROPERTY, 2, new boolean[] { true, sorted }, prop2.name(), prop1.name());
+                ElementCategory.PROPERTY, 2, new boolean[]{true, sorted}, prop2.name(), prop1.name());
         evaluateQuery(tx.query().has("weight", Cmp.EQUAL, 1.5),
-                ElementCategory.PROPERTY, 2 * numV / 10, new boolean[] { false, sorted });
+                ElementCategory.PROPERTY, 2 * numV / 10, new boolean[]{false, sorted});
 
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 50).has(LABEL_NAME, "person"),
-                ElementCategory.VERTEX, 1, new boolean[] { true, sorted }, vertex1.name());
+                ElementCategory.VERTEX, 1, new boolean[]{true, sorted}, vertex1.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[2]).has(LABEL_NAME, "person"),
-                ElementCategory.VERTEX, numV / strings.length, new boolean[] { true, sorted }, vertex12.name());
+                ElementCategory.VERTEX, numV / strings.length, new boolean[]{true, sorted}, vertex12.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[3]).has(LABEL_NAME, "person"),
-                ElementCategory.VERTEX, 0, new boolean[] { true, sorted }, vertex12.name());
+                ElementCategory.VERTEX, 0, new boolean[]{true, sorted}, vertex12.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[2]).has(LABEL_NAME, "person")
                 .has("time", Cmp.EQUAL, 2),
-                ElementCategory.VERTEX, 1, new boolean[] { true, sorted }, vertex12.name(), vertex1.name());
+                ElementCategory.VERTEX, 1, new boolean[]{true, sorted}, vertex12.name(), vertex1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 51).has("name", Cmp.EQUAL, "v51")
                 .has(LABEL_NAME, "organization"),
-                ElementCategory.VERTEX, 1, new boolean[] { true, sorted }, vertex2.name());
+                ElementCategory.VERTEX, 1, new boolean[]{true, sorted}, vertex2.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 51).has("name", Cmp.EQUAL, "u1")
                 .has(LABEL_NAME, "organization"),
-                ElementCategory.VERTEX, 1, new boolean[] { true, sorted }, vertex2.name());
+                ElementCategory.VERTEX, 1, new boolean[]{true, sorted}, vertex2.name());
         evaluateQuery(tx.query().has("time", Contain.IN, ImmutableList.of(51, 61, 71, 31, 41))
                 .has("name", Cmp.EQUAL, "u1").has(LABEL_NAME, "organization"),
-                ElementCategory.VERTEX, 5, new boolean[] { true, sorted }, vertex2.name());
+                ElementCategory.VERTEX, 5, new boolean[]{true, sorted}, vertex2.name());
         evaluateQuery(tx.query().has("time", Contain.IN, ImmutableList.of()),
-                ElementCategory.VERTEX, 0, new boolean[] { true, false });
-        // this query is not fitted because NOT_IN must be filtered in-memory to satisfy
-        // has("time")
-        evaluateQuery(
-                tx.query().has("text", Cmp.EQUAL, strings[2]).has(LABEL_NAME, "person").has("time", Contain.NOT_IN,
-                        ImmutableList.of()),
-                ElementCategory.VERTEX, numV / strings.length, new boolean[] { false, sorted }, vertex12.name());
+                ElementCategory.VERTEX, 0, new boolean[]{true, false});
+        // this query is not fitted because NOT_IN must be filtered in-memory to satisfy has("time")
+        evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[2]).has(LABEL_NAME, "person").has("time", Contain.NOT_IN, ImmutableList.of()),
+                ElementCategory.VERTEX, numV / strings.length, new boolean[]{false, sorted}, vertex12.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 51).has(LABEL_NAME, "organization"),
-                ElementCategory.VERTEX, 1, new boolean[] { false, sorted });
+                ElementCategory.VERTEX, 1, new boolean[]{false, sorted});
         evaluateQuery(tx.query().has("name", Cmp.EQUAL, "u1"),
-                ElementCategory.VERTEX, numV / 5, new boolean[] { true, sorted }, vertex3.name());
+                ElementCategory.VERTEX, numV / 5, new boolean[]{true, sorted}, vertex3.name());
         evaluateQuery(tx.query().has("name", Cmp.EQUAL, "v1"),
-                ElementCategory.VERTEX, 1, new boolean[] { true, sorted }, vertex3.name());
+                ElementCategory.VERTEX, 1, new boolean[]{true, sorted}, vertex3.name());
         evaluateQuery(tx.query().has("name", Cmp.EQUAL, "v1").has(LABEL_NAME, "organization"),
-                ElementCategory.VERTEX, 1, new boolean[] { false, sorted }, vertex3.name());
+                ElementCategory.VERTEX, 1, new boolean[]{false, sorted}, vertex3.name());
 
         clopen();
 
-        // ########## QUERIES (copied from above) ################
+        //########## QUERIES (copied from above) ################
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 10).has("weight", Cmp.EQUAL, 0),
-                ElementCategory.EDGE, 1, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 1, new boolean[]{true, sorted}, edge1.name());
         evaluateQuery(tx.query().has("time", Contain.IN, ImmutableList.of(10, 20, 30)).has("weight", Cmp.EQUAL, 0),
-                ElementCategory.EDGE, 3, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 3, new boolean[]{true, sorted}, edge1.name());
 
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 10).has("weight", Cmp.EQUAL, 0)
                 .has("text", Cmp.EQUAL, strings[10 % strings.length]),
-                ElementCategory.EDGE, 1, new boolean[] { false, sorted }, edge1.name());
+                ElementCategory.EDGE, 1, new boolean[]{false, sorted}, edge1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 10).has("weight", Cmp.EQUAL, 1),
-                ElementCategory.EDGE, 1, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 1, new boolean[]{true, sorted}, edge1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 20).has("weight", Cmp.EQUAL, 0),
-                ElementCategory.EDGE, 1, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 1, new boolean[]{true, sorted}, edge1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 20).has("weight", Cmp.EQUAL, 3),
-                ElementCategory.EDGE, 0, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 0, new boolean[]{true, sorted}, edge1.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[0]).has(LABEL_NAME, "connect"),
-                ElementCategory.EDGE, numV / strings.length, new boolean[] { true, sorted }, edge2.name());
+                ElementCategory.EDGE, numV / strings.length, new boolean[]{true, sorted}, edge2.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[0]).has(LABEL_NAME, "connect").limit(10),
-                ElementCategory.EDGE, 10, new boolean[] { true, sorted }, edge2.name());
+                ElementCategory.EDGE, 10, new boolean[]{true, sorted}, edge2.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[0]),
-                ElementCategory.EDGE, numV / strings.length * 2, new boolean[] { false, sorted });
+                ElementCategory.EDGE, numV / strings.length * 2, new boolean[]{false, sorted});
         evaluateQuery(tx.query().has("weight", Cmp.EQUAL, 1.5),
-                ElementCategory.EDGE, numV / 10 * 2, new boolean[] { false, sorted });
+                ElementCategory.EDGE, numV / 10 * 2, new boolean[]{false, sorted});
 
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 50),
-                ElementCategory.PROPERTY, 2, new boolean[] { true, sorted }, prop1.name());
+                ElementCategory.PROPERTY, 2, new boolean[]{true, sorted}, prop1.name());
         evaluateQuery(tx.query().has("weight", Cmp.EQUAL, 0.0).has("text", Cmp.EQUAL, strings[0]),
-                ElementCategory.PROPERTY, 2 * numV / (4 * 5), new boolean[] { true, sorted }, prop2.name());
+                ElementCategory.PROPERTY, 2 * numV / (4 * 5), new boolean[]{true, sorted}, prop2.name());
         evaluateQuery(tx.query().has("weight", Cmp.EQUAL, 0.0).has("text", Cmp.EQUAL, strings[0])
                 .has("time", Cmp.EQUAL, 0),
-                ElementCategory.PROPERTY, 2, new boolean[] { true, sorted }, prop2.name(), prop1.name());
+                ElementCategory.PROPERTY, 2, new boolean[]{true, sorted}, prop2.name(), prop1.name());
         evaluateQuery(tx.query().has("weight", Cmp.EQUAL, 1.5),
-                ElementCategory.PROPERTY, 2 * numV / 10, new boolean[] { false, sorted });
+                ElementCategory.PROPERTY, 2 * numV / 10, new boolean[]{false, sorted});
 
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 50).has(LABEL_NAME, "person"),
-                ElementCategory.VERTEX, 1, new boolean[] { true, sorted }, vertex1.name());
+                ElementCategory.VERTEX, 1, new boolean[]{true, sorted}, vertex1.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[2]).has(LABEL_NAME, "person"),
-                ElementCategory.VERTEX, numV / strings.length, new boolean[] { true, sorted }, vertex12.name());
+                ElementCategory.VERTEX, numV / strings.length, new boolean[]{true, sorted}, vertex12.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[3]).has(LABEL_NAME, "person"),
-                ElementCategory.VERTEX, 0, new boolean[] { true, sorted }, vertex12.name());
+                ElementCategory.VERTEX, 0, new boolean[]{true, sorted}, vertex12.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[2]).has(LABEL_NAME, "person")
                 .has("time", Cmp.EQUAL, 2),
-                ElementCategory.VERTEX, 1, new boolean[] { true, sorted }, vertex12.name(), vertex1.name());
+                ElementCategory.VERTEX, 1, new boolean[]{true, sorted}, vertex12.name(), vertex1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 51).has("name", Cmp.EQUAL, "v51")
                 .has(LABEL_NAME, "organization"),
-                ElementCategory.VERTEX, 1, new boolean[] { true, sorted }, vertex2.name());
+                ElementCategory.VERTEX, 1, new boolean[]{true, sorted}, vertex2.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 51).has("name", Cmp.EQUAL, "u1")
                 .has(LABEL_NAME, "organization"),
-                ElementCategory.VERTEX, 1, new boolean[] { true, sorted }, vertex2.name());
+                ElementCategory.VERTEX, 1, new boolean[]{true, sorted}, vertex2.name());
         evaluateQuery(tx.query().has("time", Contain.IN, ImmutableList.of(51, 61, 71, 31, 41))
                 .has("name", Cmp.EQUAL, "u1").has(LABEL_NAME, "organization"),
-                ElementCategory.VERTEX, 5, new boolean[] { true, sorted }, vertex2.name());
+                ElementCategory.VERTEX, 5, new boolean[]{true, sorted}, vertex2.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 51).has(LABEL_NAME, "organization"),
-                ElementCategory.VERTEX, 1, new boolean[] { false, sorted });
+                ElementCategory.VERTEX, 1, new boolean[]{false, sorted});
         evaluateQuery(tx.query().has("name", Cmp.EQUAL, "u1"),
-                ElementCategory.VERTEX, numV / 5, new boolean[] { true, sorted }, vertex3.name());
+                ElementCategory.VERTEX, numV / 5, new boolean[]{true, sorted}, vertex3.name());
         evaluateQuery(tx.query().has("name", Cmp.EQUAL, "v1"),
-                ElementCategory.VERTEX, 1, new boolean[] { true, sorted }, vertex3.name());
+                ElementCategory.VERTEX, 1, new boolean[]{true, sorted}, vertex3.name());
         evaluateQuery(tx.query().has("name", Cmp.EQUAL, "v1").has(LABEL_NAME, "organization"),
-                ElementCategory.VERTEX, 1, new boolean[] { false, sorted }, vertex3.name());
+                ElementCategory.VERTEX, 1, new boolean[]{false, sorted}, vertex3.name());
         evaluateQuery(tx.query().has("time", Contain.IN, ImmutableList.of()),
-                ElementCategory.VERTEX, 0, new boolean[] { true, false });
-        // this query is not fitted because NOT_IN must be filtered in-memory to satisfy
-        // has("time")
-        evaluateQuery(
-                tx.query().has("text", Cmp.EQUAL, strings[2]).has(LABEL_NAME, "person").has("time", Contain.NOT_IN,
-                        ImmutableList.of()),
-                ElementCategory.VERTEX, numV / strings.length, new boolean[] { false, sorted }, vertex12.name());
+                ElementCategory.VERTEX, 0, new boolean[]{true, false});
+        // this query is not fitted because NOT_IN must be filtered in-memory to satisfy has("time")
+        evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[2]).has(LABEL_NAME, "person").has("time", Contain.NOT_IN, ImmutableList.of()),
+                ElementCategory.VERTEX, numV / strings.length, new boolean[]{false, sorted}, vertex12.name());
 
-        // Update in transaction
+        //Update in transaction
         for (int i = 0; i < numV / 2; i++) {
             ItinerisVertex v = getV(tx, ns[i]);
             v.remove();
@@ -7746,69 +7225,72 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             ns[i].property(VertexProperty.Cardinality.single, "time", (long) i);
             ns[i].property(VertexProperty.Cardinality.single, "text", txt);
 
-            for (VertexProperty p : new VertexProperty[] { p1, p2 }) {
+            for (VertexProperty p : new VertexProperty[]{p1, p2}) {
                 p.property("weight", w);
                 p.property("time", (long) i);
                 p.property("text", txt);
             }
 
-            ItinerisVertex u = ns[(i > numV ? i - 1 : i)]; // previous or self-loop
-            for (String label : new String[] { "connect", "related" }) {
+            ItinerisVertex u = ns[(i > numV ? i - 1 : i)]; //previous or self-loop
+            for (String label : new String[]{"connect", "related"}) {
                 Edge e = ns[i].addEdge(label, u, "weight", (w++) % 5, "time", (long) i, "text", txt);
             }
         }
 
-        // ######### UPDATED QUERIES ##########
+
+        //######### UPDATED QUERIES ##########
 
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 10).has("weight", Cmp.EQUAL, 0),
-                ElementCategory.EDGE, 0, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 0, new boolean[]{true, sorted}, edge1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, numV + 10)
                 .has("weight", Cmp.EQUAL, 0),
-                ElementCategory.EDGE, 1, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 1, new boolean[]{true, sorted}, edge1.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[0]).has(LABEL_NAME, "connect").limit(10),
-                ElementCategory.EDGE, 10, new boolean[] { true, sorted }, edge2.name());
+                ElementCategory.EDGE, 10, new boolean[]{true, sorted}, edge2.name());
         evaluateQuery(tx.query().has("weight", Cmp.EQUAL, 1.5),
-                ElementCategory.EDGE, numV / 10 * 2, new boolean[] { false, sorted });
+                ElementCategory.EDGE, numV / 10 * 2, new boolean[]{false, sorted});
 
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 20),
-                ElementCategory.PROPERTY, 0, new boolean[] { true, sorted }, prop1.name());
+                ElementCategory.PROPERTY, 0, new boolean[]{true, sorted}, prop1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, numV + 20),
-                ElementCategory.PROPERTY, 2, new boolean[] { true, sorted }, prop1.name());
+                ElementCategory.PROPERTY, 2, new boolean[]{true, sorted}, prop1.name());
 
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 30).has(LABEL_NAME, "person"),
-                ElementCategory.VERTEX, 0, new boolean[] { true, sorted }, vertex1.name());
+                ElementCategory.VERTEX, 0, new boolean[]{true, sorted}, vertex1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, numV + 30).has(LABEL_NAME, "person"),
-                ElementCategory.VERTEX, 1, new boolean[] { true, sorted }, vertex1.name());
+                ElementCategory.VERTEX, 1, new boolean[]{true, sorted}, vertex1.name());
         evaluateQuery(tx.query().has("name", Cmp.EQUAL, "u1"),
-                ElementCategory.VERTEX, numV / 5, new boolean[] { true, sorted }, vertex3.name());
+                ElementCategory.VERTEX, numV / 5, new boolean[]{true, sorted}, vertex3.name());
 
-        // ######### END UPDATED QUERIES ##########
+
+        //######### END UPDATED QUERIES ##########
 
         newTx();
 
-        // ######### UPDATED QUERIES (copied from above) ##########
+        //######### UPDATED QUERIES (copied from above) ##########
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 10).has("weight", Cmp.EQUAL, 0),
-                ElementCategory.EDGE, 0, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 0, new boolean[]{true, sorted}, edge1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, numV + 10).has("weight", Cmp.EQUAL, 0),
-                ElementCategory.EDGE, 1, new boolean[] { true, sorted }, edge1.name());
+                ElementCategory.EDGE, 1, new boolean[]{true, sorted}, edge1.name());
         evaluateQuery(tx.query().has("text", Cmp.EQUAL, strings[0]).has(LABEL_NAME, "connect").limit(10),
-                ElementCategory.EDGE, 10, new boolean[] { true, sorted }, edge2.name());
+                ElementCategory.EDGE, 10, new boolean[]{true, sorted}, edge2.name());
         evaluateQuery(tx.query().has("weight", Cmp.EQUAL, 1.5),
-                ElementCategory.EDGE, numV / 10 * 2, new boolean[] { false, sorted });
+                ElementCategory.EDGE, numV / 10 * 2, new boolean[]{false, sorted});
 
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 20),
-                ElementCategory.PROPERTY, 0, new boolean[] { true, sorted }, prop1.name());
+                ElementCategory.PROPERTY, 0, new boolean[]{true, sorted}, prop1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, numV + 20),
-                ElementCategory.PROPERTY, 2, new boolean[] { true, sorted }, prop1.name());
+                ElementCategory.PROPERTY, 2, new boolean[]{true, sorted}, prop1.name());
 
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, 30).has(LABEL_NAME, "person"),
-                ElementCategory.VERTEX, 0, new boolean[] { true, sorted }, vertex1.name());
+                ElementCategory.VERTEX, 0, new boolean[]{true, sorted}, vertex1.name());
         evaluateQuery(tx.query().has("time", Cmp.EQUAL, numV + 30).has(LABEL_NAME, "person"),
-                ElementCategory.VERTEX, 1, new boolean[] { true, sorted }, vertex1.name());
+                ElementCategory.VERTEX, 1, new boolean[]{true, sorted}, vertex1.name());
         evaluateQuery(tx.query().has("name", Cmp.EQUAL, "u1"),
-                ElementCategory.VERTEX, numV / 5, new boolean[] { true, sorted }, vertex3.name());
+                ElementCategory.VERTEX, numV / 5, new boolean[]{true, sorted}, vertex3.name());
 
-        // *** INDIVIDUAL USE CASE TESTS ******
+        //*** INDIVIDUAL USE CASE TESTS ******
+
 
     }
 
@@ -7828,7 +7310,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         GraphTraversalSource g = graph.traversal();
 
         assertEquals("marko", g.V().has("name",
-                org.apache.tinkerpop.gremlin.process.traversal.TextP.containing("ark")).values("name").next());
+            org.apache.tinkerpop.gremlin.process.traversal.TextP.containing("ark")).values("name").next());
     }
 
     @Test
@@ -7837,7 +7319,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         GraphTraversalSource g = graph.traversal();
 
         assertEquals(4, g.V().has("name",
-                org.apache.tinkerpop.gremlin.process.traversal.TextP.containing("ark")).count().next());
+            org.apache.tinkerpop.gremlin.process.traversal.TextP.containing("ark")).count().next());
     }
 
     @Test
@@ -7846,8 +7328,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         GraphTraversalSource g = graph.traversal();
 
         assertEquals(1, g.V().has("name",
-                org.apache.tinkerpop.gremlin.process.traversal.TextP.startingWith("mark").and(TextP.endingWith("ark")))
-                .count().next());
+            org.apache.tinkerpop.gremlin.process.traversal.TextP.startingWith("mark").and(TextP.endingWith("ark"))).count().next());
     }
 
     private void initializeGraphWithVerticesHavingNames(String... names) {
@@ -7870,7 +7351,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         g.tx().commit();
 
         assertEquals("marko", g.V().has("person", "name",
-                org.apache.tinkerpop.gremlin.process.traversal.TextP.containing("ark")).values("name").next());
+            org.apache.tinkerpop.gremlin.process.traversal.TextP.containing("ark")).values("name").next());
     }
 
     @Test
@@ -7892,10 +7373,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertThrows(IllegalArgumentException.class, () -> mgmt.getIndexOnlyConstraint(null));
         assertThrows(IllegalArgumentException.class, () -> mgmt.getIndexOnlyConstraint("invalidName"));
 
-        // ================== VERTEX UNIQUENESS ====================
+        //================== VERTEX UNIQUENESS ====================
 
-        // I) Label uniqueness
-        // Ia) Uniqueness violation in same transaction
+        //I) Label uniqueness
+        //Ia) Uniqueness violation in same transaction
         failTransactionOnCommit(tx -> {
             final ItinerisVertex v0 = tx.addVertex("person");
             v0.property(VertexProperty.Cardinality.single, "time", 1);
@@ -7903,7 +7384,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             v1.property(VertexProperty.Cardinality.single, "time", 1);
         });
 
-        // Ib) Uniqueness violation across transactions
+        //Ib) Uniqueness violation across transactions
         ItinerisVertex v0 = tx.addVertex("person");
         v0.property(VertexProperty.Cardinality.single, "time", 1);
         newTx();
@@ -7911,24 +7392,25 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             final ItinerisVertex v1 = tx.addVertex("person");
             v1.property(VertexProperty.Cardinality.single, "time", 1);
         });
-        // Ic) However, this should work since the label is different
+        //Ic) However, this should work since the label is different
         final ItinerisVertex v1 = tx.addVertex("organization");
         v1.property(VertexProperty.Cardinality.single, "time", 1);
         newTx();
 
-        // II) Composite uniqueness
-        // IIa) Uniqueness violation in same transaction
+        //II) Composite uniqueness
+        //IIa) Uniqueness violation in same transaction
         failTransactionOnCommit(tx -> {
             final ItinerisVertex v01 = tx.addVertex("time", 2, "text", "hello");
             final ItinerisVertex v11 = tx.addVertex("time", 2, "text", "hello");
         });
 
-        // IIb) Uniqueness violation across transactions
+        //IIb) Uniqueness violation across transactions
         v0 = tx.addVertex("time", 2, "text", "hello");
         newTx();
         failTransactionOnCommit(tx -> {
             final ItinerisVertex v112 = tx.addVertex("time", 2, "text", "hello");
         });
+
 
     }
 
@@ -7943,12 +7425,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             ItinerisVertex v = tx.addVertex("time", i, "age", i);
         }
 
-        // Graph query with and with-out index support
+        //Graph query with and with-out index support
         assertCount(1, tx.query().has("time", 5).vertices());
         assertCount(1, tx.query().has("age", 6).vertices());
 
         clopen(option(FORCE_INDEX_USAGE), true);
-        // Query with-out index support should now throw exception
+        //Query with-out index support should now throw exception
         assertCount(1, tx.query().has("time", 5).vertices());
         try {
             assertCount(1, tx.query().has("age", 6).vertices());
@@ -7964,7 +7446,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         finishSchema();
 
         int sids = 17;
-        String[] colors = { "blue", "red", "yellow", "brown", "green", "orange", "purple" };
+        String[] colors = {"blue", "red", "yellow", "brown", "green", "orange", "purple"};
         int multiplier = 200;
         int numV = sids * colors.length * multiplier;
         for (int i = 0; i < numV; i++) {
@@ -7979,6 +7461,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         assertCount(multiplier, graph.query().has("sid", 11).has("color", colors[3]).vertices());
     }
+
 
     @Test
     public void testIndexQueryWithLabelsAndContainsIN() {
@@ -8035,8 +7518,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         getVertexWithLimitAndAssertProperties(tx, key1, value1, key2, alice);
     }
 
-    private static void getVertexWithLimitAndAssertProperties(ItinerisTransaction tx, String key1, String value1,
-            String key2, String value2) {
+    private static void getVertexWithLimitAndAssertProperties(ItinerisTransaction tx, String key1, String value1, String key2, String value2) {
         ItinerisVertex v = Iterables.getOnlyElement(tx.query().has(key1, value1).has(key2, value2).limit(1).vertices());
         assertEquals(value2, v.value(key2));
         assertEquals(value1, v.value(key1));
@@ -8065,7 +7547,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         clopen();
 
-        // Copied from above
+        //Copied from above
         assertElementOrderForWithoutIndex(graph);
     }
 
@@ -8076,7 +7558,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         verifyElementOrder(graph.query().orderBy("kid", desc).limit(200).edges(), "kid", Order.DESC, 200);
     }
 
-    // ................................................
+
+    //................................................
 
     @Test
     public void testNeqQuery() {
@@ -8101,10 +7584,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     /**
-     * The behaviour of has(p, null) deviates from TinkerGraph. Since Itineris does
-     * not support null values,
-     * has(p, null) indicates hasNot(p). In other words, an absent property
-     * implicitly implies null value for that property.
+     * The behaviour of has(p, null) deviates from TinkerGraph. Since Itineris does not support null values,
+     * has(p, null) indicates hasNot(p). In other words, an absent property implicitly implies null value for that property.
      */
     @Test
     public void testHasNullQuery() {
@@ -8126,10 +7607,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     /**
-     * To comply with TinkerPop 3.5.0, now null value can be used in mutations. When
-     * the given cardinality is SINGLE,
-     * property(key, null) removes key. When the given cardinality is LIST or SET,
-     * property(key, null) is simply ignored.
+     * To comply with TinkerPop 3.5.0, now null value can be used in mutations. When the given cardinality is SINGLE,
+     * property(key, null) removes key. When the given cardinality is LIST or SET, property(key, null) is simply ignored.
      */
     @Test
     public void testNullValueMutation() {
@@ -8158,13 +7637,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         v2.property("list", "a");
         v2.property("list", null);
         v2.property("list", "b");
-        assertTrue(Objects.deepEquals(new String[] { "a", "b" }, Iterators.toArray(v2.values(), String.class)));
+        assertTrue(Objects.deepEquals(new String[] {"a", "b"}, Iterators.toArray(v2.values(), String.class)));
 
         newTx();
-        assertTrue(Objects.deepEquals(new String[] { "a", "b" }, Iterators.toArray(v2.values(), String.class)));
+        assertTrue(Objects.deepEquals(new String[] {"a", "b"}, Iterators.toArray(v2.values(), String.class)));
 
-        // If SINGLE cardinality is explicitly provided, remove this property even if
-        // it's of LIST/SET cardinality
+        // If SINGLE cardinality is explicitly provided, remove this property even if it's of LIST/SET cardinality
         v2.property(VertexProperty.Cardinality.single, "list", null);
         assertFalse(v2.values().hasNext());
         newTx();
@@ -8174,7 +7652,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         e.property("set", "a");
         e.property("set", "a");
         e.property("set", null);
-        assertTrue(Objects.deepEquals(new String[] { "a" }, Iterators.toArray(e.values(), String.class)));
+        assertTrue(Objects.deepEquals(new String[] {"a"}, Iterators.toArray(e.values(), String.class)));
 
         e.property("single", "b");
         assertTrue(e.values("single").hasNext());
@@ -8185,12 +7663,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     /**
-     * The behaviour of hasNot(p) is straight-forward: hasNot(p) means it does not
-     * have such property p.
-     * Note that hasNot(p, value) (which is a Itineris API rather than gremlin API)
-     * is a bit tricky and it is equivalent
-     * to has(p, neq(value)). Therefore, hasNot(p, null) means has(p, neq(null))
-     * which is equivalent to has(p).
+     * The behaviour of hasNot(p) is straight-forward: hasNot(p) means it does not have such property p.
+     * Note that hasNot(p, value) (which is a Itineris API rather than gremlin API) is a bit tricky and it is equivalent
+     * to has(p, neq(value)). Therefore, hasNot(p, null) means has(p, neq(null)) which is equivalent to has(p).
      */
     @Test
     public void testHasNot() {
@@ -8240,14 +7715,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
     @Test
     public void testGraphCentricQueryProfiling() {
-        if (getStoreFeatures().isDistributed() && getStoreFeatures().isKeyOrdered())
-            return;
+        if (getStoreFeatures().isDistributed() && getStoreFeatures().isKeyOrdered()) return;
         final PropertyKey name = makeKey("name", String.class);
         final PropertyKey weight = makeKey("weight", Integer.class);
-        final ItinerisIndex compositeNameIndex = mgmt.buildIndex("nameIdx", Vertex.class).addKey(name)
-                .buildCompositeIndex();
-        final ItinerisIndex compositeWeightIndex = mgmt.buildIndex("weightIdx", Vertex.class).addKey(weight)
-                .buildCompositeIndex();
+        final ItinerisIndex compositeNameIndex = mgmt.buildIndex("nameIdx", Vertex.class).addKey(name).buildCompositeIndex();
+        final ItinerisIndex compositeWeightIndex = mgmt.buildIndex("weightIdx", Vertex.class).addKey(weight).buildCompositeIndex();
         final PropertyKey prop = makeKey("prop", Integer.class);
         finishSchema();
 
@@ -8269,26 +7741,23 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         nested = (Metrics) mCompSingle.getNested().toArray()[1];
         assertEquals(QueryProfiler.GRAPH_CENTRIC_QUERY, nested.getName());
         assertTrue(nested.getDuration(TimeUnit.MICROSECONDS) > 0);
-        Map<String, String> nameIdxAnnotations = new HashMap() {
-            {
-                put("condition", "(name = bob)");
-                put("orders", "[]");
-                put("isFitted", "true");
-                put("isOrdered", "true");
-                put("query", "multiKSQ[1]{KeySliceQuery(0x0689A0626FE2)[0x00,0xFF)}");
-                put("index", "nameIdx");
-            }
-        };
+        Map<String, String> nameIdxAnnotations = new HashMap() {{
+            put("condition", "(name = bob)");
+            put("orders", "[]");
+            put("isFitted", "true");
+            put("isOrdered", "true");
+            put("query", "multiKSQ[1]{KeySliceQuery(0x0689A0626FE2)[0x00,0xFF)}");
+            put("index", "nameIdx");
+        }};
         assertEquals(nameIdxAnnotations, nested.getAnnotations());
         assertEquals(1, nested.getNested().size());
         Metrics backendQueryMetrics = (Metrics) nested.getNested().toArray()[0];
         assertTrue(backendQueryMetrics.getDuration(TimeUnit.MICROSECONDS) > 0);
 
-        // satisfied by unions of two separate graph-centric queries, each satisfied by
-        // a single composite index query
+        // satisfied by unions of two separate graph-centric queries, each satisfied by a single composite index query
         newTx();
         Metrics mCompMultiOr = tx.traversal().V().or(__.has("name", "bob"), __.has("weight", 100))
-                .profile().next().getMetrics(0);
+            .profile().next().getMetrics(0);
         assertEquals(3, tx.traversal().V().or(__.has("name", "bob"), __.has("weight", 100)).count().next());
         assertEquals("Or(ItinerisStep([],[name.eq(bob)]),ItinerisStep([],[weight.eq(100)]))", mCompMultiOr.getName());
         assertTrue(mCompMultiOr.getDuration(TimeUnit.MICROSECONDS) > 0);
@@ -8312,27 +7781,24 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         nested = (Metrics) mCompMultiOr.getNested().toArray()[4];
         assertEquals(QueryProfiler.GRAPH_CENTRIC_QUERY, nested.getName());
         assertTrue(nested.getDuration(TimeUnit.MICROSECONDS) > 0);
-        Map<String, String> weightIdxAnnotations = new HashMap() {
-            {
-                put("condition", "(weight = 100)");
-                put("orders", "[]");
-                put("isFitted", "true");
-                put("isOrdered", "true");
-                put("query", "multiKSQ[1]{KeySliceQuery(0x088901C8)[0x00,0xFF)}");
-                put("index", "weightIdx");
-            }
-        };
+        Map<String, String> weightIdxAnnotations = new HashMap() {{
+            put("condition", "(weight = 100)");
+            put("orders", "[]");
+            put("isFitted", "true");
+            put("isOrdered", "true");
+            put("query", "multiKSQ[1]{KeySliceQuery(0x088901C8)[0x00,0xFF)}");
+            put("index", "weightIdx");
+        }};
         assertEquals(weightIdxAnnotations, nested.getAnnotations());
         assertEquals(1, nested.getNested().size());
         backendQueryMetrics = (Metrics) nested.getNested().toArray()[0];
         assertTrue(backendQueryMetrics.getDuration(TimeUnit.MICROSECONDS) > 0);
 
-        // satisfied by a single graph-centric query which satisfied by union of two
-        // composite index queries
+        // satisfied by a single graph-centric query which satisfied by union of two composite index queries
         newTx();
         assertEquals(3, tx.traversal().V().or(__.has("name", "bob"), __.has("name", "alex")).count().next());
         TraversalMetrics metrics = tx.traversal().V().or(__.has("name", "bob"), __.has("name", "alex"))
-                .profile().next();
+            .profile().next();
         mCompMultiOr = metrics.getMetrics(0);
         assertEquals("ItinerisStep([],[name.or(=(bob), =(alex))])", mCompMultiOr.getName());
         assertTrue(mCompMultiOr.getDuration(TimeUnit.MICROSECONDS) > 0);
@@ -8344,25 +7810,21 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(QueryProfiler.GRAPH_CENTRIC_QUERY, nested.getName());
         assertTrue(nested.getDuration(TimeUnit.MICROSECONDS) > 0);
         assertEquals("((name = bob OR name = alex))", nested.getAnnotation("condition"));
-        Map<String, String> multiKSQAnnotations = new HashMap() {
-            {
-                put("condition", "((name = bob OR name = alex))");
-                put("orders", "[]");
-                put("isFitted", "true");
-                put("isOrdered", "true");
-                put("query",
-                        "multiKSQ[2]{KeySliceQuery(0x0689A0626FE2)[0x00,0xFF),KeySliceQuery(0x0689A0616C65F8)[0x00,0xFF)}");
-                put("index", "nameIdx");
-            }
-        };
+        Map<String, String> multiKSQAnnotations = new HashMap() {{
+            put("condition", "((name = bob OR name = alex))");
+            put("orders", "[]");
+            put("isFitted", "true");
+            put("isOrdered", "true");
+            put("query", "multiKSQ[2]{KeySliceQuery(0x0689A0626FE2)[0x00,0xFF),KeySliceQuery(0x0689A0616C65F8)[0x00,0xFF)}");
+            put("index", "nameIdx");
+        }};
         assertEquals(multiKSQAnnotations, nested.getAnnotations());
 
-        // satisfied by a single graph-centric query which satisfied by intersection of
-        // two composite index queries
+        // satisfied by a single graph-centric query which satisfied by intersection of two composite index queries
         newTx();
         assertEquals(1, tx.traversal().V().and(__.has("name", "bob"), __.has("weight", 100)).count().next());
         metrics = tx.traversal().V().and(__.has("name", "bob"), __.has("weight", 100))
-                .profile().next();
+            .profile().next();
         Metrics mCompMultiAnd = metrics.getMetrics(0);
         assertEquals("ItinerisStep([],[name.eq(bob), weight.eq(100)])", mCompMultiAnd.getName());
         assertTrue(mCompMultiAnd.getDuration(TimeUnit.MICROSECONDS) > 0);
@@ -8389,12 +7851,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             assertEquals("multiKSQ[1]{KeySliceQuery(0x0689A0626FE2)[0x00,0xFF)}", deeplyNested1.getAnnotation("query"));
         }
 
-        // satisfied by one graph-centric query, which satisfied by in-memory filtering
-        // after one composite index query
+        // satisfied by one graph-centric query, which satisfied by in-memory filtering after one composite index query
         newTx();
         assertEquals(1, tx.traversal().V().and(__.has("name", "bob"), __.has("prop", 100)).count().next());
         Metrics mUnfittedMultiAnd = tx.traversal().V().and(__.has("name", "bob"), __.has("prop", 100))
-                .profile().next().getMetrics(0);
+            .profile().next().getMetrics(0);
         assertEquals("ItinerisStep([],[name.eq(bob), prop.eq(100)])", mUnfittedMultiAnd.getName());
         assertTrue(mUnfittedMultiAnd.getDuration(TimeUnit.MICROSECONDS) > 0);
         assertEquals(2, mUnfittedMultiAnd.getNested().size());
@@ -8405,24 +7866,21 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         nested = (Metrics) mUnfittedMultiAnd.getNested().toArray()[1];
         assertEquals(QueryProfiler.GRAPH_CENTRIC_QUERY, nested.getName());
         assertTrue(nested.getDuration(TimeUnit.MICROSECONDS) > 0);
-        Map<String, String> annotations = new HashMap() {
-            {
-                put("condition", "(name = bob AND prop = 100)");
-                put("orders", "[]");
-                put("isFitted", "false"); // not fitted because prop = 100 requires in-memory filtering
-                put("isOrdered", "true");
-                put("query", "multiKSQ[1]{KeySliceQuery(0x0689A0626FE2)[0x00,0xFF)}");
-                put("index", "nameIdx");
-            }
-        };
+        Map<String, String> annotations = new HashMap() {{
+            put("condition", "(name = bob AND prop = 100)");
+            put("orders", "[]");
+            put("isFitted", "false"); // not fitted because prop = 100 requires in-memory filtering
+            put("isOrdered", "true");
+            put("query", "multiKSQ[1]{KeySliceQuery(0x0689A0626FE2)[0x00,0xFF)}");
+            put("index", "nameIdx");
+        }};
         assertEquals(annotations, nested.getAnnotations());
 
-        // satisfied by union of two separate graph-centric queries, one satisfied by a
-        // composite index query and the other requires full scan
+        // satisfied by union of two separate graph-centric queries, one satisfied by a composite index query and the other requires full scan
         newTx();
         assertEquals(3, tx.traversal().V().or(__.has("name", "bob"), __.has("prop", 100)).count().next());
         Metrics mUnfittedMultiOr = tx.traversal().V().or(__.has("name", "bob"), __.has("prop", 100))
-                .profile().next().getMetrics(0);
+            .profile().next().getMetrics(0);
         assertEquals("Or(ItinerisStep([],[name.eq(bob)]),ItinerisStep([],[prop.eq(100)]))", mUnfittedMultiOr.getName());
         assertTrue(mUnfittedMultiOr.getDuration(TimeUnit.MICROSECONDS) > 0);
         assertEquals(5, mUnfittedMultiOr.getNested().size());
@@ -8442,36 +7900,30 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         nested = (Metrics) mUnfittedMultiOr.getNested().toArray()[4];
         assertEquals(QueryProfiler.GRAPH_CENTRIC_QUERY, nested.getName());
         assertTrue(nested.getDuration(TimeUnit.MICROSECONDS) > 0);
-        annotations = new HashMap() {
-            {
-                put("condition", "(prop = 100)");
-                put("orders", "[]");
-                put("isFitted", "false");
-                put("isOrdered", "true");
-                put("query", "[]");
-            }
-        };
+        annotations = new HashMap() {{
+            put("condition", "(prop = 100)");
+            put("orders", "[]");
+            put("isFitted", "false");
+            put("isOrdered", "true");
+            put("query", "[]");
+        }};
         assertEquals(annotations, nested.getAnnotations());
         nested = (Metrics) nested.getNested().toArray()[0];
-        final Map<String, String> fullScanAnnotations = new HashMap() {
-            {
-                put("query", "[]");
-                put("fullscan", "true");
-                put("condition", "VERTEX");
-            }
-        };
+        final Map<String, String> fullScanAnnotations = new HashMap() {{
+            put("query", "[]");
+            put("fullscan", "true");
+            put("condition", "VERTEX");
+        }};
         assertEquals(fullScanAnnotations, nested.getAnnotations());
         assertTrue(nested.getDuration(TimeUnit.MICROSECONDS) > 0);
     }
 
     @Test
     public void testGraphCentricQueryProfilingWithLimitAdjusting() throws BackendException {
-        if (getStoreFeatures().isDistributed() && getStoreFeatures().isKeyOrdered())
-            return;
+        if (getStoreFeatures().isDistributed() && getStoreFeatures().isKeyOrdered()) return;
         Runnable dataLoader = () -> {
             final PropertyKey name = makeKey("name", String.class);
-            final ItinerisIndex compositeNameIndex = mgmt.buildIndex("nameIdx", Vertex.class).addKey(name)
-                    .buildCompositeIndex();
+            final ItinerisIndex compositeNameIndex = mgmt.buildIndex("nameIdx", Vertex.class).addKey(name).buildCompositeIndex();
             finishSchema();
 
             newTx();
@@ -8488,29 +7940,24 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         Metrics mCompSingle = tx.traversal().V().has("name", "bob").profile().next().getMetrics(0);
         assertEquals(2, mCompSingle.getNested().size());
         Metrics nested = (Metrics) mCompSingle.getNested().toArray()[1];
-        Map<String, String> nameIdxAnnotations = new HashMap() {
-            {
-                put("condition", "(name = bob)");
-                put("orders", "[]");
-                put("isFitted", "true");
-                put("isOrdered", "true");
-                put("query", "multiKSQ[1]@100000{KeySliceQuery(0x0489A0626FE2)[0x00,0xFF)}"); // 100000 is
-                                                                                              // HARD_MAX_LIMIT
-                put("index", "nameIdx");
-            }
-        };
+        Map<String, String> nameIdxAnnotations = new HashMap() {{
+            put("condition", "(name = bob)");
+            put("orders", "[]");
+            put("isFitted", "true");
+            put("isOrdered", "true");
+            put("query", "multiKSQ[1]@100000{KeySliceQuery(0x0489A0626FE2)[0x00,0xFF)}"); // 100000 is HARD_MAX_LIMIT
+            put("index", "nameIdx");
+        }};
         assertEquals(nameIdxAnnotations, nested.getAnnotations());
-        List<Metrics> backendQueryMetrics = nested.getNested().stream().map(m -> (Metrics) m)
-                .collect(Collectors.toList());
+        List<Metrics> backendQueryMetrics = nested.getNested().stream().map(m -> (Metrics) m).collect(Collectors.toList());
         assertEquals(1, backendQueryMetrics.size());
-        Map<String, String> backendAnnotations = new HashMap() {
-            {
-                put("query", "nameIdx:multiKSQ[1]@100000{KeySliceQuery(0x0489A0626FE2)[0x00,0xFF)}");
-                put("limit", 100000);
-            }
-        };
+        Map<String, String> backendAnnotations = new HashMap() {{
+            put("query", "nameIdx:multiKSQ[1]@100000{KeySliceQuery(0x0489A0626FE2)[0x00,0xFF)}");
+            put("limit", 100000);
+        }};
         assertEquals(backendAnnotations, backendQueryMetrics.get(0).getAnnotations());
         assertTrue(backendQueryMetrics.get(0).getDuration(TimeUnit.MICROSECONDS) > 0);
+
 
         close();
         ItinerisFactory.drop(graph);
@@ -8521,26 +7968,24 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mCompSingle = tx.traversal().V().has("name", "bob").profile().next().getMetrics(0);
         assertEquals(2, mCompSingle.getNested().size());
         nested = (Metrics) mCompSingle.getNested().toArray()[1];
-        nameIdxAnnotations = new HashMap() {
-            {
-                put("condition", "(name = bob)");
-                put("orders", "[]");
-                put("isFitted", "true");
-                put("isOrdered", "true");
-                put("query", "multiKSQ[1]{KeySliceQuery(0x0489A0626FE2)[0x00,0xFF)}");
-                put("index", "nameIdx");
-            }
-        };
+        nameIdxAnnotations = new HashMap() {{
+            put("condition", "(name = bob)");
+            put("orders", "[]");
+            put("isFitted", "true");
+            put("isOrdered", "true");
+            put("query", "multiKSQ[1]{KeySliceQuery(0x0489A0626FE2)[0x00,0xFF)}");
+            put("index", "nameIdx");
+        }};
         assertEquals(nameIdxAnnotations, nested.getAnnotations());
         backendQueryMetrics = nested.getNested().stream().map(m -> (Metrics) m).collect(Collectors.toList());
         assertEquals(1, backendQueryMetrics.size());
-        backendAnnotations = new HashMap() {
-            {
-                put("query", "nameIdx:multiKSQ[1]{KeySliceQuery(0x0489A0626FE2)[0x00,0xFF)}");
-            }
-        };
+        backendAnnotations = new HashMap() {{
+            put("query", "nameIdx:multiKSQ[1]{KeySliceQuery(0x0489A0626FE2)[0x00,0xFF)}");
+        }};
         assertEquals(backendAnnotations, backendQueryMetrics.get(0).getAnnotations());
         assertTrue(backendQueryMetrics.get(0).getDuration(TimeUnit.MICROSECONDS) > 0);
+
+
 
         close();
         ItinerisFactory.drop(graph);
@@ -8558,30 +8003,25 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         nested = (Metrics) mCompSingle.getNested().toArray()[1];
         assertEquals(QueryProfiler.GRAPH_CENTRIC_QUERY, nested.getName());
         assertTrue(nested.getDuration(TimeUnit.MICROSECONDS) > 0);
-        nameIdxAnnotations = new HashMap() {
-            {
-                put("condition", "(name = bob)");
-                put("orders", "[]");
-                put("isFitted", "true");
-                put("isOrdered", "true");
-                put("query", "multiKSQ[1]@4000{KeySliceQuery(0x0489A0626FE2)[0x00,0xFF)}");
-                put("index", "nameIdx");
-            }
-        };
+        nameIdxAnnotations = new HashMap() {{
+            put("condition", "(name = bob)");
+            put("orders", "[]");
+            put("isFitted", "true");
+            put("isOrdered", "true");
+            put("query", "multiKSQ[1]@4000{KeySliceQuery(0x0489A0626FE2)[0x00,0xFF)}");
+            put("index", "nameIdx");
+        }};
         assertEquals(nameIdxAnnotations, nested.getAnnotations());
         backendQueryMetrics = nested.getNested().stream().map(m -> (Metrics) m).collect(Collectors.toList());
         assertEquals(3, backendQueryMetrics.size());
         int limit = 1000;
-        // due to LimitAdjustingIterator, there are three backend queries with limits
-        // 1000, 2000, and 4000, respectively.
+        // due to LimitAdjustingIterator, there are three backend queries with limits 1000, 2000, and 4000, respectively.
         for (Metrics backendQueryMetric : backendQueryMetrics) {
             int queryLimit = limit;
-            backendAnnotations = new HashMap() {
-                {
-                    put("query", "nameIdx:multiKSQ[1]@" + queryLimit + "{KeySliceQuery(0x0489A0626FE2)[0x00,0xFF)}");
-                    put("limit", queryLimit);
-                }
-            };
+            backendAnnotations = new HashMap() {{
+                put("query", "nameIdx:multiKSQ[1]@" + queryLimit + "{KeySliceQuery(0x0489A0626FE2)[0x00,0xFF)}");
+                put("limit", queryLimit);
+            }};
             assertEquals(backendAnnotations, backendQueryMetric.getAnnotations());
             assertTrue(backendQueryMetric.getDuration(TimeUnit.MICROSECONDS) > 0);
             limit = limit * 2;
@@ -8590,8 +8030,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
     @Test
     public void testVertexCentricQueryProfiling() {
-        final PropertyKey time = mgmt.makePropertyKey("time").dataType(Integer.class).cardinality(Cardinality.SINGLE)
-                .make();
+        final PropertyKey time = mgmt.makePropertyKey("time").dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
         final EdgeLabel friend = mgmt.makeEdgeLabel("friend").multiplicity(Multiplicity.SIMPLE).make();
         mgmt.buildEdgeIndex(friend, "byTime", OUT, desc, time);
         finishSchema();
@@ -8602,67 +8041,55 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         v.addEdge("friend-no-index", o, "time", 100);
         tx.commit();
 
-        // satisfied by a single vertex-centric query which is satisfied by one edge
-        // query
+        // satisfied by a single vertex-centric query which is satisfied by one edge query
         newTx();
         Metrics mSingleLabel = tx.traversal().V(v).outE("friend").has("time", P.lt(10)).profile().next().getMetrics(3);
         assertEquals("ItinerisVertexStep([time.lt(10)])", mSingleLabel.getName());
         assertTrue(mSingleLabel.getDuration(TimeUnit.MICROSECONDS) > 0);
-        Map<String, String> annotations = new HashMap() {
-            {
-                put("condition", "(time < 10 AND type[friend])");
-                put("orders", "[]");
-                put("vertices", 1);
-                put("isFitted", "true");
-                put("isOrdered", "true");
-                put("query", "2069:byTime:SliceQuery[0xB0E0FF7FFFFFF6,0xB0E1)");
-                put("multi", "true");
-            }
-        };
+        Map<String, String> annotations = new HashMap() {{
+            put("condition", "(time < 10 AND type[friend])");
+            put("orders", "[]");
+            put("vertices", 1);
+            put("isFitted", "true");
+            put("isOrdered", "true");
+            put("query", "2069:byTime:SliceQuery[0xB0E0FF7FFFFFF6,0xB0E1)");
+            put("multi", "true");
+        }};
         mSingleLabel.getAnnotations().remove("percentDur");
         assertEquals(annotations, mSingleLabel.getAnnotations());
 
-        // satisfied by a single vertex-centric query which is satisfied by union of two
-        // edge queries
+        // satisfied by a single vertex-centric query which is satisfied by union of two edge queries
         newTx();
         Metrics mMultiLabels = tx.traversal().V(v).outE("friend", "friend-no-index").has("time", 100)
-                .profile().next().getMetrics(3);
+            .profile().next().getMetrics(3);
         assertEquals("ItinerisVertexStep([time.eq(100)])", mMultiLabels.getName());
         assertTrue(mMultiLabels.getDuration(TimeUnit.MICROSECONDS) > 0);
-        annotations = new HashMap() {
-            {
-                put("condition", "(time = 100 AND (type[friend] OR type[friend-no-index]))");
-                put("orders", "[]");
-                put("multi", "true");
-                put("vertices", 1);
-            }
-        };
+        annotations = new HashMap() {{
+            put("condition", "(time = 100 AND (type[friend] OR type[friend-no-index]))");
+            put("orders", "[]");
+            put("multi", "true");
+            put("vertices", 1);
+        }};
         mMultiLabels.getAnnotations().remove("percentDur");
         assertEquals(annotations, mMultiLabels.getAnnotations());
         assertEquals(4, mMultiLabels.getNested().size());
         Metrics friendMetrics = (Metrics) mMultiLabels.getNested().toArray()[1];
         assertEquals("OR-query", friendMetrics.getName());
         // FIXME: assertTrue(friendMetrics.getDuration(TimeUnit.MICROSECONDS) > 0);
-        annotations = new HashMap() {
-            {
-                put("isFitted", "true");
-                put("isOrdered", "true");
-                put("query", "2069:byTime:SliceQuery[0xB0E0FF7FFFFF9B,0xB0E0FF7FFFFF9C)"); // vertex-centric index
-                                                                                           // utilized
-            }
-        };
+        annotations = new HashMap() {{
+            put("isFitted", "true");
+            put("isOrdered", "true");
+            put("query", "2069:byTime:SliceQuery[0xB0E0FF7FFFFF9B,0xB0E0FF7FFFFF9C)"); // vertex-centric index utilized
+        }};
         assertEquals(annotations, friendMetrics.getAnnotations());
         Metrics friendNoIndexMetrics = (Metrics) mMultiLabels.getNested().toArray()[2];
         assertEquals("OR-query", friendNoIndexMetrics.getName());
-        // FIXME: assertTrue(friendNoIndexMetrics.getDuration(TimeUnit.MICROSECONDS) >
-        // 0);
-        annotations = new HashMap() {
-            {
-                put("isFitted", "false");
-                put("isOrdered", "true");
-                put("query", "friend-no-index:SliceQuery[0x7180,0x7181)"); // no vertex-centric index found
-            }
-        };
+        // FIXME: assertTrue(friendNoIndexMetrics.getDuration(TimeUnit.MICROSECONDS) > 0);
+        annotations = new HashMap() {{
+            put("isFitted", "false");
+            put("isOrdered", "true");
+            put("query", "friend-no-index:SliceQuery[0x7180,0x7181)"); // no vertex-centric index found
+        }};
         assertEquals(annotations, friendNoIndexMetrics.getAnnotations());
         Metrics backendQueryMetrics = (Metrics) mMultiLabels.getNested().toArray()[3];
         assertEquals("backend-query", backendQueryMetrics.getName());
@@ -8670,11 +8097,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(3, annotatnions.size());
         assertEquals("true", annotatnions.get("multiSlices"));
         assertEquals(2, annotatnions.get("queriesAmount"));
-        assertTrue(annotatnions.get("queries").equals(
-                "[2069:byTime:SliceQuery[0xB0E0FF7FFFFF9B,0xB0E0FF7FFFFF9C), friend-no-index:SliceQuery[0x7180,0x7181)]")
-                ||
-                annotatnions.get("queries").equals(
-                        "[friend-no-index:SliceQuery[0x7180,0x7181), 2069:byTime:SliceQuery[0xB0E0FF7FFFFF9B,0xB0E0FF7FFFFF9C)]"));
+        assertTrue(annotatnions.get("queries").equals("[2069:byTime:SliceQuery[0xB0E0FF7FFFFF9B,0xB0E0FF7FFFFF9C), friend-no-index:SliceQuery[0x7180,0x7181)]") ||
+            annotatnions.get("queries").equals("[friend-no-index:SliceQuery[0x7180,0x7181), 2069:byTime:SliceQuery[0xB0E0FF7FFFFF9B,0xB0E0FF7FFFFF9C)]"));
     }
 
     @Test
@@ -8696,7 +8120,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         newTx();
         v1 = tx.getVertex(v1.id());
-        // Queries copied from above
+        //Queries copied from above
 
         assertVertexCentricIndexWithNull(v1);
     }
@@ -8705,20 +8129,20 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(5, v1.query().direction(OUT).labels("bought").edgeCount());
         assertEquals(1, v1.query().direction(OUT).labels("bought").has("time", 1).edgeCount());
         assertEquals(1, v1.query().direction(OUT).labels("bought").has("time", Cmp.LESS_THAN, 3)
-                .has("time", Cmp.GREATER_THAN, 1).edgeCount());
+            .has("time", Cmp.GREATER_THAN, 1).edgeCount());
         assertEquals(3, v1.query().direction(OUT).labels("bought").has("time", Cmp.LESS_THAN, 5)
-                .edgeCount());
+            .edgeCount());
         assertEquals(3, v1.query().direction(OUT).labels("bought").has("time", Cmp.GREATER_THAN, 0)
-                .edgeCount());
+            .edgeCount());
         assertEquals(2, v1.query().direction(OUT).labels("bought").has("time", Cmp.LESS_THAN, 3)
-                .edgeCount());
+            .edgeCount());
         assertEquals(1, v1.query().direction(OUT).labels("bought").has("time", Cmp.GREATER_THAN, 2)
-                .edgeCount());
+            .edgeCount());
         assertEquals(2, v1.query().direction(OUT).labels("bought").hasNot("time").edgeCount());
         assertEquals(5, v1.query().direction(OUT).labels("bought").edgeCount());
     }
 
-    // Add more removal operations, different transaction contexts
+    //Add more removal operations, different transaction contexts
     @Test
     public void testCreateDelete() {
         makeKey("weight", Double.class);
@@ -8753,6 +8177,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(1, e2.<Integer>value("uid").intValue());
         assertEquals(2.0, e2.<Double>value("weight"), 0.0001);
 
+
         clopen();
 
         v3 = getV(graph, v3.id());
@@ -8775,13 +8200,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertFalse(tx.query().edges().iterator().hasNext());
     }
 
-    /*
-     * =============================================================================
-     * =====
-     * TIME TO LIVE
-     * =============================================================================
-     * =====
-     */
+   /* ==================================================================================
+                            TIME TO LIVE
+     ==================================================================================*/
 
     @Test
     @FeatureFlag(feature = ItinerisFeature.CellTtl)
@@ -8804,7 +8225,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         v2.addEdge("dislikes", v1);
         v3.addEdge("indifferentTo", v1);
 
-        // initial, pre-commit state of the edges. They are not yet subject to TTL
+        // initial, pre-commit state of the edges.  They are not yet subject to TTL
         assertNotEmpty(v1.query().direction(Direction.OUT).vertices());
         assertNotEmpty(v2.query().direction(Direction.OUT).vertices());
         assertNotEmpty(v3.query().direction(Direction.OUT).vertices());
@@ -8812,8 +8233,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         long commitTime = System.currentTimeMillis();
         graph.tx().commit();
 
-        // edges are now subject to TTL, although we must commit() or rollback() to see
-        // it
+        // edges are now subject to TTL, although we must commit() or rollback() to see it
         assertNotEmpty(v1.query().direction(Direction.OUT).vertices());
         assertNotEmpty(v2.query().direction(Direction.OUT).vertices());
         assertNotEmpty(v3.query().direction(Direction.OUT).vertices());
@@ -8829,7 +8249,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         Thread.sleep(commitTime + (ttl2 * 1000L + 500) - System.currentTimeMillis());
         graph.tx().rollback();
 
-        // both e1 and e2 have dropped out. e3 has no TTL, and so remains
+        // both e1 and e2 have dropped out.  e3 has no TTL, and so remains
         assertEmpty(v1.query().direction(Direction.OUT).vertices());
         assertEmpty(v2.query().direction(Direction.OUT).vertices());
         assertNotEmpty(v3.query().direction(Direction.OUT).vertices());
@@ -8847,7 +8267,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         v1.addEdge("likes", v2);
 
-        // pre-commit state of the edge. It is not yet subject to TTL
+        // pre-commit state of the edge.  It is not yet subject to TTL
         assertNotEmpty(v1.query().direction(Direction.OUT).vertices());
 
         Thread.sleep(1001);
@@ -8857,14 +8277,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         graph.tx().commit();
 
-        // still here, because we have just committed the edge. Its countdown starts at
-        // the commit
+        // still here, because we have just committed the edge.  Its countdown starts at the commit
         assertNotEmpty(v1.query().direction(Direction.OUT).vertices());
 
         Thread.sleep(1001);
 
-        // the edge has expired in Cassandra, but still appears alive in this
-        // transaction
+        // the edge has expired in Cassandra, but still appears alive in this transaction
         assertNotEmpty(v1.query().direction(Direction.OUT).vertices());
 
         // syncing with the data store, we see that the edge has expired
@@ -9074,14 +8492,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertNull(v1IndifferentToV2);
 
         if (dbCache) {
-            /*
-             * TODO: uncomment
-             * assertNotEmpty(v2.query().direction(Direction.IN).labels("likes").edges());
-             * assertNotEmpty(v2.query().direction(Direction.IN).labels("dislikes").edges())
-             * ;
-             * assertNotEmpty(v2.query().direction(Direction.IN).labels("indifferentTo").
-             * edges());
-             */
+            /* TODO: uncomment
+            assertNotEmpty(v2.query().direction(Direction.IN).labels("likes").edges());
+            assertNotEmpty(v2.query().direction(Direction.IN).labels("dislikes").edges());
+            assertNotEmpty(v2.query().direction(Direction.IN).labels("indifferentTo").edges());
+            */
         } else {
             assertEmpty(v2.query().direction(Direction.IN).labels("likes").edges());
             assertEmpty(v2.query().direction(Direction.IN).labels("dislikes").edges());
@@ -9225,8 +8640,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         d = e1.value("~ttl");
         assertEquals(Duration.ofDays(1), d);
 
-        // returned value of ^ttl is the total time to live since commit, not remaining
-        // time
+        // returned value of ^ttl is the total time to live since commit, not remaining time
         Thread.sleep(1001);
         graph.tx().rollback();
         e1 = Iterables.getOnlyElement(v1.query().direction(Direction.OUT).labels("likes").edges());
@@ -9255,13 +8669,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         ItinerisVertex v2 = tx.addVertex();
         tx.commit();
 
-        /*
-         * TODO: this fails
-         * d = v1.getProperty("~ttl");
-         * assertEquals(1, d);
-         * d = v2.getProperty("~ttl");
-         * assertEquals(0, d);
-         */
+        /* TODO: this fails
+        d = v1.getProperty("~ttl");
+        assertEquals(1, d);
+        d = v2.getProperty("~ttl");
+        assertEquals(0, d);
+        */
 
         Object v1id = v1.id();
         Object v2id = v2.id();
@@ -9282,10 +8695,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         PropertyKey idPropertyKey = tx.getPropertyKey("id");
         assertEquals(Integer.class, idPropertyKey.dataType(),
-                "Data type not identified correctly by auto schema maker");
+            "Data type not identified correctly by auto schema maker");
         PropertyKey createdPropertyKey = tx.getPropertyKey("created");
         assertEquals(Date.class, createdPropertyKey.dataType(),
-                "Data type not identified properly by auto schema maker");
+            "Data type not identified properly by auto schema maker");
 
     }
 
@@ -9297,19 +8710,15 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         PropertyKey idPropertyKey = tx.getPropertyKey("id");
         assertEquals(Integer.class, idPropertyKey.dataType(),
-                "Data type not identified correctly by auto schema maker");
+            "Data type not identified correctly by auto schema maker");
         PropertyKey createdPropertyKey = tx.getPropertyKey("created");
         assertEquals(Date.class, createdPropertyKey.dataType(),
-                "Data type not identified correctly by auto schema maker");
+            "Data type not identified correctly by auto schema maker");
     }
 
-    /*
-     * =============================================================================
-     * =====
-     * IO
-     * =============================================================================
-     * =====
-     */
+    /* ==================================================================================
+                            IO
+     ==================================================================================*/
 
     @Test
     public void testWriteAndReadWithItinerisIoRegistryWithGryo(@TempDir Path tempDir) {
@@ -9361,10 +8770,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // test with two valid constraints
         List<PredicateCondition<String, ItinerisElement>> constraints = Arrays.asList(
-                new PredicateCondition<>("name", ItinerisPredicateUtils.convert(P.eq(searchName).getBiPredicate()),
-                        searchName),
-                new PredicateCondition<>("age", ItinerisPredicateUtils.convert(P.eq(searchAge).getBiPredicate()),
-                        searchAge));
+            new PredicateCondition<>("name", ItinerisPredicateUtils.convert(P.eq(searchName).getBiPredicate()), searchName),
+            new PredicateCondition<>("age", ItinerisPredicateUtils.convert(P.eq(searchAge).getBiPredicate()), searchAge)
+        );
         MultiCondition<ItinerisElement> conditions = QueryUtil.constraints2QNF((StandardItinerisTx) tx, constraints);
         assertEquals(2, IndexSelectionUtil.getMatchingIndexes(conditions).size());
         assertEquals(1, IndexSelectionUtil.getMatchingIndexes(conditions, i -> i.getName().equals("byAge")).size());
@@ -9391,15 +8799,13 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // test with two valid constraints
         List<PredicateCondition<String, ItinerisElement>> constraints = Arrays.asList(
-                new PredicateCondition<>("name", ItinerisPredicateUtils.convert(P.eq(searchName).getBiPredicate()),
-                        searchName),
-                new PredicateCondition<>("age", ItinerisPredicateUtils.convert(P.eq(searchAge).getBiPredicate()),
-                        searchAge));
+            new PredicateCondition<>("name", ItinerisPredicateUtils.convert(P.eq(searchName).getBiPredicate()), searchName),
+            new PredicateCondition<>("age", ItinerisPredicateUtils.convert(P.eq(searchAge).getBiPredicate()), searchAge)
+        );
         MultiCondition<ItinerisElement> conditions = QueryUtil.constraints2QNF((StandardItinerisTx) tx, constraints);
         assertEquals(true, IndexSelectionUtil.existsMatchingIndex(conditions));
         assertEquals(true, IndexSelectionUtil.existsMatchingIndex(conditions, i -> i.getName().equals("byAge")));
-        assertEquals(false,
-                IndexSelectionUtil.existsMatchingIndex(conditions, i -> i.getName().equals("byNonExistentKey")));
+        assertEquals(false, IndexSelectionUtil.existsMatchingIndex(conditions, i -> i.getName().equals("byNonExistentKey")));
 
         // test with invalid filter
         assertEquals(false, IndexSelectionUtil.existsMatchingIndex(conditions, null));
@@ -9434,42 +8840,36 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
     @Test
     public void testReindexingForEdgeIndex() throws InterruptedException, ExecutionException {
-        // Schema creation
+        //Schema creation
         String edgeLabelName = "egLabel";
         String propertyKeyForIn = "assocKindForIn";
         String propertyKeyForOut = "assocKindForOut";
         String propertyKeyForBoth = "assocKindForBoth";
         EdgeLabel edgeLabel = mgmt.makeEdgeLabel(edgeLabelName).multiplicity(Multiplicity.MULTI).make();
         mgmt.makePropertyKey("vtName").dataType(String.class).cardinality(Cardinality.SINGLE).make();
-        PropertyKey propAssocKindIn = mgmt.makePropertyKey(propertyKeyForIn).dataType(Integer.class)
-                .cardinality(Cardinality.SINGLE).make();
-        PropertyKey propAssocKindOut = mgmt.makePropertyKey(propertyKeyForOut).dataType(Integer.class)
-                .cardinality(Cardinality.SINGLE).make();
-        PropertyKey propAssocKindBoth = mgmt.makePropertyKey(propertyKeyForBoth).dataType(Integer.class)
-                .cardinality(Cardinality.SINGLE).make();
+        PropertyKey propAssocKindIn = mgmt.makePropertyKey(propertyKeyForIn).dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
+        PropertyKey propAssocKindOut = mgmt.makePropertyKey(propertyKeyForOut).dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
+        PropertyKey propAssocKindBoth = mgmt.makePropertyKey(propertyKeyForBoth).dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
         finishSchema();
 
-        // Create Vertex
+        //Create Vertex
         ItinerisVertex a = tx.addVertex();
-        a.property("vtName", "A");
+        a.property("vtName","A");
         ItinerisVertex b = tx.addVertex();
-        b.property("vtName", "B");
-        // Add Edges
-        a.addEdge(edgeLabelName, b, propertyKeyForIn, 1, propertyKeyForOut, 1, propertyKeyForBoth, 1);
-        b.addEdge(edgeLabelName, a, propertyKeyForIn, 2, propertyKeyForOut, 2, propertyKeyForBoth, 2);
+        b.property("vtName","B");
+        //Add Edges
+        a.addEdge(edgeLabelName, b,propertyKeyForIn,1,propertyKeyForOut,1,propertyKeyForBoth,1);
+        b.addEdge(edgeLabelName, a,propertyKeyForIn,2, propertyKeyForOut,2,propertyKeyForBoth,2);
         tx.commit();
 
-        // Index creation
+        //Index creation
         String indexWithDirectionIn = "edgesByAssocKindIn";
         String indexWithDirectionOut = "edgesByAssocKindOut";
         String indexWithDirectionBoth = "edgesByAssocKindBoth";
 
-        mgmt.buildEdgeIndex(mgmt.getEdgeLabel(edgeLabelName), indexWithDirectionIn, IN,
-                mgmt.getPropertyKey(propertyKeyForIn));
-        mgmt.buildEdgeIndex(mgmt.getEdgeLabel(edgeLabelName), indexWithDirectionOut, OUT,
-                mgmt.getPropertyKey(propertyKeyForOut));
-        mgmt.buildEdgeIndex(mgmt.getEdgeLabel(edgeLabelName), indexWithDirectionBoth, BOTH,
-                mgmt.getPropertyKey(propertyKeyForBoth));
+        mgmt.buildEdgeIndex(mgmt.getEdgeLabel(edgeLabelName), indexWithDirectionIn, IN, mgmt.getPropertyKey(propertyKeyForIn));
+        mgmt.buildEdgeIndex(mgmt.getEdgeLabel(edgeLabelName), indexWithDirectionOut, OUT, mgmt.getPropertyKey(propertyKeyForOut));
+        mgmt.buildEdgeIndex(mgmt.getEdgeLabel(edgeLabelName), indexWithDirectionBoth, BOTH, mgmt.getPropertyKey(propertyKeyForBoth));
         mgmt.commit();
 
         ManagementSystem.awaitRelationIndexStatus(graph, indexWithDirectionIn, edgeLabelName).call();
@@ -9477,44 +8877,36 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         ManagementSystem.awaitRelationIndexStatus(graph, indexWithDirectionBoth, edgeLabelName).call();
         finishSchema();
 
-        mgmt.updateIndex(mgmt.getRelationIndex(mgmt.getRelationType(edgeLabelName), indexWithDirectionIn),
-                SchemaAction.ENABLE_INDEX).get();
-        mgmt.updateIndex(mgmt.getRelationIndex(mgmt.getRelationType(edgeLabelName), indexWithDirectionOut),
-                SchemaAction.ENABLE_INDEX).get();
-        mgmt.updateIndex(mgmt.getRelationIndex(mgmt.getRelationType(edgeLabelName), indexWithDirectionBoth),
-                SchemaAction.ENABLE_INDEX).get();
+        mgmt.updateIndex(mgmt.getRelationIndex(mgmt.getRelationType(edgeLabelName), indexWithDirectionIn), SchemaAction.ENABLE_INDEX).get();
+        mgmt.updateIndex(mgmt.getRelationIndex(mgmt.getRelationType(edgeLabelName), indexWithDirectionOut), SchemaAction.ENABLE_INDEX).get();
+        mgmt.updateIndex(mgmt.getRelationIndex(mgmt.getRelationType(edgeLabelName), indexWithDirectionBoth), SchemaAction.ENABLE_INDEX).get();
         finishSchema();
 
         Vertex v1 = tx.traversal().V().has("vtName", "A").next();
         Vertex v2 = tx.traversal().V().has("vtName", "B").next();
-        Vertex[] vertices = new Vertex[] { v1, v1, v1, v1, v1, v1, v2, v2, v2, v2, v2, v2 };
-        int[] propValues = new int[] { 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2 };
-        Direction[] dirs = new Direction[] { IN, IN, OUT, OUT, BOTH, BOTH, IN, IN, OUT, OUT, BOTH, BOTH };
-        // vertex-centric index is already enabled, but before existing data is
-        // reindexed, any query that hits index will return 0
-        performReindexAndVerifyEdgeCount(indexWithDirectionOut, edgeLabelName, propertyKeyForOut, vertices, propValues,
-                dirs,
-                new int[] { 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0 });
-        performReindexAndVerifyEdgeCount(indexWithDirectionIn, edgeLabelName, propertyKeyForIn, vertices, propValues,
-                dirs,
-                new int[] { 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1 });
-        performReindexAndVerifyEdgeCount(indexWithDirectionBoth, edgeLabelName, propertyKeyForBoth, vertices,
-                propValues, dirs,
-                new int[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+        Vertex[] vertices = new Vertex[] {v1, v1, v1, v1, v1, v1, v2, v2, v2, v2, v2, v2};
+        int[] propValues = new int[] {1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2};
+        Direction[] dirs = new Direction[] {IN, IN, OUT, OUT, BOTH, BOTH, IN, IN, OUT, OUT, BOTH, BOTH};
+        // vertex-centric index is already enabled, but before existing data is reindexed, any query that hits index will return 0
+        performReindexAndVerifyEdgeCount(indexWithDirectionOut, edgeLabelName, propertyKeyForOut, vertices, propValues, dirs,
+            new int[] {0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0});
+        performReindexAndVerifyEdgeCount(indexWithDirectionIn, edgeLabelName, propertyKeyForIn, vertices, propValues, dirs,
+            new int[] {0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1});
+        performReindexAndVerifyEdgeCount(indexWithDirectionBoth, edgeLabelName, propertyKeyForBoth, vertices, propValues, dirs,
+            new int[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
     }
 
     public void performReindexAndVerifyEdgeCount(String indexName, String edgeLabel, String propKey, Vertex[] vertices,
-            int[] propValues, Direction[] dirs, int[] resultsBeforeReindex)
-            throws InterruptedException, ExecutionException {
+                                                 int[] propValues, Direction[] dirs, int[] resultsBeforeReindex) throws InterruptedException, ExecutionException {
         assert propValues.length == dirs.length;
         assert propValues.length == resultsBeforeReindex.length;
         RelationType t = mgmt.getRelationType(edgeLabel);
-        RelationTypeIndex relationIndex = mgmt.getRelationIndex(t, indexName);
+        RelationTypeIndex relationIndex = mgmt.getRelationIndex(t,indexName);
         assertEquals(SchemaStatus.ENABLED, relationIndex.getIndexStatus());
 
         GraphTraversalSource g = graph.traversal();
 
-        // asserting before reindex
+        //asserting before reindex
         for (int i = 0; i < propValues.length; i++) {
             final int expectedCount = resultsBeforeReindex[i];
             final Vertex v = vertices[i];
@@ -9527,17 +8919,17 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                 count = g.V(v).bothE(edgeLabel).has(propKey, propValues[i]).count().next();
             }
             assertEquals(expectedCount, count, String.format("v = %s, index = %s, direction = %s, prop value = %d",
-                    g.V(v).properties("vtName").next().value(), indexName, dirs[i], propValues[i]));
+                g.V(v).properties("vtName").next().value(), indexName, dirs[i], propValues[i]));
         }
 
-        // Reindexing
+        //Reindexing
         mgmt.updateIndex(relationIndex, SchemaAction.REINDEX, 1).get();
         finishSchema();
 
-        relationIndex = mgmt.getRelationIndex(t, indexName);
+        relationIndex = mgmt.getRelationIndex(t,indexName);
         assertEquals(SchemaStatus.ENABLED, relationIndex.getIndexStatus());
 
-        final int[] expectedResultsAfterReindex = new int[] { 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1 };
+        final int[] expectedResultsAfterReindex = new int[]{0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1};
         for (int i = 0; i < propValues.length; i++) {
             final int expectedCount = expectedResultsAfterReindex[i];
             final Vertex v = vertices[i];
@@ -9550,7 +8942,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                 count = g.V(v).bothE(edgeLabel).has(propKey, propValues[i]).count().next();
             }
             assertEquals(expectedCount, count, String.format("v = %s, index = %s, direction = %s, prop value = %d",
-                    g.V(v).properties("vtName").next().value(), indexName, dirs[i], propValues[i]));
+                g.V(v).properties("vtName").next().value(), indexName, dirs[i], propValues[i]));
         }
     }
 
@@ -9558,21 +8950,17 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testMultipleOrClauses() {
         clopen();
 
-        Vertex v1 = tx.traversal().addV("test").property("a", true).property("b", true).property("c", true)
-                .property("d", true).next();
-        Vertex v2 = tx.traversal().addV("test").property("a", true).property("b", false).property("c", true)
-                .property("d", false).next();
-        Vertex v3 = tx.traversal().addV("test").property("a", false).property("b", true).property("c", false)
-                .property("d", true).next();
-        Vertex v4 = tx.traversal().addV("test").property("a", false).property("b", false).property("c", true)
-                .property("d", false).next();
+        Vertex v1 = tx.traversal().addV("test").property("a", true).property("b", true).property("c", true).property("d", true).next();
+        Vertex v2 = tx.traversal().addV("test").property("a", true).property("b", false).property("c", true).property("d", false).next();
+        Vertex v3 = tx.traversal().addV("test").property("a", false).property("b", true).property("c", false).property("d", true).next();
+        Vertex v4 = tx.traversal().addV("test").property("a", false).property("b", false).property("c", true).property("d", false).next();
 
         newTx();
 
         List<Vertex> vertices = tx.traversal().V()
-                .or(__.has("a", true), __.has("b", true))
-                .or(__.has("c", false), __.has("d", true))
-                .toList();
+            .or(__.has("a", true), __.has("b", true))
+            .or(__.has("c", false), __.has("d", true))
+            .toList();
 
         assertTrue(vertices.contains(v1));
         assertFalse(vertices.contains(v2));
@@ -9585,14 +8973,13 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testMultipleNestedOrClauses() {
         clopen();
 
-        boolean[] values = new boolean[] { false, true };
+        boolean[] values = new boolean[] {false, true};
         List<Vertex> vertices = new ArrayList<>(16);
         for (boolean a : values) {
             for (boolean b : values) {
                 for (boolean c : values) {
                     for (boolean d : values) {
-                        vertices.add(tx.traversal().addV("test").property("a", a).property("b", b).property("c", c)
-                                .property("d", d).next());
+                        vertices.add(tx.traversal().addV("test").property("a", a).property("b", b).property("c", c).property("d", d).next());
                     }
                 }
             }
@@ -9602,9 +8989,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // (A || B || !C) && (!C || D)
         List<Vertex> result = tx.traversal().V()
-                .or(__.has("a", true), __.has("b", true), __.has("c", false))
-                .or(__.has("c", false), __.has("d", true))
-                .toList();
+            .or(__.has("a", true), __.has("b", true), __.has("c", false))
+            .or(__.has("c", false), __.has("d", true))
+            .toList();
 
         assertTrue(result.contains(vertices.get(0)));
         assertTrue(result.contains(vertices.get(1)));
@@ -9623,9 +9010,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // ((A || C) || B) && (!C || D)
         result = tx.traversal().V()
-                .or(__.or(__.has("a", true), __.has("c", true)), __.has("b", true))
-                .or(__.has("c", false), __.has("d", true))
-                .toList();
+            .or(__.or(__.has("a", true), __.has("c", true)), __.has("b", true))
+            .or(__.has("c", false), __.has("d", true))
+            .toList();
 
         assertTrue(result.contains(vertices.get(3)));
         assertTrue(result.contains(vertices.get(4)));
@@ -9643,15 +9030,18 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // (((A || C) && (C || !D)) || B) && (!C || D)
         result = tx.traversal().V()
-                .or(
-                        __.or(
-                                __.has("a", true),
-                                __.has("c", true)).or(
-                                        __.has("c", true),
-                                        __.has("d", false)),
-                        __.has("b", true))
-                .or(__.has("c", false), __.has("d", true))
-                .toList();
+            .or(
+                __.or(
+                    __.has("a", true),
+                    __.has("c", true)
+                ).or(
+                    __.has("c", true),
+                    __.has("d", false)
+                ),
+                __.has("b", true)
+            )
+            .or(__.has("c", false), __.has("d", true))
+            .toList();
 
         assertTrue(result.contains(vertices.get(3)));
         assertTrue(result.contains(vertices.get(4)));
@@ -9666,15 +9056,18 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // (((A || C) && ((!A || B) || !D)) || B) && (!C || !D)
         result = tx.traversal().V()
-                .or(
-                        __.or(
-                                __.has("a", true),
-                                __.has("c", true)).or(
-                                        __.or(__.has("a", false), __.has("b", true)),
-                                        __.has("d", false)),
-                        __.has("b", true))
-                .or(__.has("c", false), __.has("d", false))
-                .toList();
+            .or(
+                __.or(
+                    __.has("a", true),
+                    __.has("c", true)
+                ).or(
+                    __.or(__.has("a", false), __.has("b", true)),
+                    __.has("d", false)
+                ),
+                __.has("b", true)
+            )
+            .or(__.has("c", false), __.has("d", false))
+            .toList();
 
         assertTrue(result.contains(vertices.get(2)));
         assertTrue(result.contains(vertices.get(4)));
@@ -9690,14 +9083,15 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
     @Test
     public void testVerticesDropAfterWhereWithBatchQueryEnabled() {
-        clopen(option(USE_MULTIQUERY), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.NONE.getConfigName(),
-                option(STORAGE_BATCH), false);
+        clopen(option(USE_MULTIQUERY),true,
+            option(HAS_STEP_BATCH_MODE),MultiQueryHasStepStrategyMode.NONE.getConfigName(),
+            option(STORAGE_BATCH),false
+        );
 
         long timestamp = System.currentTimeMillis();
 
         Vertex v1 = tx.traversal().addV("test")
-                .property("a", timestamp).property("b", true).property("c", true).property("d", true).next();
+            .property("a", timestamp).property("b", true).property("c", true).property("d", true).next();
 
         Vertex v2 = tx.traversal().addV("test").next();
         Vertex v3 = tx.traversal().addV("test").next();
@@ -9710,7 +9104,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         newTx();
 
         tx.traversal().V().has("a", timestamp).has("b", true).has("c", true)
-                .where(__.outE().hasLabel("edgeLabel")).both().drop().iterate();
+            .where(__.outE().hasLabel("edgeLabel")).both().drop().iterate();
 
         newTx();
 
@@ -9719,12 +9113,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     /**
-     * In this test, we deliberately create ghost vertices and use ManagementSystem
-     * to purge them
-     * We use two concurrent transactions and let one transaction removes a vertex
-     * and another transaction
-     * updates the same vertex. When the storage backend does not have locking
-     * support, both transactions
+     * In this test, we deliberately create ghost vertices and use ManagementSystem to purge them
+     * We use two concurrent transactions and let one transaction removes a vertex and another transaction
+     * updates the same vertex. When the storage backend does not have locking support, both transactions
      * will succeed, and then the vertex becomes a ghost vertex.
      *
      * @throws ExecutionException
@@ -9732,8 +9123,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
      */
     @Test
     public void testMgmtRemoveGhostVertices() throws ExecutionException, InterruptedException {
-        if (features.hasLocking())
-            return;
+        if (features.hasLocking()) return;
 
         final int numOfVertices = 100;
         final int numOfGhostVertices = 80;
@@ -9773,8 +9163,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testDirectCompositeIndexEntryModification() throws BackendException {
         clopenForStaleIndex();
         String namePropKeyStr = "name";
-        PropertyKey nameProp = mgmt.makePropertyKey(namePropKeyStr).dataType(String.class)
-                .cardinality(Cardinality.SINGLE).make();
+        PropertyKey nameProp = mgmt.makePropertyKey(namePropKeyStr).dataType(String.class).cardinality(Cardinality.SINGLE).make();
         mgmt.buildIndex("nameIndex", Vertex.class).addKey(nameProp).buildCompositeIndex();
         finishSchema();
 
@@ -9791,7 +9180,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         ItinerisSchemaVertex indexChangeVertex = managementSystem.getSchemaVertex(janusGraphIndex);
         CompositeIndexType index = (CompositeIndexType) indexChangeVertex.asIndexType();
         ItinerisVertexProperty indexedProperty = (ItinerisVertexProperty) vertex1.property("name");
-        IndexRecordEntry[] record = new IndexRecordEntry[] { new IndexRecordEntry(indexedProperty) };
+        IndexRecordEntry[] record = new IndexRecordEntry[]{new IndexRecordEntry(indexedProperty)};
         ItinerisElement element = (ItinerisElement) vertex1;
         Serializer serializer = graph.getDataSerializer();
         EdgeSerializer edgeSerializer = graph.getEdgeSerializer();
@@ -9799,20 +9188,20 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         HashingUtil.HashLength hashLength = graph.getIndexSerializer().getHashLength();
 
         IndexUpdate<StaticBuffer, Entry> update = IndexRecordUtil.getCompositeIndexUpdate(
-                index,
-                IndexMutationType.DELETE,
-                record,
-                element,
-                serializer,
-                (StandardItinerisTx) tx,
-                edgeSerializer,
-                hashKeys,
-                hashLength);
+            index,
+            IndexMutationType.DELETE,
+            record,
+            element,
+            serializer,
+            (StandardItinerisTx)tx,
+            edgeSerializer,
+            hashKeys,
+            hashLength
+        );
 
         BackendTransaction transaction = ((StandardItinerisTx) tx).getTxHandle();
 
-        // Removes index entry even so, vertex exists. I.e. this line corrupts the
-        // index.
+        // Removes index entry even so, vertex exists. I.e. this line corrupts the index.
         transaction.mutateIndex(update.getKey(), Collections.emptyList(), Collections.singletonList(update.getEntry()));
 
         transaction.commit();
@@ -9825,20 +9214,20 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         newTx();
 
         update = IndexRecordUtil.getCompositeIndexUpdate(
-                index,
-                IndexMutationType.ADD,
-                record,
-                element,
-                serializer,
-                (StandardItinerisTx) tx,
-                edgeSerializer,
-                hashKeys,
-                hashLength);
+            index,
+            IndexMutationType.ADD,
+            record,
+            element,
+            serializer,
+            (StandardItinerisTx)tx,
+            edgeSerializer,
+            hashKeys,
+            hashLength
+        );
 
         transaction = ((StandardItinerisTx) tx).getTxHandle();
 
-        // Adds missing index entry of the non-indexed vertex. I.e. this line fixes the
-        // corrupted index.
+        // Adds missing index entry of the non-indexed vertex. I.e. this line fixes the corrupted index.
         transaction.mutateIndex(update.getKey(), Collections.singletonList(update.getEntry()), Collections.emptyList());
 
         transaction.commit();
@@ -9852,7 +9241,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         indexedProperty = (ItinerisVertexProperty) vertex2.property("name");
         long propertyId = indexedProperty.longId();
         PropertyKey propertyKey = indexedProperty.propertyKey();
-        record = new IndexRecordEntry[] { new IndexRecordEntry(propertyId, "vertex2", propertyKey) };
+        record = new IndexRecordEntry[]{new IndexRecordEntry(propertyId, "vertex2", propertyKey)};
 
         tx.traversal().V().has("name", "vertex2").drop().iterate();
         tx.commit();
@@ -9861,20 +9250,20 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         element = new CacheVertex((StandardItinerisTx) tx, vertex2.id(), ElementLifeCycle.New);
 
         update = IndexRecordUtil.getCompositeIndexUpdate(
-                index,
-                IndexMutationType.ADD,
-                record,
-                element,
-                serializer,
-                (StandardItinerisTx) tx,
-                edgeSerializer,
-                hashKeys,
-                hashLength);
+            index,
+            IndexMutationType.ADD,
+            record,
+            element,
+            serializer,
+            (StandardItinerisTx)tx,
+            edgeSerializer,
+            hashKeys,
+            hashLength
+        );
 
         transaction = ((StandardItinerisTx) tx).getTxHandle();
 
-        // Adds index entry of the non-indexed vertex to the index. I.e. this line
-        // corrupts index.
+        // Adds index entry of the non-indexed vertex to the index. I.e. this line corrupts index.
         // This is a possible situation of a stale index being introduced.
         transaction.mutateIndex(update.getKey(), Collections.singletonList(update.getEntry()), Collections.emptyList());
 
@@ -9886,23 +9275,23 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertTrue(tx.traversal().V().has("name", "vertex1").hasNext());
         assertTrue(tx.traversal().V().has("name", "vertex2").hasNext());
 
-        record = new IndexRecordEntry[] { new IndexRecordEntry(propertyKey.longId(), "vertex2", propertyKey) };
+        record = new IndexRecordEntry[]{new IndexRecordEntry(propertyKey.longId(), "vertex2", propertyKey)};
 
         update = IndexRecordUtil.getCompositeIndexUpdate(
-                index,
-                IndexMutationType.DELETE,
-                record,
-                element,
-                serializer,
-                (StandardItinerisTx) tx,
-                edgeSerializer,
-                hashKeys,
-                hashLength);
+            index,
+            IndexMutationType.DELETE,
+            record,
+            element,
+            serializer,
+            (StandardItinerisTx)tx,
+            edgeSerializer,
+            hashKeys,
+            hashLength
+        );
 
         transaction = ((StandardItinerisTx) tx).getTxHandle();
 
-        // Removes index entry of the non-indexed vertex. I.e. this line fixes corrupted
-        // index.
+        // Removes index entry of the non-indexed vertex. I.e. this line fixes corrupted index.
         // This is a possible solution to deal with stale index separate entries.
         transaction.mutateIndex(update.getKey(), Collections.emptyList(), Collections.singletonList(update.getEntry()));
 
@@ -9922,8 +9311,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         clopenForStaleIndex();
         String namePropKeyStr = "name";
         String indexName = "nameIndex";
-        PropertyKey nameProp = mgmt.makePropertyKey(namePropKeyStr).dataType(String.class)
-                .cardinality(Cardinality.SINGLE).make();
+        PropertyKey nameProp = mgmt.makePropertyKey(namePropKeyStr).dataType(String.class).cardinality(Cardinality.SINGLE).make();
         mgmt.buildIndex(indexName, Vertex.class).addKey(nameProp).buildCompositeIndex();
         finishSchema();
 
@@ -9946,7 +9334,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         ItinerisVertexProperty indexedProperty = (ItinerisVertexProperty) vertex2.property("name");
         long propertyId = indexedProperty.longId();
         PropertyKey propertyKey = indexedProperty.propertyKey();
-        IndexRecordEntry[] record = new IndexRecordEntry[] { new IndexRecordEntry(propertyId, "vertex2", propertyKey) };
+        IndexRecordEntry[] record = new IndexRecordEntry[]{new IndexRecordEntry(propertyId, "vertex2", propertyKey)};
 
         tx.traversal().V().has("name", "vertex2").drop().iterate();
         tx.commit();
@@ -9955,20 +9343,20 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         ItinerisElement element = new CacheVertex((StandardItinerisTx) tx, vertex2.id(), ElementLifeCycle.New);
 
         IndexUpdate<StaticBuffer, Entry> update = IndexRecordUtil.getCompositeIndexUpdate(
-                index,
-                IndexMutationType.ADD,
-                record,
-                element,
-                serializer,
-                (StandardItinerisTx) tx,
-                edgeSerializer,
-                hashKeys,
-                hashLength);
+            index,
+            IndexMutationType.ADD,
+            record,
+            element,
+            serializer,
+            (StandardItinerisTx)tx,
+            edgeSerializer,
+            hashKeys,
+            hashLength
+        );
 
         BackendTransaction transaction = ((StandardItinerisTx) tx).getTxHandle();
 
-        // Adds index entry of the non-indexed vertex to the index. I.e. this line
-        // corrupts index.
+        // Adds index entry of the non-indexed vertex to the index. I.e. this line corrupts index.
         // This is a possible situation of a stale index being introduced.
         transaction.mutateIndex(update.getKey(), Collections.singletonList(update.getEntry()), Collections.emptyList());
 
@@ -9989,10 +9377,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // Force-remove index record. I.e. fix stale index.
         StaleIndexRecordUtil.forceRemoveElementFromGraphIndex(
-                element,
-                record,
-                graph,
-                indexName);
+            element,
+            record,
+            graph,
+            indexName
+        );
 
         newTx();
 
@@ -10007,8 +9396,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         String indexName = "nameIndex";
         String edgeName = "follow";
         mgmt.makeEdgeLabel(edgeName).make();
-        PropertyKey nameProp = mgmt.makePropertyKey(namePropKeyStr).dataType(String.class)
-                .cardinality(Cardinality.SINGLE).make();
+        PropertyKey nameProp = mgmt.makePropertyKey(namePropKeyStr).dataType(String.class).cardinality(Cardinality.SINGLE).make();
         mgmt.buildIndex(indexName, Edge.class).addKey(nameProp).buildCompositeIndex();
         finishSchema();
 
@@ -10034,18 +9422,18 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         long relationId = relationIdentifier.getRelationId();
         EdgeLabel edgeLabel = managementSystem.getEdgeLabel(edgeName);
 
-        IndexRecordEntry[] record = new IndexRecordEntry[] { new IndexRecordEntry(relationId, "edge1", propertyKey) };
+        IndexRecordEntry[] record = new IndexRecordEntry[]{new IndexRecordEntry(relationId, "edge1", propertyKey)};
 
         InternalVertex internalVertex1 = (InternalVertex) edge.outVertex();
         InternalVertex internalVertex2 = (InternalVertex) edge.inVertex();
-        ItinerisElement element = new StandardEdge(relationId, edgeLabel, internalVertex1, internalVertex2,
-                ElementLifeCycle.New);
+        ItinerisElement element = new StandardEdge(relationId, edgeLabel, internalVertex1, internalVertex2, ElementLifeCycle.New);
 
         StaleIndexRecordUtil.forceRemoveElementFromGraphIndex(
-                element,
-                record,
-                graph,
-                indexName);
+            element,
+            record,
+            graph,
+            indexName
+        );
 
         tx.commit();
         newTx();
@@ -10054,20 +9442,20 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertTrue(tx.traversal().E(edge.id()).hasNext());
 
         IndexUpdate<StaticBuffer, Entry> update = IndexRecordUtil.getCompositeIndexUpdate(
-                index,
-                IndexMutationType.ADD,
-                record,
-                element,
-                serializer,
-                (StandardItinerisTx) tx,
-                edgeSerializer,
-                hashKeys,
-                hashLength);
+            index,
+            IndexMutationType.ADD,
+            record,
+            element,
+            serializer,
+            (StandardItinerisTx)tx,
+            edgeSerializer,
+            hashKeys,
+            hashLength
+        );
 
         BackendTransaction transaction = ((StandardItinerisTx) tx).getTxHandle();
 
-        // Adds index entry of the non-indexed edge to the index. I.e. this line
-        // corrupts index.
+        // Adds index entry of the non-indexed edge to the index. I.e. this line corrupts index.
         // This is a possible situation of a stale index being introduced.
         transaction.mutateIndex(update.getKey(), Collections.singletonList(update.getEntry()), Collections.emptyList());
 
@@ -10082,23 +9470,20 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = { true, false })
-    public void testStaleIndexForceRemoveVertexFromGraphIndexByHelperMethod(boolean withLabelConstraint)
-            throws BackendException {
+    @ValueSource(booleans = {true, false})
+    public void testStaleIndexForceRemoveVertexFromGraphIndexByHelperMethod(boolean withLabelConstraint) throws BackendException {
         clopenForStaleIndex();
         String namePropKeyStr = "name";
         String agePropKeyStr = "age";
         String indexName = "nameAgeIndex";
         String nameValue = "testNameValue";
         Integer ageValue = 123;
-        PropertyKey nameProp = mgmt.makePropertyKey(namePropKeyStr).dataType(String.class)
-                .cardinality(Cardinality.SINGLE).make();
-        PropertyKey ageProp = mgmt.makePropertyKey(agePropKeyStr).dataType(Integer.class)
-                .cardinality(Cardinality.SINGLE).make();
+        PropertyKey nameProp = mgmt.makePropertyKey(namePropKeyStr).dataType(String.class).cardinality(Cardinality.SINGLE).make();
+        PropertyKey ageProp = mgmt.makePropertyKey(agePropKeyStr).dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
         ItinerisManagement.IndexBuilder indexBuilder = mgmt.buildIndex(indexName, Vertex.class)
-                .addKey(nameProp).addKey(ageProp);
+            .addKey(nameProp).addKey(ageProp);
         String vertexLabelName;
-        if (withLabelConstraint) {
+        if(withLabelConstraint){
             vertexLabelName = "testVertexLabel";
             VertexLabel vertexLabel = mgmt.makeVertexLabel(vertexLabelName).make();
             indexBuilder = indexBuilder.indexOnly(vertexLabel);
@@ -10108,7 +9493,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         indexBuilder.buildCompositeIndex();
         finishSchema();
 
-        ItinerisVertex addedVertex = vertexLabelName == null ? tx.addVertex() : tx.addVertex(vertexLabelName);
+        ItinerisVertex addedVertex = vertexLabelName == null ?
+            tx.addVertex() :
+            tx.addVertex(vertexLabelName);
         addedVertex.property(namePropKeyStr, nameValue);
         addedVertex.property(agePropKeyStr, ageValue);
 
@@ -10133,9 +9520,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         ItinerisVertexProperty indexedAgeProperty = (ItinerisVertexProperty) testVertex.property(agePropKeyStr);
         long agePropertyId = indexedAgeProperty.longId();
         PropertyKey agePropertyKey = indexedAgeProperty.propertyKey();
-        IndexRecordEntry[] record = new IndexRecordEntry[] {
-                new IndexRecordEntry(namePropertyId, nameValue, namePropertyKey),
-                new IndexRecordEntry(agePropertyId, ageValue, agePropertyKey)
+        IndexRecordEntry[] record = new IndexRecordEntry[]{
+            new IndexRecordEntry(namePropertyId, nameValue, namePropertyKey),
+            new IndexRecordEntry(agePropertyId, ageValue, agePropertyKey)
         };
 
         getV(namePropKeyStr, nameValue, agePropKeyStr, ageValue, vertexLabelName).drop().iterate();
@@ -10146,20 +9533,20 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         ItinerisElement element = new CacheVertex((StandardItinerisTx) tx, testVertex.id(), ElementLifeCycle.New);
 
         IndexUpdate<StaticBuffer, Entry> update = IndexRecordUtil.getCompositeIndexUpdate(
-                index,
-                IndexMutationType.ADD,
-                record,
-                element,
-                serializer,
-                (StandardItinerisTx) tx,
-                edgeSerializer,
-                hashKeys,
-                hashLength);
+            index,
+            IndexMutationType.ADD,
+            record,
+            element,
+            serializer,
+            (StandardItinerisTx)tx,
+            edgeSerializer,
+            hashKeys,
+            hashLength
+        );
 
         BackendTransaction transaction = ((StandardItinerisTx) tx).getTxHandle();
 
-        // Adds index entry of the non-indexed vertex to the index. I.e. this line
-        // corrupts index.
+        // Adds index entry of the non-indexed vertex to the index. I.e. this line corrupts index.
         // This is a possible situation of a stale index being introduced.
         transaction.mutateIndex(update.getKey(), Collections.singletonList(update.getEntry()), Collections.emptyList());
 
@@ -10170,8 +9557,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertTrue(getV(namePropKeyStr, nameValue, agePropKeyStr, ageValue, vertexLabelName).hasNext());
 
         // Check that if we try to remove non-existent vertex we receive an exception
-        assertThrows(Exception.class,
-                () -> getV(namePropKeyStr, nameValue, agePropKeyStr, ageValue, vertexLabelName).drop().next());
+        assertThrows(Exception.class, () -> getV(namePropKeyStr, nameValue, agePropKeyStr, ageValue, vertexLabelName).drop().next());
 
         newTx();
         assertFalse(tx.traversal().V(testVertex.id()).hasNext());
@@ -10185,10 +9571,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         // Force-remove index record. I.e. fix stale index.
         StaleIndexRecordUtil.forceRemoveVertexFromGraphIndex(
-                vertexId,
-                indexRecordPropertyValues,
-                graph,
-                indexName);
+            vertexId,
+            indexRecordPropertyValues,
+            graph,
+            indexName
+        );
 
         newTx();
 
@@ -10202,10 +9589,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         String namePropKeyStr = "name";
         String agePropKeyStr = "age";
         String indexName = "nameAgeIndex";
-        PropertyKey nameProp = mgmt.makePropertyKey(namePropKeyStr).dataType(String.class)
-                .cardinality(Cardinality.SINGLE).make();
-        PropertyKey ageProp = mgmt.makePropertyKey(agePropKeyStr).dataType(Integer.class)
-                .cardinality(Cardinality.SINGLE).make();
+        PropertyKey nameProp = mgmt.makePropertyKey(namePropKeyStr).dataType(String.class).cardinality(Cardinality.SINGLE).make();
+        PropertyKey ageProp = mgmt.makePropertyKey(agePropKeyStr).dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
         mgmt.buildIndex(indexName, Vertex.class).addKey(nameProp).addKey(ageProp).buildCompositeIndex();
         finishSchema();
 
@@ -10218,12 +9603,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         Vertex vertex2 = tx.traversal().V().has(namePropKeyStr, "vertex2").has(agePropKeyStr, 123).next();
 
-        Assertions.assertThrows(IllegalArgumentException.class,
-                () -> StaleIndexRecordUtil.forceRemoveVertexFromGraphIndex(
-                        (Long) vertex2.id(),
-                        Collections.singletonMap(namePropKeyStr, "vertex2"),
-                        graph,
-                        indexName));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> StaleIndexRecordUtil.forceRemoveVertexFromGraphIndex(
+            (Long) vertex2.id(),
+            Collections.singletonMap(namePropKeyStr, "vertex2"),
+            graph,
+            indexName
+        ));
     }
 
     @Test
@@ -10232,10 +9617,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         String namePropKeyStr = "name";
         String agePropKeyStr = "age";
         String indexName = "nameAgeIndex";
-        PropertyKey nameProp = mgmt.makePropertyKey(namePropKeyStr).dataType(String.class)
-                .cardinality(Cardinality.SINGLE).make();
-        PropertyKey ageProp = mgmt.makePropertyKey(agePropKeyStr).dataType(Integer.class)
-                .cardinality(Cardinality.SINGLE).make();
+        PropertyKey nameProp = mgmt.makePropertyKey(namePropKeyStr).dataType(String.class).cardinality(Cardinality.SINGLE).make();
+        PropertyKey ageProp = mgmt.makePropertyKey(agePropKeyStr).dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
         mgmt.buildIndex(indexName, Vertex.class).addKey(nameProp).addKey(ageProp).buildCompositeIndex();
         finishSchema();
 
@@ -10252,23 +9635,24 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         indexRecordPropertyValues.put(namePropKeyStr, "vertex2");
         indexRecordPropertyValues.put("unknownProperty", 123);
 
-        Assertions.assertThrows(IllegalArgumentException.class,
-                () -> StaleIndexRecordUtil.forceRemoveVertexFromGraphIndex(
-                        (Long) vertex2.id(),
-                        indexRecordPropertyValues,
-                        graph,
-                        indexName));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> StaleIndexRecordUtil.forceRemoveVertexFromGraphIndex(
+            (Long) vertex2.id(),
+            indexRecordPropertyValues,
+            graph,
+            indexName
+        ));
     }
 
-    protected void clopenForStaleIndex() {
+    protected void clopenForStaleIndex(){
         clopen();
     }
 
     @Test
     public void testPropertiesAfterProjectWithByThenChooseWithBatchQueryEnabled() {
-        clopen(option(USE_MULTIQUERY), true,
-                option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.NONE.getConfigName(),
-                option(STORAGE_BATCH), false);
+        clopen(option(USE_MULTIQUERY),true,
+            option(HAS_STEP_BATCH_MODE), MultiQueryHasStepStrategyMode.NONE.getConfigName(),
+            option(STORAGE_BATCH),false
+        );
 
         long timestamp = System.currentTimeMillis();
 
@@ -10276,8 +9660,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         newTx();
 
-        assertTrue(tx.traversal().V().has("a", timestamp).project("a").by(__.choose(__.has("a"), __.values("a")))
-                .hasNext());
+        assertTrue(tx.traversal().V().has("a", timestamp).project("a").by(__.choose(__.has("a"), __.values("a"))).hasNext());
     }
 
     @Test
@@ -10292,32 +9675,29 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         // basic queries
         assertEquals(vertexCount, graph.eval("g.V().count().next()", false));
         assertEquals(
-                graph.traversal().V().has("_v", 1).values("_v").hasNext(),
-                graph.eval("g.V().has('_v', 1).values('_v').hasNext()", false));
+            graph.traversal().V().has("_v", 1).values("_v").hasNext(),
+            graph.eval("g.V().has('_v', 1).values('_v').hasNext()", false));
         assertEquals(
-                graph.traversal().E().has("_e", 1).next(),
-                graph.eval("g.E().has(\"_e\", 1).next()", false));
+            graph.traversal().E().has("_e", 1).next(),
+            graph.eval("g.E().has(\"_e\", 1).next()", false));
 
         // scripts with multiple lines are allowed
         assertEquals(++vertexCount, graph.eval("g.addV().next();g.V().count().next()", true));
 
         // non-gremlin query is not allowed
-        ItinerisException ex = assertThrows(ItinerisException.class,
-                () -> graph.eval("g.V().map{t -> t.get()}.hasNext()", false));
+        ItinerisException ex = assertThrows(ItinerisException.class, () -> graph.eval("g.V().map{t -> t.get()}.hasNext()", false));
         assertEquals("Could not evaluate given gremlin script: g.V().map{t -> t.get()}.hasNext()", ex.getMessage());
         assertThrows(ItinerisException.class, () -> graph.eval("1 + 1", false));
         assertThrows(ItinerisException.class, () -> graph.eval("while(true) {}", false));
 
         // cannot circumvent readonly limitation
-        assertThrows(ItinerisException.class,
-                () -> graph.eval("g2 = g.getGraph().traversal(); g2.V().drop().iterate(); g2.tx().commit();", false));
+        assertThrows(ItinerisException.class, () -> graph.eval("g2 = g.getGraph().traversal(); g2.V().drop().iterate(); g2.tx().commit();", false));
 
         // cannot mutate the graph in readonly mode
         ex = assertThrows(ItinerisException.class, () -> graph.eval("g.addV().next()", false));
         assertEquals("Could not evaluate given gremlin script: g.addV().next()", ex.getMessage());
         assertEquals("org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.VerificationException: " +
-                "The provided traversal has a mutating step and thus is not read only: AddVertexStartStep({label=[vertex]})",
-                ex.getCause().getMessage());
+            "The provided traversal has a mutating step and thus is not read only: AddVertexStartStep({label=[vertex]})", ex.getCause().getMessage());
 
         // can mutate the graph in non-readonly mode
         graph.eval("g.addV().next()", true);
@@ -10347,11 +9727,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         // basic queries
         assertEquals(vertexCount, graph.eval("g.V().count().next()", false));
         assertEquals(
-                graph.traversal().V().has("_v", 1).values("_v").hasNext(),
-                graph.eval("g.V().has('_v', 1).values('_v').hasNext()", false));
+            graph.traversal().V().has("_v", 1).values("_v").hasNext(),
+            graph.eval("g.V().has('_v', 1).values('_v').hasNext()", false));
         assertEquals(
-                graph.traversal().E().has("_e", 1).next(),
-                graph.eval("g.E().has(\"_e\", 1).next()", false));
+            graph.traversal().E().has("_e", 1).next(),
+            graph.eval("g.E().has(\"_e\", 1).next()", false));
 
         // basic non standard gremlin scripts
         assertEquals(2, graph.eval("1 + 1", false));
@@ -10368,13 +9748,13 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     @Test
-    public void shouldSkipDBCacheAccess() {
-        if (!features.isDistributed()) {
+    public void shouldSkipDBCacheAccess(){
+        if(!features.isDistributed()){
             return;
         }
 
-        clopen(option(DB_CACHE), true, option(DB_CACHE_CLEAN_WAIT), 0, option(DB_CACHE_TIME), 0L,
-                option(BASIC_METRICS), true, option(METRICS_MERGE_STORES), false);
+        clopen(option(DB_CACHE),true,option(DB_CACHE_CLEAN_WAIT),0,option(DB_CACHE_TIME),0L,
+            option(BASIC_METRICS),true,option(METRICS_MERGE_STORES),false);
 
         String groupName = "shouldSkipDBCacheAccess";
         String edgeStoreMetricsName = Backend.EDGESTORE_NAME + Backend.METRICS_CACHE_SUFFIX;
@@ -10384,13 +9764,13 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         Object vertexId = tx.traversal().addV().property("name", "testProp").next().id();
         tx.commit();
         long cacheRetrievalCountAfterCreation = MetricManager.INSTANCE
-                .getCounter(groupName, edgeStoreMetricsName, CacheMetricsAction.RETRIEVAL.getName()).getCount();
+            .getCounter(groupName, edgeStoreMetricsName, CacheMetricsAction.RETRIEVAL.getName()).getCount();
 
         // Check db-cache access works
         tx = graph.buildTransaction().groupName(groupName).start();
         tx.traversal().V(vertexId).valueMap().next();
         long cacheRetrievalCountAfterReadWithCacheEnabled = MetricManager.INSTANCE
-                .getCounter(groupName, edgeStoreMetricsName, CacheMetricsAction.RETRIEVAL.getName()).getCount();
+            .getCounter(groupName, edgeStoreMetricsName, CacheMetricsAction.RETRIEVAL.getName()).getCount();
         tx.rollback();
         Assertions.assertTrue(cacheRetrievalCountAfterCreation < cacheRetrievalCountAfterReadWithCacheEnabled);
 
@@ -10398,10 +9778,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         tx = graph.buildTransaction().skipDBCacheRead().groupName(groupName).start();
         tx.traversal().V(vertexId).valueMap().next();
         long cacheRetrievalCountAfterReadWithCacheDisabled = MetricManager.INSTANCE
-                .getCounter(groupName, edgeStoreMetricsName, CacheMetricsAction.RETRIEVAL.getName()).getCount();
+            .getCounter(groupName, edgeStoreMetricsName, CacheMetricsAction.RETRIEVAL.getName()).getCount();
         tx.rollback();
-        Assertions.assertEquals(cacheRetrievalCountAfterReadWithCacheEnabled,
-                cacheRetrievalCountAfterReadWithCacheDisabled);
+        Assertions.assertEquals(cacheRetrievalCountAfterReadWithCacheEnabled, cacheRetrievalCountAfterReadWithCacheDisabled);
     }
 
     @Test
@@ -10489,10 +9868,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         String indexProp2Name = "indexedProp2";
         String index1Name = "index1";
         String index2Name = "index2";
-        PropertyKey indexedProp1 = mgmt.makePropertyKey(indexProp1Name).dataType(Integer.class)
-                .cardinality(Cardinality.SINGLE).make();
-        PropertyKey indexedProp2 = mgmt.makePropertyKey(indexProp2Name).dataType(Integer.class)
-                .cardinality(Cardinality.SINGLE).make();
+        PropertyKey indexedProp1 = mgmt.makePropertyKey(indexProp1Name).dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
+        PropertyKey indexedProp2 = mgmt.makePropertyKey(indexProp2Name).dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
         mgmt.buildIndex(index1Name, Vertex.class).addKey(indexedProp1).buildCompositeIndex();
         mgmt.buildIndex(index2Name, Vertex.class).addKey(indexedProp1).addKey(indexedProp2).buildCompositeIndex();
         finishSchema();
@@ -10556,16 +9933,14 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         invalidateUpdatedVertexProperty(graph2, v1.id(), indexProp1Name, 1, -1);
 
         tx2 = graph2.newTransaction();
-        // Check that cache for index1 and values `1`, `-1` was refreshed but cache for
-        // 2,3,-2,-3 was not refreshed
+        // Check that cache for index1 and values `1`, `-1` was refreshed but cache for 2,3,-2,-3 was not refreshed
         assertFalse(tx2.traversal().V().has(indexProp1Name, 1).hasNext());
         assertTrue(tx2.traversal().V().has(indexProp1Name, 2).hasNext());
         assertTrue(tx2.traversal().V().has(indexProp1Name, 3).hasNext());
         assertTrue(tx2.traversal().V().has(indexProp1Name, -1).hasNext());
         assertFalse(tx2.traversal().V().has(indexProp1Name, -2).hasNext());
         assertFalse(tx2.traversal().V().has(indexProp1Name, -3).hasNext());
-        // Check that cache for index2 and values `1`, `-1` was refreshed but cache for
-        // 2,3,-2,-3 was not refreshed
+        // Check that cache for index2 and values `1`, `-1` was refreshed but cache for 2,3,-2,-3 was not refreshed
         assertFalse(tx2.traversal().V().has(indexProp1Name, 1).has(indexProp2Name, 1).hasNext());
         assertTrue(tx2.traversal().V().has(indexProp1Name, -1).has(indexProp2Name, 1).hasNext());
         assertTrue(tx2.traversal().V().has(indexProp1Name, 2).has(indexProp2Name, 2).hasNext());
@@ -10597,8 +9972,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     @Test
-    public void testIndexWithIndexOnlyConstraintForceInvalidationFromDBCache()
-            throws InterruptedException, ExecutionException {
+    public void testIndexWithIndexOnlyConstraintForceInvalidationFromDBCache() throws InterruptedException, ExecutionException {
         if (features.hasLocking() || !features.isDistributed()) {
             return;
         }
@@ -10606,8 +9980,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         String indexPropName = "indexedProp";
         String vertexLabelName = "vertexLabelForIndexOnlyConstraint";
         String indexName = "indexWithIndexOnlyConstraint";
-        PropertyKey indexedProp = mgmt.makePropertyKey(indexPropName).dataType(Integer.class)
-                .cardinality(Cardinality.SINGLE).make();
+        PropertyKey indexedProp = mgmt.makePropertyKey(indexPropName).dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
         VertexLabel vertexLabel = mgmt.makeVertexLabel(vertexLabelName).make();
         mgmt.buildIndex(indexName, Vertex.class).addKey(indexedProp).indexOnly(vertexLabel).buildCompositeIndex();
         finishSchema();
@@ -10615,10 +9988,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         mgmt.updateIndex(mgmt.getGraphIndex(indexName), SchemaAction.REINDEX).get();
         finishSchema();
 
-        StandardItineris graph1 = openInstanceWithDBCacheEnabled(
-                "testIndexWithIndexOnlyConstraintForceInvalidationFromDBCache1");
-        StandardItineris graph2 = openInstanceWithDBCacheEnabled(
-                "testIndexWithIndexOnlyConstraintForceInvalidationFromDBCache2");
+        StandardItineris graph1 = openInstanceWithDBCacheEnabled("testIndexWithIndexOnlyConstraintForceInvalidationFromDBCache1");
+        StandardItineris graph2 = openInstanceWithDBCacheEnabled("testIndexWithIndexOnlyConstraintForceInvalidationFromDBCache2");
 
         ItinerisVertex v1 = graph1.addVertex(vertexLabelName);
         v1.property(indexPropName, 1);
@@ -10639,8 +10010,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         tx2 = graph2.newTransaction();
         assertEquals(1L, tx2.traversal().V().hasLabel(vertexLabelName).has(indexPropName, 1).count().next());
 
-        // Try to invalidate data without vertex label with index constraints filter
-        // enabled
+        // Try to invalidate data without vertex label with index constraints filter enabled
         invalidateUpdatedVertexProperty(graph2, v1.id(), indexPropName, 1, -1, true);
         tx2.rollback();
 
@@ -10672,8 +10042,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         // Define schema with 2 properties and 2 indices which include the same property
         String indexProp1Name = "someProp1";
         String index1Name = "someIndex1";
-        PropertyKey indexedProp1 = mgmt.makePropertyKey(indexProp1Name).dataType(Integer.class)
-                .cardinality(Cardinality.SINGLE).make();
+        PropertyKey indexedProp1 = mgmt.makePropertyKey(indexProp1Name).dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
         mgmt.buildIndex(index1Name, Vertex.class).addKey(indexedProp1).buildCompositeIndex();
         finishSchema();
         ManagementSystem.awaitGraphIndexStatus(graph, index1Name).call();
@@ -10764,8 +10133,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testMultiQueryDropsVertices() {
 
         mgmt.makePropertyKey("id").dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
-        PropertyKey nameProp = mgmt.makePropertyKey("name").dataType(String.class).cardinality(Cardinality.SINGLE)
-                .make();
+        PropertyKey nameProp = mgmt.makePropertyKey("name").dataType(String.class).cardinality(Cardinality.SINGLE).make();
         mgmt.makePropertyKey("details").dataType(String.class).cardinality(Cardinality.SINGLE).make();
         mgmt.buildIndex("nameIndex", Vertex.class).addKey(nameProp).buildCompositeIndex();
 
@@ -10778,12 +10146,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         clopen();
 
         List<ItinerisVertex> vertices = tx.traversal()
-                .V()
-                .has("name", "name_test")
-                .toList()
-                .stream()
-                .map(v -> (ItinerisVertex) v)
-                .collect(Collectors.toList());
+            .V()
+            .has("name", "name_test")
+            .toList()
+            .stream()
+            .map(v -> (ItinerisVertex) v)
+            .collect(Collectors.toList());
 
         int actualCount = tx.multiQuery(vertices).drop().size();
         clopen();
@@ -10799,8 +10167,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     public void testMultiQueryDropsStrategyModes() {
 
         mgmt.makePropertyKey("id").dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
-        PropertyKey nameProp = mgmt.makePropertyKey("name").dataType(String.class).cardinality(Cardinality.SINGLE)
-                .make();
+        PropertyKey nameProp = mgmt.makePropertyKey("name").dataType(String.class).cardinality(Cardinality.SINGLE).make();
         mgmt.makePropertyKey("details").dataType(String.class).cardinality(Cardinality.SINGLE).make();
         mgmt.buildIndex("nameIndex", Vertex.class).addKey(nameProp).buildCompositeIndex();
 
@@ -10815,8 +10182,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         clopen(option(DROP_STEP_BATCH_MODE), MultiQueryDropStepStrategyMode.NONE.getConfigName());
         assertEquals(verticesAmount, getVerticesForDropTestCount());
         TraversalMetrics profileT = graph.traversal().V().drop().profile().next();
-        assertTrue(profileT.getMetrics().stream()
-                .anyMatch(metrics -> metrics.getName().equals(DropStep.class.getSimpleName())));
+        assertTrue(profileT.getMetrics().stream().anyMatch(metrics -> metrics.getName().equals(DropStep.class.getSimpleName())));
         graph.tx().commit();
         assertEquals(0, getVerticesForDropTestCount());
 
@@ -10827,10 +10193,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         clopen(option(DROP_STEP_BATCH_MODE), MultiQueryDropStepStrategyMode.ALL.getConfigName());
         assertEquals(verticesAmount, getVerticesForDropTestCount());
         profileT = graph.traversal().V().drop().profile().next();
-        assertEquals("true",
-                profileT.getMetrics().stream()
-                        .filter(metrics -> metrics.getName().equals(ItinerisDropStep.class.getSimpleName())).findAny()
-                        .get().getAnnotation("multi"));
+        assertEquals("true", profileT.getMetrics().stream().filter(metrics -> metrics.getName().equals(ItinerisDropStep.class.getSimpleName())).findAny().get().getAnnotation("multi"));
         graph.tx().commit();
         assertEquals(0, getVerticesForDropTestCount());
 
@@ -10842,11 +10205,10 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(verticesAmount, getVerticesForDropTestCount());
         int limitSize = 2;
         profileT = graph.traversal().V().limit(limitSize).drop().profile().next();
-        assertTrue(profileT.getMetrics().stream()
-                .anyMatch(metrics -> metrics.getName().equals(DropStep.class.getSimpleName())));
+        assertTrue(profileT.getMetrics().stream().anyMatch(metrics -> metrics.getName().equals(DropStep.class.getSimpleName())));
         graph.tx().commit();
         long afterDropCount = getVerticesForDropTestCount();
-        assertEquals(verticesAmount - limitSize, afterDropCount);
+        assertEquals(verticesAmount-limitSize, afterDropCount);
         graph.traversal().V().drop().iterate();
         graph.tx().commit();
         addVerticesForDropTest(verticesAmount);
@@ -10854,20 +10216,16 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         clopen(option(DROP_STEP_BATCH_MODE), MultiQueryDropStepStrategyMode.ALL.getConfigName());
         assertEquals(verticesAmount, getVerticesForDropTestCount());
         profileT = graph.traversal().V().limit(limitSize).drop().profile().next();
-        assertEquals("true",
-                profileT.getMetrics().stream()
-                        .filter(metrics -> metrics.getName().equals(ItinerisDropStep.class.getSimpleName())).findAny()
-                        .get().getAnnotation("multi"));
+        assertEquals("true", profileT.getMetrics().stream().filter(metrics -> metrics.getName().equals(ItinerisDropStep.class.getSimpleName())).findAny().get().getAnnotation("multi"));
         graph.tx().commit();
         afterDropCount = getVerticesForDropTestCount();
-        assertEquals(verticesAmount - limitSize, afterDropCount);
+        assertEquals(verticesAmount-limitSize, afterDropCount);
     }
 
     @Test
-    public void testMetaPropertiesDrop() {
+    public void testMetaPropertiesDrop(){
         mgmt.makePropertyKey("id").dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
-        PropertyKey nameProp = mgmt.makePropertyKey("name").dataType(String.class).cardinality(Cardinality.SINGLE)
-                .make();
+        PropertyKey nameProp = mgmt.makePropertyKey("name").dataType(String.class).cardinality(Cardinality.SINGLE).make();
         mgmt.makePropertyKey("details").dataType(String.class).cardinality(Cardinality.SINGLE).make();
         mgmt.buildIndex("nameIndex", Vertex.class).addKey(nameProp).buildCompositeIndex();
 
@@ -10897,7 +10255,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
     }
 
     @Test
-    public void testEdgePropertiesDrop() {
+    public void testEdgePropertiesDrop(){
         mgmt.makePropertyKey("id").dataType(Integer.class).cardinality(Cardinality.SINGLE).make();
         mgmt.makePropertyKey("name").dataType(String.class).cardinality(Cardinality.SINGLE).make();
         mgmt.makeEdgeLabel("relate").make();
@@ -10908,8 +10266,8 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
         for (int i = 0; i < verticesAmount; i++) {
             Vertex vertex = tx.addVertex("id", i);
-            Vertex vertex2 = tx.addVertex("id", i + verticesAmount);
-            vertex.addEdge("relate", vertex2).property("name", "name_" + i);
+            Vertex vertex2 = tx.addVertex("id", i+verticesAmount);
+            vertex.addEdge("relate", vertex2).property("name", "name_"+i);
         }
 
         graph.tx().commit();
@@ -10928,15 +10286,15 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(verticesAmount, graph.traversal().E().count().next());
     }
 
-    private void addVerticesForDropTest(long verticesAmount) {
+    private void addVerticesForDropTest(long verticesAmount){
         addVerticesForDropTest(verticesAmount, graph);
     }
 
-    private long getVerticesForDropTestCount() {
+    private long getVerticesForDropTestCount(){
         return getVerticesForDropTestCount(graph.traversal());
     }
 
-    private void addVerticesForDropTest(long verticesAmount, Transaction tx) {
+    private void addVerticesForDropTest(long verticesAmount, Transaction tx){
         for (int i = 0; i < verticesAmount; i++) {
             Vertex vertex = tx.addVertex("id", i);
             vertex.property("name", "name_test");
@@ -10944,23 +10302,23 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         }
     }
 
-    private long getVerticesForDropTestCount(GraphTraversalSource g) {
+    private long getVerticesForDropTestCount(GraphTraversalSource g){
         return g.V()
-                .has("name", "name_test")
-                .count().next();
+            .has("name", "name_test")
+            .count().next();
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = { true, false })
+    @ValueSource(booleans = {true, false})
     public void testParallelBackendOps(boolean parallelBackendOpsEnabled) {
         clopen(option(PARALLEL_BACKEND_OPS), parallelBackendOpsEnabled);
 
         int verticesPerLevel = 10;
         List<Vertex> firstLevelVertices = new ArrayList<>(verticesPerLevel);
-        for (int i = 0; i < verticesPerLevel; i++) {
+        for(int i=0;i<verticesPerLevel;i++){
             firstLevelVertices.add(tx.addVertex());
         }
-        for (Vertex firstLevelVertex : firstLevelVertices) {
+        for(Vertex firstLevelVertex : firstLevelVertices){
             Vertex secondLevelVertex = tx.addVertex();
             firstLevelVertex.addEdge("knows", secondLevelVertex);
         }
@@ -10968,32 +10326,24 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         Assertions.assertEquals(verticesPerLevel, graph.traversal().V(firstLevelVertices).out("knows").count().next());
     }
 
-    private void invalidateUpdatedVertexProperty(StandardItineris graph, Object vertexIdUpdated,
-            String propertyNameUpdated, Object previousPropertyValue, Object newPropertyValue) {
-        invalidateUpdatedVertexProperty(graph, vertexIdUpdated, propertyNameUpdated, previousPropertyValue,
-                newPropertyValue, true);
+    private void invalidateUpdatedVertexProperty(StandardItineris graph, Object vertexIdUpdated, String propertyNameUpdated, Object previousPropertyValue, Object newPropertyValue){
+        invalidateUpdatedVertexProperty(graph, vertexIdUpdated, propertyNameUpdated, previousPropertyValue, newPropertyValue, true);
     }
 
-    private void invalidateUpdatedVertexProperty(StandardItineris graph, Object vertexIdUpdated,
-            String propertyNameUpdated, Object previousPropertyValue, Object newPropertyValue,
-            boolean withIndexConstraintsFilter) {
+    private void invalidateUpdatedVertexProperty(StandardItineris graph, Object vertexIdUpdated, String propertyNameUpdated, Object previousPropertyValue, Object newPropertyValue, boolean withIndexConstraintsFilter) {
         StandardItinerisTx tx = (StandardItinerisTx) graph.newTransaction();
         ItinerisManagement graphMgmt = graph.openManagement();
         PropertyKey propertyKey = graphMgmt.getPropertyKey(propertyNameUpdated);
         CacheVertex cacheVertex = new CacheVertex(tx, vertexIdUpdated, ElementLifeCycle.Loaded);
-        StandardVertexProperty propertyPreviousVal = new StandardVertexProperty(propertyKey.longId(), propertyKey,
-                cacheVertex, previousPropertyValue, ElementLifeCycle.Removed);
-        StandardVertexProperty propertyNewVal = new StandardVertexProperty(propertyKey.longId(), propertyKey,
-                cacheVertex, newPropertyValue, ElementLifeCycle.New);
+        StandardVertexProperty propertyPreviousVal = new StandardVertexProperty(propertyKey.longId(), propertyKey, cacheVertex, previousPropertyValue, ElementLifeCycle.Removed);
+        StandardVertexProperty propertyNewVal = new StandardVertexProperty(propertyKey.longId(), propertyKey, cacheVertex, newPropertyValue, ElementLifeCycle.New);
         IndexSerializer indexSerializer = graph.getIndexSerializer();
 
         Stream<IndexUpdate> indexUpdates;
         if (withIndexConstraintsFilter) {
-            indexUpdates = indexSerializer.getIndexUpdates(cacheVertex,
-                    Arrays.asList(propertyPreviousVal, propertyNewVal), tx);
+            indexUpdates = indexSerializer.getIndexUpdates(cacheVertex, Arrays.asList(propertyPreviousVal, propertyNewVal), tx);
         } else {
-            indexUpdates = indexSerializer.getIndexUpdatesNoConstraints(cacheVertex,
-                    Arrays.asList(propertyPreviousVal, propertyNewVal), tx);
+            indexUpdates = indexSerializer.getIndexUpdatesNoConstraints(cacheVertex, Arrays.asList(propertyPreviousVal, propertyNewVal), tx);
         }
 
         CacheInvalidationService invalidationService = graph.getDBCacheInvalidationService();
@@ -11010,23 +10360,22 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         tx.rollback();
     }
 
-    private void queryVertices(ItinerisTransaction tx, String propName, Object... values) {
-        for (Object value : values) {
+    private void queryVertices(ItinerisTransaction tx, String propName, Object ... values){
+        for(Object value : values){
             tx.traversal().V().has(propName, value).toList();
         }
     }
 
-    private void queryVertices(ItinerisTransaction tx, String prop1Name, Iterable<Object> prop1Values, String prop2Name,
-            Iterable<Object> prop2Values) {
-        for (Object prop1Value : prop1Values) {
-            for (Object prop2Value : prop2Values) {
+    private void queryVertices(ItinerisTransaction tx, String prop1Name, Iterable<Object> prop1Values, String prop2Name, Iterable<Object> prop2Values){
+        for(Object prop1Value : prop1Values){
+            for(Object prop2Value : prop2Values){
                 tx.traversal().V().has(prop1Name, prop1Value).has(prop2Name, prop2Value).toList();
                 tx.traversal().V().has(prop2Name, prop2Value).has(prop1Name, prop1Value).toList();
             }
         }
     }
 
-    private StandardItineris openInstanceWithDBCacheEnabled(String uniqueInstanceId) {
+    private StandardItineris openInstanceWithDBCacheEnabled(String uniqueInstanceId){
         WriteConfiguration configCopy = config.copy();
         configCopy.set(ConfigElement.getPath(UNIQUE_INSTANCE_ID), uniqueInstanceId);
         configCopy.set(ConfigElement.getPath(REPLACE_INSTANCE_IF_EXISTS), true);
@@ -11036,10 +10385,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         return (StandardItineris) ItinerisFactory.open(configCopy);
     }
 
-    private GraphTraversal<Vertex, Vertex> getV(String propertyName1, Object value1, String propertyName2,
-            Object value2, String vertexLabel) {
+    private GraphTraversal<Vertex, Vertex> getV(String propertyName1, Object value1, String propertyName2, Object value2, String vertexLabel){
         GraphTraversal<Vertex, Vertex> traversal = tx.traversal().V();
-        if (vertexLabel != null) {
+        if(vertexLabel != null){
             traversal = traversal.hasLabel(vertexLabel);
         }
         return traversal.has(propertyName1, value1).has(propertyName2, value2);

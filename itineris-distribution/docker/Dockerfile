@@ -1,4 +1,4 @@
-# Copyright 2024 Itineris Authors
+# Copyright 2024 JanusGraph Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ ARG CREATED=unknown
 ARG REVISION=unknown
 
 LABEL org.opencontainers.image.title="Itineris Graph Database" \
-      org.opencontainers.image.description="Itineris: distributed graph database (JanusGraph fork)" \
+      org.opencontainers.image.description="Itineris: distributed graph database (Itineris fork)" \
       org.opencontainers.image.url="https://github.com/forwardmeasure/itineris" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.created="${CREATED}" \

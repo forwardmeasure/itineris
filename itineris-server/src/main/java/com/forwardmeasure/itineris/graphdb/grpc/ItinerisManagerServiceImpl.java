@@ -1,4 +1,4 @@
-// Copyright 2020 Itineris Authors
+// Copyright 2020 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,12 +14,11 @@
 
 package com.forwardmeasure.itineris.graphdb.grpc;
 
-import com.forwardmeasure.itineris.graphdb.grpc.types.ItinerisContext;
-import com.forwardmeasure.itineris.graphdb.server.ItinerisServer;
 import com.jcabi.manifests.Manifests;
-
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import com.forwardmeasure.itineris.graphdb.grpc.types.ItinerisContext;
+import com.forwardmeasure.itineris.graphdb.server.ItinerisServer;
 
 public class ItinerisManagerServiceImpl extends ItinerisManagerServiceGrpc.ItinerisManagerServiceImplBase {
     private final ItinerisContextHandler contextHandler;
@@ -29,8 +28,7 @@ public class ItinerisManagerServiceImpl extends ItinerisManagerServiceGrpc.Itine
     }
 
     @Override
-    public void getItinerisContexts(GetItinerisContextsRequest request,
-            StreamObserver<GetItinerisContextsResponse> responseObserver) {
+    public void getItinerisContexts(GetItinerisContextsRequest request, StreamObserver<GetItinerisContextsResponse> responseObserver) {
         GetItinerisContextsResponse.Builder response = GetItinerisContextsResponse.newBuilder();
 
         for (ItinerisContext context : contextHandler.getContexts()) {
@@ -42,21 +40,21 @@ public class ItinerisManagerServiceImpl extends ItinerisManagerServiceGrpc.Itine
 
     @Override
     public void getItinerisContextByGraphName(GetItinerisContextByGraphNameRequest request,
-            StreamObserver<GetItinerisContextByGraphNameResponse> responseObserver) {
+                                                StreamObserver<GetItinerisContextByGraphNameResponse> responseObserver) {
         final String graphName = request.getGraphName();
         if (graphName.isEmpty()) {
             responseObserver.onError(Status.INVALID_ARGUMENT
-                    .withDescription("graphName is required").asException());
+                .withDescription("graphName is required").asException());
             return;
         }
         ItinerisContext context = contextHandler.getContextByGraphName(graphName);
         if (context == null) {
             responseObserver.onError(Status.NOT_FOUND
-                    .withDescription("ItinerisContext wasn't found for graphName").asException());
+                .withDescription("ItinerisContext wasn't found for graphName").asException());
         }
         responseObserver.onNext(GetItinerisContextByGraphNameResponse.newBuilder()
-                .setContext(context)
-                .build());
+            .setContext(context)
+            .build());
         responseObserver.onCompleted();
     }
 
@@ -64,16 +62,16 @@ public class ItinerisManagerServiceImpl extends ItinerisManagerServiceGrpc.Itine
     public void getVersion(GetVersionRequest request, StreamObserver<GetVersionResponse> responseObserver) {
         String tinkerPopVersion = "debug-tp";
         String janusGraphVersion = "debug-jg";
-        if (Manifests.exists(ItinerisServer.MANIFEST_TINKERPOP_VERSION_ATTRIBUTE)) {
+        if (Manifests.exists(ItinerisServer.MANIFEST_TINKERPOP_VERSION_ATTRIBUTE)){
             tinkerPopVersion = Manifests.read(ItinerisServer.MANIFEST_TINKERPOP_VERSION_ATTRIBUTE);
         }
-        if (Manifests.exists(ItinerisServer.MANIFEST_ITINERIS_VERSION_ATTRIBUTE)) {
+        if (Manifests.exists(ItinerisServer.MANIFEST_ITINERIS_VERSION_ATTRIBUTE)){
             janusGraphVersion = Manifests.read(ItinerisServer.MANIFEST_ITINERIS_VERSION_ATTRIBUTE);
         }
         responseObserver.onNext(GetVersionResponse.newBuilder()
-                .setTinkerpopVersion(tinkerPopVersion)
-                .setJanusgraphVersion(janusGraphVersion)
-                .build());
+            .setTinkerpopVersion(tinkerPopVersion)
+            .setItinerisVersion(janusGraphVersion)
+            .build());
         responseObserver.onCompleted();
     }
 }

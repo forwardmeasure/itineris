@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ public abstract class LogTest {
         simpleSendReceive(2000,1);
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/1445
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/1445
     @RepeatedIfExceptionsTest(repeats = 3)
     @Tag(LogTest.requiresOrderPreserving)
     public void testMultipleReadersOnSingleLogSerial() throws Exception {

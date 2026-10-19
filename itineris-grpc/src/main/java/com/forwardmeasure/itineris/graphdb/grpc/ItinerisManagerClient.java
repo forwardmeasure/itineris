@@ -1,4 +1,4 @@
-// Copyright 2021 Itineris Authors
+// Copyright 2021 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,6 +57,6 @@ public class ItinerisManagerClient {
     public String getItinerisVersion() {
         GetVersionRequest request = GetVersionRequest.newBuilder().build();
         GetVersionResponse response = blockingStub.getVersion(request);
-        return response.getJanusgraphVersion();
+        return response.getItinerisVersion();
     }
 }

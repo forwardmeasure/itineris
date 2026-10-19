@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -302,7 +302,7 @@ public class VertexIDAssignerTest {
                     default:
                         throw new RuntimeException("Unsupported custom id strategy: " + idStrategy);
                 }
-                final String vid = "janusgraph_vid" + userVertexId;
+                final String vid = "itineris_vid" + userVertexId;
                 ItinerisVertex next = graph.addVertex(T.id, vid, "user_id", userVertexId);
                 graph.tx().commit();
                 vertices.add((ItinerisVertex) graph.traversal().V().has("user_id", userVertexId).next());
@@ -312,7 +312,7 @@ public class VertexIDAssignerTest {
             for (ItinerisVertex v : vertices) {
                 assertTrue(v.hasId());
                 assertTrue(vertexIds.add((String) v.id()));
-                assertEquals(v.id(), "janusgraph_vid" + v.value("user_id"));
+                assertEquals(v.id(), "itineris_vid" + v.value("user_id"));
             }
         } finally {
             graph.tx().rollback();

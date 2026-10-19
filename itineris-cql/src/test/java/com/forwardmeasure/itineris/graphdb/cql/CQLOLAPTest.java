@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ public class CQLOLAPTest extends OLAPTest {
         return cqlContainer.getConfiguration(getClass().getSimpleName()).getConfiguration();
     }
 
-    // flaky test: https://github.com/Itineris/itineris/issues/3392
+    // flaky test: https://github.com/JanusGraph/janusgraph/issues/3392
     @RepeatedIfExceptionsTest(repeats = 3)
     @Override
     public void testShortestDistance() throws Exception {

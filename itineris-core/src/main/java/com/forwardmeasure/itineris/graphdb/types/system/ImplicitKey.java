@@ -1,4 +1,4 @@
-// Copyright 2017 Itineris Authors
+// Copyright 2017 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ public class ImplicitKey extends EmptyRelationType implements SystemRelationType
 
     public static final ImplicitKey ID = new ImplicitKey(1001, T.id.getAccessor() ,Object.class);
 
-    public static final ImplicitKey JANUSGRAPHID = new ImplicitKey(1002,Token.makeSystemName("nid"),Long.class);
+    public static final ImplicitKey ITINERISID = new ImplicitKey(1002,Token.makeSystemName("nid"),Long.class);
 
     public static final ImplicitKey LABEL = new ImplicitKey(11, T.label.getAccessor() ,String.class);
 
@@ -87,7 +87,7 @@ public class ImplicitKey extends EmptyRelationType implements SystemRelationType
     public<O> O computeProperty(InternalElement e) {
         if (this==ID) {
             return (O)e.id();
-        } else if (this==JANUSGRAPHID) {
+        } else if (this==ITINERISID) {
             assert e instanceof AbstractTypedRelation;
             return (O)Long.valueOf(((AbstractTypedRelation) e).longId());
         } else if (this==LABEL) {

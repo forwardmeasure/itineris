@@ -1,4 +1,4 @@
-// Copyright 2019 Itineris Authors
+// Copyright 2019 JanusGraph Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,9 +69,9 @@ public class ItinerisPredicateUtils {
     }
 
     public static ItinerisPredicate convert(BiPredicate p) {
-        final ItinerisPredicate janusgraphPredicate = convertInternal(p);
-        if (janusgraphPredicate==null) throw new IllegalArgumentException("Itineris does not support the given predicate: " + p);
-        return janusgraphPredicate;
+        final ItinerisPredicate itinerisPredicate = convertInternal(p);
+        if (itinerisPredicate==null) throw new IllegalArgumentException("Itineris does not support the given predicate: " + p);
+        return itinerisPredicate;
     }
 
     public static boolean supports(BiPredicate p) {
