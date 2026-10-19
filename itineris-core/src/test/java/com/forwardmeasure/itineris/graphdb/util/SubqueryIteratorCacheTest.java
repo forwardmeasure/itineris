@@ -1,0 +1,372 @@
+// Copyright 2026 JanusGraph Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.forwardmeasure.itineris.graphdb.util;
+
+import com.forwardmeasure.itineris.core.ItinerisElement;
+import com.forwardmeasure.itineris.diskstorage.BackendTransaction;
+import com.forwardmeasure.itineris.graphdb.database.IndexSerializer;
+import com.forwardmeasure.itineris.graphdb.query.LimitAdjustingIterator;
+import com.forwardmeasure.itineris.graphdb.query.Query;
+import com.forwardmeasure.itineris.graphdb.query.graph.JointIndexQuery;
+import com.forwardmeasure.itineris.graphdb.query.profile.QueryProfiler;
+import com.forwardmeasure.itineris.graphdb.query.profile.SimpleQueryProfiler;
+import com.forwardmeasure.itineris.graphdb.transaction.StandardItinerisTx;
+import com.forwardmeasure.itineris.graphdb.transaction.subquerycache.SubqueryCache;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Covers when {@link SubqueryIterator} stores the ids it collected for one index of a joint query.
+ * <p>
+ * The cache records a result list against the limit of the subquery which produced it, and serves it back either to
+ * a later query asking for no more than that limit, or to any later query when the recorded limit exceeds the size
+ * of the list, which means the index ran out and the list is complete. A list which the read limit truncated cannot
+ * meet the second condition, so it is safe to store only while the subquery carries the limit which truncated it.
+ * <p>
+ * {@link com.forwardmeasure.itineris.graphdb.query.graph.JointIndexQuery#updateLimit(int)} propagates the joint limit into the
+ * subquery only when there is a single subquery. With more than one the subquery keeps a wider limit, and a
+ * truncated list stored against it is served to a later query which asked for more results than the list holds.
+ */
+public class SubqueryIteratorCacheTest {
+
+    private static final List<Object> ALL_MATCHING_IDS = Arrays.asList(1L, 2L, 3L, 4L, 5L);
+
+    private final JointIndexQuery.Subquery subQuery = mock(JointIndexQuery.Subquery.class);
+    private final SubqueryCache indexCache = mock(SubqueryCache.class);
+
+    @BeforeEach
+    public void aCacheWhichKeepsResultSetsOfAnySize() {
+        when(indexCache.maximumCachedResultSize()).thenReturn(Integer.MAX_VALUE);
+    }
+
+    //readLimit is the limit the iterator reads the index under, which a joint query takes from itself. subQueryLimit is
+    //the limit the cache records the result against, which it takes from the subquery.
+    private void runQuery(int readLimit, int subQueryLimit) {
+        runQuery(readLimit, subQueryLimit, QueryProfiler.NO_OP);
+    }
+
+    private void runQuery(int readLimit, int subQueryLimit, QueryProfiler queryProfiler) {
+        when(subQuery.getProfiler()).thenReturn(queryProfiler);
+        when(subQuery.getLimit()).thenReturn(subQueryLimit);
+        final IndexSerializer indexSerializer = mock(IndexSerializer.class);
+        //A Stream is consumed once, so answer with a fresh one rather than handing the same instance to every call
+        when(indexSerializer.query(any(), any(), any())).thenAnswer(invocation -> ALL_MATCHING_IDS.stream());
+        //A mock returns an empty List rather than null, which would look like a cache hit holding no results
+        when(indexCache.getIfPresent(any())).thenReturn(null);
+
+        try (SubqueryIterator iterator = new SubqueryIterator(subQuery, indexSerializer,
+            mock(BackendTransaction.class), mock(StandardItinerisTx.class), indexCache, readLimit,
+            id -> mock(ItinerisElement.class), null)) {
+            while (iterator.hasNext()) {
+                iterator.next();
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object> captureCachedResult() {
+        final ArgumentCaptor<List<Object>> cached = ArgumentCaptor.forClass(List.class);
+        verify(indexCache, times(1)).put(any(), cached.capture());
+        return cached.getValue();
+    }
+
+    @Test
+    public void shouldNotCacheATruncatedResultSetWhenTheSubqueryLimitIsWider() {
+        //This is the joint query of more than one index: the read stopped after 2 results, but the cache would record
+        //the list against an unlimited subquery and then serve those 2 results to a query which asked for all of them
+        runQuery(2, Query.NO_LIMIT);
+        verify(indexCache, never()).put(any(), any());
+    }
+
+    @Test
+    public void shouldCacheATruncatedResultSetWhenTheSubqueryCarriesTheSameLimit() {
+        //This is the joint query of a single index: the cache records the same limit which truncated the read, so it
+        //declines to serve the list to a later query which asks for more
+        runQuery(2, 2);
+        assertEquals(ALL_MATCHING_IDS.subList(0, 2), captureCachedResult());
+    }
+
+    @Test
+    public void shouldCacheAResultSetWhoseIndexRanOutOfResults() {
+        runQuery(ALL_MATCHING_IDS.size() + 1, ALL_MATCHING_IDS.size() + 1);
+        assertEquals(ALL_MATCHING_IDS, captureCachedResult());
+    }
+
+    @Test
+    public void shouldCacheAResultSetWhenThereIsNoLimit() {
+        runQuery(Query.NO_LIMIT, Query.NO_LIMIT);
+        assertEquals(ALL_MATCHING_IDS, captureCachedResult());
+    }
+
+    @Test
+    public void shouldCacheAResultSetWhoseIndexRanOutAsTheLimitWasReached() {
+        //The index ran out at the same moment the limit was reached. Which of the two stopped the read is unknown, so
+        //the list counts as truncated, and the subquery carrying the same limit is what makes it safe to store
+        runQuery(ALL_MATCHING_IDS.size(), ALL_MATCHING_IDS.size());
+        assertEquals(ALL_MATCHING_IDS, captureCachedResult());
+    }
+
+    @Test
+    public void shouldNotCacheAResultSetWhoseIndexRanOutAsAWiderSubqueryLimitWasReached() {
+        runQuery(ALL_MATCHING_IDS.size(), Query.NO_LIMIT);
+        verify(indexCache, never()).put(any(), any());
+    }
+
+    @Test
+    public void shouldCacheAResultSetWhoseCallerStoppedAtTheLimit() {
+        //Every other test here drives the iterator to its end. A real limited query does not: it takes exactly as
+        //many elements as the limit allowed and stops, so nothing ever observes the stream ending. The read is
+        //finished all the same and the result is worth caching, which is what keeps a repeated limited query off
+        //the index
+        when(subQuery.getProfiler()).thenReturn(QueryProfiler.NO_OP);
+        when(subQuery.getLimit()).thenReturn(2);
+        final IndexSerializer indexSerializer = mock(IndexSerializer.class);
+        when(indexSerializer.query(any(), any(), any())).thenAnswer(invocation -> ALL_MATCHING_IDS.stream());
+        when(indexCache.getIfPresent(any())).thenReturn(null);
+
+        try (SubqueryIterator iterator = new SubqueryIterator(subQuery, indexSerializer,
+            mock(BackendTransaction.class), mock(StandardItinerisTx.class), indexCache, 2,
+            id -> mock(ItinerisElement.class), null)) {
+            iterator.next();
+            iterator.next();
+        }
+
+        assertEquals(ALL_MATCHING_IDS.subList(0, 2), captureCachedResult());
+    }
+
+    //A LimitAdjustingIterator over the reads of one index holding the ids, each a SubqueryIterator whose subquery
+    //carries the read's limit, as a joint query of one index passes it on. subqueries maps each limit to its subquery
+    private LimitAdjustingIterator<ItinerisElement> readsOfOneIndex(
+            List<Object> ids, int limit, Map<Integer, JointIndexQuery.Subquery> subqueries) {
+        final IndexSerializer indexSerializer = mock(IndexSerializer.class);
+        when(indexSerializer.query(any(), any(), any())).thenAnswer(invocation -> {
+            final JointIndexQuery.Subquery read = invocation.getArgument(0);
+            return ids.subList(0, Math.min(read.getLimit(), ids.size())).stream();
+        });
+        when(indexCache.getIfPresent(any())).thenReturn(null);
+        return new LimitAdjustingIterator<ItinerisElement>(Integer.MAX_VALUE - 1, limit) {
+            @Override
+            public Iterator<ItinerisElement> getNewIterator(int newLimit) {
+                final JointIndexQuery.Subquery limited = mock(JointIndexQuery.Subquery.class);
+                when(limited.getProfiler()).thenReturn(QueryProfiler.NO_OP);
+                when(limited.hasLimit()).thenReturn(true);
+                when(limited.getLimit()).thenReturn(newLimit);
+                subqueries.put(newLimit, limited);
+                return new SubqueryIterator(limited, indexSerializer, mock(BackendTransaction.class),
+                    mock(StandardItinerisTx.class), indexCache, newLimit, id -> mock(ItinerisElement.class), null);
+            }
+        };
+    }
+
+    //A query which reads on under larger limits has each read skip the ids which the reads before went through, and
+    //stops a read at its own limit, before the read's. A read which went through all its subquery's limit allows is
+    //complete for that limit all the same, and worth caching as a read which skipped nothing is, which is what keeps a
+    //repeated query which read on off the index. The read which the query stopped before the end of the result isn't
+    @Test
+    public void shouldCacheEachReadWhichWentThroughItsLimitWhereTheQueryReadOn() {
+        final List<Object> ids = LongStream.rangeClosed(1, 30).boxed().collect(Collectors.toList());
+        final Map<Integer, JointIndexQuery.Subquery> subqueries = new HashMap<>();
+        final LimitAdjustingIterator<ItinerisElement> iterator = readsOfOneIndex(ids, 10, subqueries);
+        for (int i = 0; i < 25; i++) {
+            iterator.next();
+        }
+        iterator.close();
+
+        verify(indexCache).put(subqueries.get(10), ids.subList(0, 10));
+        verify(indexCache).put(subqueries.get(20), ids.subList(0, 20));
+        verify(indexCache, never()).put(eq(subqueries.get(40)), any());
+    }
+
+    //A query without a limit of its own, which the index answers under one, as with query.smart-limit, reads on as
+    //well. Its consumer stops at the end of the result, after its result iterator found the last element ahead of
+    //handing it out: the read which skipped ids is complete, which the probe of closing finds, as for a read which
+    //skipped nothing
+    @Test
+    public void shouldCacheTheReadWhichTheConsumerStoppedAtTheEndOfTheResult() {
+        final List<Object> ids = LongStream.rangeClosed(1, 10).boxed().collect(Collectors.toList());
+        final Map<Integer, JointIndexQuery.Subquery> subqueries = new HashMap<>();
+        final LimitAdjustingIterator<ItinerisElement> iterator = readsOfOneIndex(ids, 3, subqueries);
+        for (int i = 0; i < 9; i++) {
+            iterator.next();
+        }
+        assertTrue(iterator.hasNext());
+        iterator.close();
+
+        verify(indexCache).put(subqueries.get(12), ids);
+    }
+
+    //The cache would drop a result set with more ids than it keeps, so the iterator stops collecting the ids once there
+    //are more rather than holding all of them until the end, and doesn't put them
+    @Test
+    public void shouldNotCacheAResultSetLargerThanTheCacheKeeps() {
+        when(indexCache.maximumCachedResultSize()).thenReturn(ALL_MATCHING_IDS.size() - 1);
+        runQuery(Query.NO_LIMIT, Query.NO_LIMIT);
+        verify(indexCache, never()).put(any(), any());
+    }
+
+    @Test
+    public void shouldCacheAResultSetAsLargeAsTheCacheKeeps() {
+        when(indexCache.maximumCachedResultSize()).thenReturn(ALL_MATCHING_IDS.size());
+        runQuery(Query.NO_LIMIT, Query.NO_LIMIT);
+        assertEquals(ALL_MATCHING_IDS, captureCachedResult());
+    }
+
+    //Not even an empty result set, the one list which a cache that keeps lists of no ids would still keep
+    @Test
+    public void shouldNotCacheAnyResultSetForACacheWhichKeepsNone() {
+        when(indexCache.maximumCachedResultSize()).thenReturn(-1);
+        when(subQuery.getProfiler()).thenReturn(QueryProfiler.NO_OP);
+        when(subQuery.getLimit()).thenReturn(Query.NO_LIMIT);
+        final IndexSerializer indexSerializer = mock(IndexSerializer.class);
+        when(indexSerializer.query(any(), any(), any())).thenReturn(Collections.emptyList().stream());
+        when(indexCache.getIfPresent(any())).thenReturn(null);
+
+        try (SubqueryIterator iterator = new SubqueryIterator(subQuery, indexSerializer,
+            mock(BackendTransaction.class), mock(StandardItinerisTx.class), indexCache, 10,
+            id -> mock(ItinerisElement.class), null)) {
+            assertFalse(iterator.hasNext());
+        }
+
+        verify(indexCache, never()).put(any(), any());
+    }
+
+    //Closing a result the caller stopped reading early asks whether it was complete all the same, which reads on, and
+    //may read past what the cache keeps: the ids are dropped then and not put, and the index stream is closed
+    @Test
+    public void shouldNotCacheAResultSetWhichTheCloseReadsPastWhatTheCacheKeeps() {
+        when(indexCache.maximumCachedResultSize()).thenReturn(2);
+        when(subQuery.getProfiler()).thenReturn(QueryProfiler.NO_OP);
+        when(subQuery.getLimit()).thenReturn(Query.NO_LIMIT);
+        final IndexSerializer indexSerializer = mock(IndexSerializer.class);
+        final AtomicBoolean closed = new AtomicBoolean();
+        when(indexSerializer.query(any(), any(), any()))
+            .thenAnswer(invocation -> ALL_MATCHING_IDS.stream().onClose(() -> closed.set(true)));
+        when(indexCache.getIfPresent(any())).thenReturn(null);
+
+        //Another index of a joint query matched the first id alone, so the caller gets one element
+        final SubqueryIterator iterator = new SubqueryIterator(subQuery, indexSerializer,
+            mock(BackendTransaction.class), mock(StandardItinerisTx.class), indexCache, Query.NO_LIMIT,
+            id -> mock(ItinerisElement.class), Collections.singletonList(ALL_MATCHING_IDS.get(0)));
+        iterator.next();
+        iterator.close();
+
+        verify(indexCache, never()).put(any(), any());
+        assertTrue(closed.get());
+    }
+
+    //Once the ids are dropped, closing early doesn't read on to tell whether the result was complete: the cache
+    //wouldn't keep it either way
+    @Test
+    public void shouldNotReadOnWhenClosingAResultSetWhoseIdsWereDropped() {
+        when(indexCache.maximumCachedResultSize()).thenReturn(0);
+        when(subQuery.getProfiler()).thenReturn(QueryProfiler.NO_OP);
+        when(subQuery.getLimit()).thenReturn(Query.NO_LIMIT);
+        final IndexSerializer indexSerializer = mock(IndexSerializer.class);
+        final AtomicInteger reads = new AtomicInteger();
+        when(indexSerializer.query(any(), any(), any()))
+            .thenAnswer(invocation -> ALL_MATCHING_IDS.stream().peek(id -> reads.incrementAndGet()));
+        when(indexCache.getIfPresent(any())).thenReturn(null);
+
+        final SubqueryIterator iterator = new SubqueryIterator(subQuery, indexSerializer,
+            mock(BackendTransaction.class), mock(StandardItinerisTx.class), indexCache, Query.NO_LIMIT,
+            id -> mock(ItinerisElement.class), null);
+        iterator.next();
+        iterator.close();
+
+        assertEquals(1, reads.get());
+        verify(indexCache, never()).put(any(), any());
+    }
+
+    //A failure of the probe close makes, here in turning an id into an element, still leaves the index stream closed
+    @Test
+    public void shouldCloseTheIndexStreamWhenTheProbeOnCloseFails() {
+        when(subQuery.getProfiler()).thenReturn(QueryProfiler.NO_OP);
+        when(subQuery.getLimit()).thenReturn(Query.NO_LIMIT);
+        final IndexSerializer indexSerializer = mock(IndexSerializer.class);
+        final AtomicBoolean closed = new AtomicBoolean();
+        when(indexSerializer.query(any(), any(), any()))
+            .thenAnswer(invocation -> ALL_MATCHING_IDS.stream().onClose(() -> closed.set(true)));
+        when(indexCache.getIfPresent(any())).thenReturn(null);
+
+        final SubqueryIterator iterator = new SubqueryIterator(subQuery, indexSerializer,
+            mock(BackendTransaction.class), mock(StandardItinerisTx.class), indexCache, Query.NO_LIMIT,
+            id -> {
+                if (!id.equals(ALL_MATCHING_IDS.get(0))) {
+                    throw new IllegalStateException("can't turn " + id + " into an element");
+                }
+                return mock(ItinerisElement.class);
+            }, null);
+        iterator.next();
+
+        assertThrows(IllegalStateException.class, iterator::close);
+        assertTrue(closed.get());
+        verify(indexCache, never()).put(any(), any());
+    }
+
+    //The profile counts every id the index returned, whether or not the iterator kept them for the cache
+    @Test
+    public void shouldProfileEveryIdOfAResultSetLargerThanTheCacheKeeps() {
+        when(indexCache.maximumCachedResultSize()).thenReturn(1);
+        final SimpleQueryProfiler profiler = new SimpleQueryProfiler();
+        runQuery(Query.NO_LIMIT, Query.NO_LIMIT, profiler);
+        assertEquals(ALL_MATCHING_IDS.size(), profiler.iterator().next().getResultSize());
+    }
+
+    @Test
+    public void shouldCacheAnEmptyResultSet() {
+        when(subQuery.getProfiler()).thenReturn(QueryProfiler.NO_OP);
+        //Stated rather than left to the mock default, because the subquery limit is half of what decides whether the
+        //result is safe to store
+        when(subQuery.getLimit()).thenReturn(Query.NO_LIMIT);
+        final IndexSerializer indexSerializer = mock(IndexSerializer.class);
+        when(indexSerializer.query(any(), any(), any())).thenReturn(Collections.emptyList().stream());
+        when(indexCache.getIfPresent(any())).thenReturn(null);
+
+        try (SubqueryIterator iterator = new SubqueryIterator(subQuery, indexSerializer,
+            mock(BackendTransaction.class), mock(StandardItinerisTx.class), indexCache, 10,
+            id -> mock(ItinerisElement.class), null)) {
+            while (iterator.hasNext()) {
+                iterator.next();
+            }
+        }
+
+        //An index which matched nothing is a complete answer, and worth caching
+        assertEquals(Collections.emptyList(), captureCachedResult());
+    }
+}

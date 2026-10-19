@@ -1,0 +1,230 @@
+// Copyright 2026 JanusGraph Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.forwardmeasure.itineris.graphdb.query;
+
+import com.forwardmeasure.itineris.core.ItinerisElement;
+import com.forwardmeasure.itineris.core.PropertyKey;
+import com.forwardmeasure.itineris.graphdb.internal.Order;
+import com.forwardmeasure.itineris.graphdb.internal.OrderList;
+import com.forwardmeasure.itineris.graphdb.query.profile.QueryProfiler;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+/**
+ * How {@link QueryProcessor} combines the transaction's new elements with what the backend returns: an unordered query
+ * takes the new elements only as far as its limit needs them, and an ordered one, whose new elements fill its limit,
+ * asks the backend only for the results up to the last of them within the limit.
+ */
+public class QueryProcessorTest {
+
+    private final PropertyKey key = mock(PropertyKey.class);
+
+    @Test
+    public void takesTheNewElementsOfAnUnorderedQueryOnlyAsFarAsItsLimit() {
+        final List<ItinerisElement> news = elements(1L, 2L, 3L, 4L, 5L, 6L);
+        final Executor executor = new Executor(news, elements(7L, 8L));
+        final List<ItinerisElement> result = run(query(false, 3, true), executor);
+        assertEquals(news.subList(0, 3), result);
+        assertEquals(3, executor.newTaken);
+        assertEquals(0, executor.executed.size());
+    }
+
+    @Test
+    public void readsTheBackendOfAnUnorderedQueryOnceItsNewElementsRunOut() {
+        final List<ItinerisElement> news = elements(1L, 2L);
+        final List<ItinerisElement> stored = elements(3L, 4L, 5L);
+        final List<ItinerisElement> backend = new ArrayList<>(Collections.singletonList(news.get(1)));
+        backend.addAll(stored);
+        final Executor executor = new Executor(news, backend);
+        final List<ItinerisElement> result = run(query(false, 4, true), executor);
+        assertEquals(Arrays.asList(news.get(0), news.get(1), stored.get(0), stored.get(1)), result);
+        assertEquals(2, executor.newTaken);
+        assertTrue(executor.executed.size() > 0);
+    }
+
+    @Test
+    public void asksTheBackendOfAnOrderedQueryForTheResultsUpToItsLastNewValueWithinTheLimit() {
+        final List<ItinerisElement> news = elements(5L, 9L, 7L);
+        final List<ItinerisElement> stored = elements(8L, 6L, 4L);
+        final Executor executor = new Executor(news, stored);
+        executor.narrows = true;
+        final List<ItinerisElement> result = run(query(true, 2, true), executor);
+        assertEquals(Arrays.asList(news.get(1), stored.get(0)), result);
+        assertEquals(7L, executor.lastValue);
+        assertTrue(executor.executed.stream().allMatch(backendQuery -> backendQuery.narrowed));
+    }
+
+    @Test
+    public void asksNothingWhereTheNewElementsDontFillTheLimit() {
+        final Executor executor = new Executor(elements(5L, 9L, 7L), elements(8L, 6L));
+        executor.narrows = true;
+        assertEquals(4, run(query(true, 4, true), executor).size());
+        assertNull(executor.lastValue);
+        assertTrue(executor.executed.stream().noneMatch(backendQuery -> backendQuery.narrowed));
+    }
+
+    @Test
+    public void asksNothingWhereTheLastNewElementWithinTheLimitHasNoValue() {
+        final Executor executor = new Executor(elements(9L, null), elements(8L, 6L));
+        executor.narrows = true;
+        assertEquals(2, run(query(true, 2, true), executor).size());
+        assertNull(executor.lastValue);
+    }
+
+    @Test
+    public void asksNothingOfABackendWhichDoesntSort() {
+        final Executor executor = new Executor(elements(5L, 9L, 7L), elements(8L, 6L));
+        executor.narrows = true;
+        assertEquals(2, run(query(true, 2, false), executor).size());
+        assertNull(executor.lastValue);
+    }
+
+    //An element which the transaction removed, whose order value can't be read, is left out before the others are
+    //sorted
+    @Test
+    public void leavesOutTheRemovedElementsBeforeSortingWhatTheBackendReturns() {
+        final List<ItinerisElement> stored = elements(8L, 6L, 4L);
+        final ItinerisElement removed = mock(ItinerisElement.class);
+        doReturn(true).when(removed).isRemoved();
+        doThrow(new IllegalStateException("The vertex was removed")).when(removed).valueOrNull(key);
+        stored.add(1, removed);
+        final Executor executor = new Executor(elements(), stored);
+        assertEquals(Arrays.asList(stored.get(0), stored.get(2), stored.get(3)), run(query(true, 10, false), executor));
+    }
+
+    private List<ItinerisElement> run(ElementQuery<ItinerisElement, FakeBackendQuery> query, Executor executor) {
+        final List<ItinerisElement> result = new ArrayList<>();
+        new QueryProcessor<>(query, executor).iterator().forEachRemaining(result::add);
+        return result;
+    }
+
+    //Elements whose values of the key are the given ones, null for none
+    private List<ItinerisElement> elements(Long... values) {
+        final List<ItinerisElement> elements = new ArrayList<>();
+        for (final Long value : values) {
+            final ItinerisElement element = mock(ItinerisElement.class);
+            doReturn(value).when(element).valueOrNull(key);
+            elements.add(element);
+        }
+        return elements;
+    }
+
+    //A query of a limit, unordered or in the descending order of the key, whose backend sorts or doesn't
+    @SuppressWarnings("unchecked")
+    private ElementQuery<ItinerisElement, FakeBackendQuery> query(boolean ordered, int limit, boolean backendSorts) {
+        final ElementQuery<ItinerisElement, FakeBackendQuery> query = mock(ElementQuery.class);
+        final OrderList orders = new OrderList();
+        orders.add(key, Order.DESC);
+        when(query.isEmpty()).thenReturn(false);
+        when(query.numSubQueries()).thenReturn(1);
+        when(query.getSubQuery(0)).thenReturn(
+            new BackendQueryHolder<>(new FakeBackendQuery(false, limit), true, backendSorts));
+        when(query.isSorted()).thenReturn(ordered);
+        when(query.getSortOrder()).thenReturn((Comparator) orders);
+        when(query.hasDuplicateResults()).thenReturn(false);
+        when(query.hasLimit()).thenReturn(true);
+        when(query.getLimit()).thenReturn(limit);
+        when(query.matches(any())).thenReturn(true);
+        return query;
+    }
+
+    private static final class FakeBackendQuery extends BaseQuery implements BackendQuery<FakeBackendQuery> {
+        private final boolean narrowed;
+
+        private FakeBackendQuery(boolean narrowed, int limit) {
+            super(limit);
+            this.narrowed = narrowed;
+        }
+
+        @Override
+        public FakeBackendQuery updateLimit(int newLimit) {
+            return new FakeBackendQuery(narrowed, newLimit);
+        }
+    }
+
+    //Gives the new elements, counting how many were taken, and the backend's results in their order up to the limit of
+    //each execution, which it records; narrows a query, if it does, by marking it
+    private static final class Executor implements
+            QueryExecutor<ElementQuery<ItinerisElement, FakeBackendQuery>, ItinerisElement, FakeBackendQuery> {
+        private final List<ItinerisElement> news;
+        private final List<ItinerisElement> backend;
+        private final List<FakeBackendQuery> executed = new ArrayList<>();
+        private int newTaken;
+        private boolean narrows;
+        private Object lastValue;
+
+        private Executor(List<ItinerisElement> news, List<ItinerisElement> backend) {
+            this.news = news;
+            this.backend = backend;
+        }
+
+        @Override
+        public Iterator<ItinerisElement> getNew(ElementQuery<ItinerisElement, FakeBackendQuery> query) {
+            final Iterator<ItinerisElement> elements = news.iterator();
+            return new Iterator<ItinerisElement>() {
+                @Override
+                public boolean hasNext() {
+                    return elements.hasNext();
+                }
+
+                @Override
+                public ItinerisElement next() {
+                    newTaken++;
+                    return elements.next();
+                }
+            };
+        }
+
+        @Override
+        public boolean hasDeletions(ElementQuery<ItinerisElement, FakeBackendQuery> query) {
+            return false;
+        }
+
+        @Override
+        public boolean isDeleted(ElementQuery<ItinerisElement, FakeBackendQuery> query, ItinerisElement result) {
+            return false;
+        }
+
+        @Override
+        public Iterator<ItinerisElement> execute(ElementQuery<ItinerisElement, FakeBackendQuery> query,
+                                                   FakeBackendQuery subquery, Object executionInfo,
+                                                   QueryProfiler profiler) {
+            executed.add(subquery);
+            return backend.subList(0, Math.min(subquery.getLimit(), backend.size())).iterator();
+        }
+
+        @Override
+        public FakeBackendQuery withoutResultsAfter(ElementQuery<ItinerisElement, FakeBackendQuery> query,
+                                                    FakeBackendQuery subquery, Object value) {
+            lastValue = value;
+            return narrows ? new FakeBackendQuery(true, subquery.getLimit()) : subquery;
+        }
+    }
+}

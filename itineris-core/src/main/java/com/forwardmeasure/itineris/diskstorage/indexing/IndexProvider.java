@@ -64,7 +64,11 @@ public interface IndexProvider extends IndexInformation {
      * Mutates the index (adds and removes fields or entire documents)
      *
      * @param mutations Updates to the index. First map contains all the mutations for each store. The inner map contains
-     *                  all changes for each document in an {@link IndexMutation}.
+     *                  all changes for each document in an {@link IndexMutation}. A provider may remove from this map
+     *                  the documents it knows to have applied before it throws a
+     *                  {@link com.forwardmeasure.itineris.diskstorage.TemporaryBackendException}, so that the reattempt which
+     *                  {@link IndexTransaction} makes resends only the rest; a caller must not rely on the map being
+     *                  unchanged after a failure.
      * @param information Information on the keys used in the mutation accessible through {@link KeyInformation.IndexRetriever}.
      * @param tx Enclosing transaction
      * @throws com.forwardmeasure.itineris.diskstorage.BackendException
@@ -85,6 +89,18 @@ public interface IndexProvider extends IndexInformation {
      */
     void restore(Map<String,Map<String, List<IndexEntry>>> documents, KeyInformation.IndexRetriever information, BaseTransaction tx) throws BackendException;
 
+    /**
+     * Aggregates the documents which match the given query.
+     *
+     * @param query Query whose matching documents are aggregated
+     * @param information Information on the keys used in the query accessible through {@link KeyInformation.IndexRetriever}.
+     * @param tx Enclosing transaction
+     * @param aggregation The aggregation to compute, and the field whose values it aggregates
+     * @return The number of matching documents for a count. The minimum, maximum, mean or sum of the values of the field
+     * in them otherwise, or null when none of them holds a value of the field, as TinkerPop has no result for these
+     * aggregations of no values either
+     * @throws com.forwardmeasure.itineris.diskstorage.BackendException
+     */
     Number queryAggregation(IndexQuery query, KeyInformation.IndexRetriever information, BaseTransaction tx, Aggregation aggregation) throws BackendException;
 
     /**

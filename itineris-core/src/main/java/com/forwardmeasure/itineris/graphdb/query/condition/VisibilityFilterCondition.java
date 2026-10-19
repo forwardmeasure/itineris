@@ -21,6 +21,7 @@ import com.forwardmeasure.itineris.core.schema.ItinerisSchemaElement;
 import com.forwardmeasure.itineris.graphdb.internal.InternalElement;
 import com.forwardmeasure.itineris.graphdb.types.system.SystemRelationType;
 
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -62,6 +63,6 @@ public class VisibilityFilterCondition<E extends ItinerisElement> extends Litera
 
     @Override
     public String toString() {
-        return "visibility:"+visibility.toString().toLowerCase();
+        return "visibility:"+visibility.toString().toLowerCase(Locale.ROOT);
     }
 }

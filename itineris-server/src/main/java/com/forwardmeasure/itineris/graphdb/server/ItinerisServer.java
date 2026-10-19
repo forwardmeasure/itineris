@@ -24,11 +24,13 @@ import com.forwardmeasure.itineris.graphdb.grpc.ItinerisContextHandler;
 import com.forwardmeasure.itineris.graphdb.grpc.ItinerisManagerServiceImpl;
 import com.forwardmeasure.itineris.graphdb.grpc.schema.SchemaManagerImpl;
 import com.forwardmeasure.itineris.graphdb.management.ItinerisManager;
+import com.forwardmeasure.itineris.graphdb.server.util.VirtualThreadGremlinPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 public class ItinerisServer {
     private static final Logger logger = LoggerFactory.getLogger(ItinerisServer.class);
@@ -82,7 +84,7 @@ public class ItinerisServer {
         try {
             logger.info("Configuring Itineris Server from {}", confPath);
             janusGraphSettings = ItinerisSettings.read(confPath);
-            gremlinServer = new GremlinServer(janusGraphSettings);
+            gremlinServer = createGremlinServer(janusGraphSettings);
             CompletableFuture<Void> grpcServerFuture = CompletableFuture.completedFuture(null);
             if (janusGraphSettings.getGrpcServer().isEnabled()) {
                 grpcServerFuture = CompletableFuture.runAsync(() -> {
@@ -102,6 +104,20 @@ public class ItinerisServer {
             serverStarted.completeExceptionally(ex);
         }
         return serverStarted;
+    }
+
+    private static GremlinServer createGremlinServer(ItinerisSettings settings) {
+        if (!settings.isGremlinPoolVirtualThreads()) {
+            // Gremlin Server creates its Gremlin pool of platform threads
+            return new GremlinServer(settings);
+        }
+        ExecutorService gremlinPool = VirtualThreadGremlinPool.create(settings);
+        try {
+            return new GremlinServer(settings, gremlinPool);
+        } catch (RuntimeException | Error e) {
+            gremlinPool.shutdownNow();
+            throw e;
+        }
     }
 
     private static void configure(ServerGremlinExecutor serverGremlinExecutor) {

@@ -60,7 +60,7 @@ public abstract class ItinerisIoTest extends ItinerisBaseTest {
     private static final JtsGeoshapeHelper HELPER = new JtsGeoshapeHelper();
 
     static Stream<Arguments> data() {
-        final GraphSONMapper v1mapper = GraphSONMapper.build().version(GraphSONVersion.V1_0).typeInfo(TypeInfo.PARTIAL_TYPES).addRegistry(ItinerisIoRegistryV1d0.instance()).create();
+        final GraphSONMapper v1mapper = ItinerisIoRegistryV1d0.allowGraphSONTypeIds(GraphSONMapper.build().version(GraphSONVersion.V1_0).typeInfo(TypeInfo.PARTIAL_TYPES).addRegistry(ItinerisIoRegistryV1d0.instance())).create();
         final GraphSONMapper v2mapper = GraphSONMapper.build().version(GraphSONVersion.V2_0).typeInfo(TypeInfo.PARTIAL_TYPES).addRegistry(ItinerisIoRegistry.instance()).create();
         final GraphSONMapper v3mapper = GraphSONMapper.build().version(GraphSONVersion.V3_0).typeInfo(TypeInfo.PARTIAL_TYPES).addRegistry(ItinerisIoRegistry.instance()).create();
 

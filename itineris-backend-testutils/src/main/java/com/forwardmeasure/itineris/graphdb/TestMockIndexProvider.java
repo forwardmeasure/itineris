@@ -19,6 +19,7 @@ import com.forwardmeasure.itineris.diskstorage.BackendException;
 import com.forwardmeasure.itineris.diskstorage.BaseTransaction;
 import com.forwardmeasure.itineris.diskstorage.BaseTransactionConfig;
 import com.forwardmeasure.itineris.diskstorage.BaseTransactionConfigurable;
+import com.forwardmeasure.itineris.diskstorage.PermanentBackendException;
 import com.forwardmeasure.itineris.diskstorage.StandardIndexProvider;
 import com.forwardmeasure.itineris.diskstorage.TemporaryBackendException;
 import com.forwardmeasure.itineris.diskstorage.configuration.ConfigOption;
@@ -33,6 +34,7 @@ import com.forwardmeasure.itineris.diskstorage.indexing.RawQuery;
 import com.forwardmeasure.itineris.graphdb.query.ItinerisPredicate;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.Aggregation;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -49,17 +51,25 @@ public class TestMockIndexProvider implements IndexProvider {
             "Sets the index provider to reject adding documents. FOR TESTING ONLY",
             ConfigOption.Type.LOCAL, false).hide();
 
+    public static final ConfigOption<Duration> INDEX_MOCK_MUTATION_DELAY = new ConfigOption<>(INDEX_NS,
+            "mutation-delay",
+            "Sets the index provider to wait this long before it applies or rejects a mutation; zero or less is no " +
+                "wait. FOR TESTING ONLY",
+            ConfigOption.Type.LOCAL, Duration.ZERO).hide();
+
     public static final ConfigOption<String> INDEX_BACKEND_PROXY = new ConfigOption<>(INDEX_NS, "proxy-for",
             "Define the indexing backed to use for index support behind the mock proxy",
             ConfigOption.Type.GLOBAL, INDEX_BACKEND.getDefaultValue()).hide();
 
     private final IndexProvider index;
     private final boolean failAdds;
+    private final Duration mutationDelay;
 
     public TestMockIndexProvider(Configuration config) {
         this.index = Backend.getImplementationClass(config, config.get(INDEX_BACKEND_PROXY),
                 StandardIndexProvider.getAllProviderClasses());
         this.failAdds = config.get(INDEX_MOCK_FAILADD);
+        this.mutationDelay = config.get(INDEX_MOCK_MUTATION_DELAY);
     }
 
     @Override
@@ -69,8 +79,19 @@ public class TestMockIndexProvider implements IndexProvider {
 
     @Override
     public void mutate(Map<String, Map<String, IndexMutation>> mutations, KeyInformation.IndexRetriever information, BaseTransaction tx) throws BackendException {
+        delayMutation();
         if (!failAdds) index.mutate(mutations, information,tx);
         else throw new TemporaryBackendException("Blocked mutation");
+    }
+
+    private void delayMutation() throws BackendException {
+        if (mutationDelay.compareTo(Duration.ZERO) <= 0) return;
+        try {
+            Thread.sleep(mutationDelay.toMillis(), mutationDelay.getNano() % 1_000_000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PermanentBackendException("Interrupted while delaying a mutation", e);
+        }
     }
 
     @Override

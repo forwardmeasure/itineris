@@ -16,6 +16,7 @@ package com.forwardmeasure.itineris.graphdb;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -47,6 +48,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import com.forwardmeasure.itineris.TestCategory;
 import com.forwardmeasure.itineris.core.Cardinality;
+import com.forwardmeasure.itineris.core.Connection;
 import com.forwardmeasure.itineris.core.EdgeLabel;
 import com.forwardmeasure.itineris.core.Itineris;
 import com.forwardmeasure.itineris.core.ItinerisConfigurationException;
@@ -59,6 +61,7 @@ import com.forwardmeasure.itineris.core.ItinerisVertex;
 import com.forwardmeasure.itineris.core.ItinerisVertexProperty;
 import com.forwardmeasure.itineris.core.Multiplicity;
 import com.forwardmeasure.itineris.core.PropertyKey;
+import com.forwardmeasure.itineris.core.ReadOnlyTransactionException;
 import com.forwardmeasure.itineris.core.RelationType;
 import com.forwardmeasure.itineris.core.SchemaViolationException;
 import com.forwardmeasure.itineris.core.Transaction;
@@ -95,6 +98,7 @@ import com.forwardmeasure.itineris.diskstorage.configuration.WriteConfiguration;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.scan.ScanJobFuture;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.scan.ScanMetrics;
 import com.forwardmeasure.itineris.diskstorage.locking.PermanentLockingException;
+import com.forwardmeasure.itineris.diskstorage.locking.TemporaryLockingException;
 import com.forwardmeasure.itineris.diskstorage.log.Log;
 import com.forwardmeasure.itineris.diskstorage.log.Message;
 import com.forwardmeasure.itineris.diskstorage.log.MessageReader;
@@ -119,6 +123,7 @@ import com.forwardmeasure.itineris.graphdb.database.management.ManagementSystem;
 import com.forwardmeasure.itineris.graphdb.database.serialize.Serializer;
 import com.forwardmeasure.itineris.graphdb.database.util.IndexRecordUtil;
 import com.forwardmeasure.itineris.graphdb.database.util.StaleIndexRecordUtil;
+import com.forwardmeasure.itineris.graphdb.idmanagement.IDManager;
 import com.forwardmeasure.itineris.graphdb.internal.ElementCategory;
 import com.forwardmeasure.itineris.graphdb.internal.ElementLifeCycle;
 import com.forwardmeasure.itineris.graphdb.internal.InternalElement;
@@ -129,6 +134,8 @@ import com.forwardmeasure.itineris.graphdb.log.StandardTransactionLogProcessor;
 import com.forwardmeasure.itineris.graphdb.olap.job.GhostVertexRemover;
 import com.forwardmeasure.itineris.graphdb.olap.job.IndexRemoveJob;
 import com.forwardmeasure.itineris.graphdb.olap.job.IndexRepairJob;
+import com.forwardmeasure.itineris.graphdb.olap.job.StaleIndexEntryRemoveJob;
+import com.forwardmeasure.itineris.graphdb.predicate.AndJanusPredicate;
 import com.forwardmeasure.itineris.graphdb.query.ItinerisPredicateUtils;
 import com.forwardmeasure.itineris.graphdb.query.QueryUtil;
 import com.forwardmeasure.itineris.graphdb.query.condition.MultiCondition;
@@ -154,6 +161,7 @@ import com.forwardmeasure.itineris.graphdb.transaction.StandardItinerisTx;
 import com.forwardmeasure.itineris.graphdb.types.CompositeIndexType;
 import com.forwardmeasure.itineris.graphdb.types.StandardEdgeLabelMaker;
 import com.forwardmeasure.itineris.graphdb.types.StandardPropertyKeyMaker;
+import com.forwardmeasure.itineris.graphdb.types.TypeDefinitionCategory;
 import com.forwardmeasure.itineris.graphdb.types.system.BaseVertexLabel;
 import com.forwardmeasure.itineris.graphdb.types.system.ImplicitKey;
 import com.forwardmeasure.itineris.graphdb.types.vertices.ItinerisSchemaVertex;
@@ -198,8 +206,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -461,6 +474,102 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertFalse(graph.traversal().E().has("_e", -1).hasNext());
         assertFalse(graph.traversal().E().has("_e", -11).hasNext());
         assertTrue(graph.traversal().E().has("_e", 2).hasNext());
+    }
+
+    /**
+     * An ordered query which Itineris sorts itself, as its index doesn't sort it, leaves out the vertices which the
+     * transaction removed before it sorts them, as the order values of a removed vertex can't be read; the edges which
+     * it removed, whose ids turn into no element, are left out as well
+     */
+    @Test
+    public void testQueriesSortedInMemorySkipTheElementsWhichTheTransactionRemoved() {
+        final PropertyKey kind = makeKey("kind", String.class);
+        makeKey("name", String.class);
+        mgmt.makeEdgeLabel("road").multiplicity(Multiplicity.MULTI).make();
+        mgmt.buildIndex("verticesByKind", Vertex.class).addKey(kind).buildCompositeIndex();
+        mgmt.buildIndex("edgesByKind", Edge.class).addKey(kind).buildCompositeIndex();
+        finishSchema();
+        final Vertex from = tx.addVertex("kind", "q");
+        for (final String name : Arrays.asList("a", "b", "c", "d")) {
+            from.addEdge("road", tx.addVertex("kind", "p", "name", name), "kind", "p", "name", name);
+        }
+        newTx();
+        final GraphTraversalSource g = tx.traversal();
+        //The vertex named b, and with it its edge, and the edge named c
+        g.V().has("kind", "p").has("name", "b").drop().iterate();
+        g.E().has("kind", "p").has("name", "c").drop().iterate();
+        assertEquals(Arrays.asList("a", "c", "d"), g.V().has("kind", "p").order().by("name").values("name").toList());
+        assertEquals(Arrays.asList("d", "c"),
+            g.V().has("kind", "p").order().by("name", desc).limit(2).values("name").toList());
+        final List<Object> vertexNames = new ArrayList<>();
+        tx.query().has("kind", "p").orderBy("name", asc).vertices().forEach(v -> vertexNames.add(v.value("name")));
+        assertEquals(Arrays.asList("a", "c", "d"), vertexNames);
+        assertEquals(Arrays.asList("a", "d"), g.E().has("kind", "p").order().by("name").values("name").toList());
+        assertEquals(Collections.singletonList("d"),
+            g.E().has("kind", "p").order().by("name", desc).limit(1).values("name").toList());
+        final List<Object> edgeNames = new ArrayList<>();
+        tx.query().has("kind", "p").orderBy("name", asc).edges().forEach(e -> edgeNames.add(e.value("name")));
+        assertEquals(Arrays.asList("a", "d"), edgeNames);
+        assertEquals(Arrays.asList("a", "d"),
+            g.V(from).local(__.outE("road").order().by("name")).values("name").toList());
+        tx.rollback();
+    }
+
+    /**
+     * The elements which the transaction removes, or changes so that they no longer match, while it reads the sorted
+     * results of a query are left out as they are reached, as for an unsorted query. They are checked where the
+     * transaction had a change when a graph query began, or a change of the vertex's relations when a vertex query
+     * began.
+     */
+    @Test
+    public void testQueriesSortedInMemoryLeaveOutTheElementsRemovedWhileTheyAreRead() {
+        final PropertyKey kind = makeKey("kind", String.class);
+        makeKey("name", String.class);
+        mgmt.makeEdgeLabel("road").multiplicity(Multiplicity.MULTI).make();
+        mgmt.buildIndex("verticesByKind", Vertex.class).addKey(kind).buildCompositeIndex();
+        finishSchema();
+        final Vertex from = tx.addVertex("kind", "q");
+        for (final String name : Arrays.asList("a", "b", "c", "d", "e", "f", "g", "h")) {
+            from.addEdge("road", tx.addVertex("kind", "p", "name", name), "name", name);
+        }
+        newTx();
+        tx.addVertex("name", "unrelated");
+        final List<Object> names = new ArrayList<>();
+        for (final ItinerisVertex vertex : tx.query().has("kind", "p").orderBy("name", asc).vertices()) {
+            names.add(vertex.value("name"));
+            if (names.size() == 1) {
+                tx.traversal().V().has("kind", "p").has("name", "g").next().remove();
+            }
+        }
+        assertEquals(Arrays.asList("a", "b", "c", "d", "e", "f", "h"), names);
+        tx.rollback();
+        newTx();
+
+        //and so are those which it changes so that they no longer match
+        tx.addVertex("name", "unrelated");
+        names.clear();
+        for (final ItinerisVertex vertex : tx.query().has("kind", "p").orderBy("name", asc).vertices()) {
+            names.add(vertex.value("name"));
+            if (names.size() == 1) {
+                tx.traversal().V().has("kind", "p").has("name", "g").property("kind", "z").iterate();
+            }
+        }
+        assertEquals(Arrays.asList("a", "b", "c", "d", "e", "f", "h"), names);
+        tx.rollback();
+        newTx();
+
+        //and so are the edges of a vertex whose relations the transaction changed
+        final ItinerisVertex source = (ItinerisVertex) tx.traversal().V(from).next();
+        source.property("name", "source");
+        final List<Object> edgeNames = new ArrayList<>();
+        for (final ItinerisEdge edge : source.query().labels("road").orderBy("name", asc).edges()) {
+            edgeNames.add(edge.value("name"));
+            if (edgeNames.size() == 1) {
+                tx.traversal().V(source).outE("road").has("name", "g").next().remove();
+            }
+        }
+        assertEquals(Arrays.asList("a", "b", "c", "d", "e", "f", "h"), edgeNames);
+        tx.rollback();
     }
 
     @Test
@@ -2162,6 +2271,442 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(30, graphIndexMetrics.getCustom(IndexRemoveJob.DELETED_RECORDS_COUNT));
     }
 
+    @Test
+    public void testReindexWithoutEnablingIndexThenEnableLater() throws InterruptedException, ExecutionException {
+        clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ofMillis(0),
+                option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
+                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250)
+        );
+        //Types without index
+        PropertyKey time = mgmt.makePropertyKey("time").dataType(Integer.class).make();
+        PropertyKey name = mgmt.makePropertyKey("name").dataType(String.class).cardinality(Cardinality.SET).make();
+        PropertyKey sensor = mgmt.makePropertyKey("sensor").dataType(Double.class).cardinality(Cardinality.LIST).make();
+        finishSchema();
+
+        //Add data before the indexes exist
+        ItinerisVertex v = tx.addVertex();
+        for (int i = 0; i < 10; i++) {
+            v.property("sensor", i, "time", i);
+            v.property("name", "v" + i);
+        }
+        newTx();
+
+        //Create the indexes after the fact and wait until they are registered everywhere
+        finishSchema();
+        sensor = mgmt.getPropertyKey("sensor");
+        time = mgmt.getPropertyKey("time");
+        name = mgmt.getPropertyKey("name");
+        mgmt.buildPropertyIndex(sensor, "byTime", desc, time);
+        mgmt.buildIndex("byName", Vertex.class).addKey(name).buildCompositeIndex();
+        mgmt.commit();
+        tx.commit();
+        ManagementUtil.awaitVertexIndexUpdate(graph, "byTime", "sensor", 10, ChronoUnit.SECONDS);
+        ManagementUtil.awaitGraphIndexUpdate(graph, "byName", 10, ChronoUnit.SECONDS);
+
+        //Enable the indexes for writes only
+        finishSchema();
+        mgmt.updateIndex(mgmt.getRelationIndex(mgmt.getRelationType("sensor"), "byTime"), SchemaAction.ENABLE_WRITE_ONLY).get();
+        mgmt.updateIndex(mgmt.getGraphIndex("byName"), SchemaAction.ENABLE_WRITE_ONLY).get();
+        finishSchema();
+        assertEquals(SchemaStatus.WRITE_ONLY_ENABLED, mgmt.getRelationIndex(mgmt.getRelationType("sensor"), "byTime").getIndexStatus());
+        ItinerisIndex byName = mgmt.getGraphIndex("byName");
+        assertEquals(SchemaStatus.WRITE_ONLY_ENABLED, byName.getIndexStatus(byName.getFieldKeys()[0]));
+        finishSchema();
+
+        //Add data while the indexes are write-only
+        newTx();
+        v = getV(tx, v);
+        for (int i = 100; i < 110; i++) {
+            v.property("sensor", i, "time", i);
+            v.property("name", "v" + i);
+        }
+        newTx();
+
+        //Write-only indexes must not be used to answer queries
+        v = getV(tx, v);
+        evaluateQuery(v.query().keys("sensor").interval("time", 101, 105).orderBy("time", desc),
+                PROPERTY, 4, 1, new boolean[]{false, false}, tx.getPropertyKey("time"), Order.DESC);
+        evaluateQuery(tx.query().has("name", "v105"),
+                ElementCategory.VERTEX, 1, new boolean[]{false, true});
+        newTx();
+
+        //Reindex without enabling: the indexes must keep their WRITE_ONLY_ENABLED status
+        finishSchema();
+        ScanMetrics reindexByTime = mgmt.updateIndex(mgmt.getRelationIndex(mgmt.getRelationType("sensor"), "byTime"), SchemaAction.REINDEX).get();
+        finishSchema();
+        ScanMetrics reindexByName = mgmt.updateIndex(mgmt.getGraphIndex("byName"), SchemaAction.REINDEX).get();
+        finishSchema();
+        assertNotEquals(0, reindexByTime.getCustom(IndexRepairJob.ADDED_RECORDS_COUNT));
+        assertNotEquals(0, reindexByName.getCustom(IndexRepairJob.ADDED_RECORDS_COUNT));
+        assertEquals(SchemaStatus.WRITE_ONLY_ENABLED, mgmt.getRelationIndex(mgmt.getRelationType("sensor"), "byTime").getIndexStatus());
+        byName = mgmt.getGraphIndex("byName");
+        assertEquals(SchemaStatus.WRITE_ONLY_ENABLED, byName.getIndexStatus(byName.getFieldKeys()[0]));
+        finishSchema();
+
+        //Still not used to answer queries after reindexing
+        newTx();
+        v = getV(tx, v);
+        evaluateQuery(v.query().keys("sensor").interval("time", 1, 5).orderBy("time", desc),
+                PROPERTY, 4, 1, new boolean[]{false, false}, tx.getPropertyKey("time"), Order.DESC);
+        evaluateQuery(tx.query().has("name", "v5"),
+                ElementCategory.VERTEX, 1, new boolean[]{false, true});
+
+        //Add more data while the indexes remain write-only
+        v = getV(tx, v);
+        for (int i = 200; i < 210; i++) {
+            v.property("sensor", i, "time", i);
+            v.property("name", "v" + i);
+        }
+        newTx();
+
+        //Enable the indexes fully; no additional reindex must be necessary
+        finishSchema();
+        mgmt.updateIndex(mgmt.getRelationIndex(mgmt.getRelationType("sensor"), "byTime"), SchemaAction.ENABLE_INDEX).get();
+        mgmt.updateIndex(mgmt.getGraphIndex("byName"), SchemaAction.ENABLE_INDEX).get();
+        finishSchema();
+        assertEquals(SchemaStatus.ENABLED, mgmt.getRelationIndex(mgmt.getRelationType("sensor"), "byTime").getIndexStatus());
+        byName = mgmt.getGraphIndex("byName");
+        assertEquals(SchemaStatus.ENABLED, byName.getIndexStatus(byName.getFieldKeys()[0]));
+        finishSchema();
+
+        //All data must now be answered from the indexes: reindexed data as well as data written while write-only
+        newTx();
+        v = getV(tx, v);
+        evaluateQuery(v.query().keys("sensor").interval("time", 1, 5).orderBy("time", desc),
+                PROPERTY, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
+        evaluateQuery(v.query().keys("sensor").interval("time", 101, 105).orderBy("time", desc),
+                PROPERTY, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
+        evaluateQuery(v.query().keys("sensor").interval("time", 201, 205).orderBy("time", desc),
+                PROPERTY, 4, 1, new boolean[]{true, true}, tx.getPropertyKey("time"), Order.DESC);
+        evaluateQuery(tx.query().has("name", "v5"),
+                ElementCategory.VERTEX, 1, new boolean[]{true, true}, "byName");
+        evaluateQuery(tx.query().has("name", "v105"),
+                ElementCategory.VERTEX, 1, new boolean[]{true, true}, "byName");
+        evaluateQuery(tx.query().has("name", "v205"),
+                ElementCategory.VERTEX, 1, new boolean[]{true, true}, "byName");
+    }
+
+    @Test
+    public void testWriteOnlyIndexDemotionAndPromotionWithoutReindex() throws InterruptedException, ExecutionException {
+        PropertyKey name = mgmt.makePropertyKey("name").dataType(String.class).make();
+        mgmt.buildIndex("byName", Vertex.class).addKey(name).buildCompositeIndex();
+        finishSchema();
+
+        tx.addVertex("name", "a1");
+        newTx();
+        evaluateQuery(tx.query().has("name", "a1"),
+                ElementCategory.VERTEX, 1, new boolean[]{true, true}, "byName");
+        newTx();
+
+        //Demote the enabled index to writes-only
+        finishSchema();
+        ItinerisIndex byName = mgmt.getGraphIndex("byName");
+        assertEquals(SchemaStatus.ENABLED, byName.getIndexStatus(byName.getFieldKeys()[0]));
+        mgmt.updateIndex(byName, SchemaAction.ENABLE_WRITE_ONLY).get();
+        finishSchema();
+        byName = mgmt.getGraphIndex("byName");
+        assertEquals(SchemaStatus.WRITE_ONLY_ENABLED, byName.getIndexStatus(byName.getFieldKeys()[0]));
+        finishSchema();
+
+        //While write-only the index must not be used to answer queries...
+        tx.addVertex("name", "a2");
+        newTx();
+        evaluateQuery(tx.query().has("name", "a1"),
+                ElementCategory.VERTEX, 1, new boolean[]{false, true});
+        evaluateQuery(tx.query().has("name", "a2"),
+                ElementCategory.VERTEX, 1, new boolean[]{false, true});
+        newTx();
+
+        //...but it keeps receiving writes, so it can be fully enabled again without reindexing
+        finishSchema();
+        mgmt.updateIndex(mgmt.getGraphIndex("byName"), SchemaAction.ENABLE_INDEX).get();
+        finishSchema();
+        byName = mgmt.getGraphIndex("byName");
+        assertEquals(SchemaStatus.ENABLED, byName.getIndexStatus(byName.getFieldKeys()[0]));
+        newTx();
+        evaluateQuery(tx.query().has("name", "a1"),
+                ElementCategory.VERTEX, 1, new boolean[]{true, true}, "byName");
+        evaluateQuery(tx.query().has("name", "a2"),
+                ElementCategory.VERTEX, 1, new boolean[]{true, true}, "byName");
+    }
+
+    @Test
+    public void testCreateDisabledIndexAndActivateLater() throws InterruptedException, ExecutionException {
+        clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ofMillis(0),
+                option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
+                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250)
+        );
+        mgmt.makePropertyKey("name").dataType(String.class).make();
+        finishSchema();
+
+        //Create an index over an existing key and disable it within the same management transaction:
+        //the index must not receive any writes until it is explicitly activated
+        PropertyKey name = mgmt.getPropertyKey("name");
+        ItinerisIndex byName = mgmt.buildIndex("byName", Vertex.class).addKey(name).buildCompositeIndex();
+        mgmt.updateIndex(byName, SchemaAction.DISABLE_INDEX);
+        mgmt.commit();
+        tx.commit();
+
+        //The pending registration from the index creation must not resurrect the disabled index
+        assertFalse(ManagementSystem.awaitGraphIndexStatus(graph, "byName").status(SchemaStatus.REGISTERED)
+                .timeout(2, ChronoUnit.SECONDS).call().getSucceeded());
+        finishSchema();
+        byName = mgmt.getGraphIndex("byName");
+        assertEquals(SchemaStatus.DISABLED, byName.getIndexStatus(byName.getFieldKeys()[0]));
+        finishSchema();
+
+        //Data written while the index is disabled must not be indexed
+        tx.addVertex("name", "while-disabled");
+        newTx();
+
+        //Activate the index for writes through re-registration (required for the registration barrier)
+        finishSchema();
+        mgmt.updateIndex(mgmt.getGraphIndex("byName"), SchemaAction.REGISTER_INDEX).get();
+        mgmt.commit();
+        tx.commit();
+        assertTrue(ManagementSystem.awaitGraphIndexStatus(graph, "byName").status(SchemaStatus.REGISTERED)
+                .call().getSucceeded());
+        finishSchema();
+
+        tx.addVertex("name", "while-registered");
+        newTx();
+
+        //Enable reads without reindexing: only data written after the re-registration is visible through the index
+        finishSchema();
+        mgmt.updateIndex(mgmt.getGraphIndex("byName"), SchemaAction.ENABLE_INDEX).get();
+        finishSchema();
+        newTx();
+        evaluateQuery(tx.query().has("name", "while-registered"),
+                ElementCategory.VERTEX, 1, new boolean[]{true, true}, "byName");
+        evaluateQuery(tx.query().has("name", "while-disabled"),
+                ElementCategory.VERTEX, 0, new boolean[]{true, true}, "byName");
+        newTx();
+
+        //Reindex to pick up the data written while the index was disabled
+        finishSchema();
+        mgmt.updateIndex(mgmt.getGraphIndex("byName"), SchemaAction.REINDEX).get();
+        finishSchema();
+        newTx();
+        evaluateQuery(tx.query().has("name", "while-disabled"),
+                ElementCategory.VERTEX, 1, new boolean[]{true, true}, "byName");
+    }
+
+    @Test
+    public void testEnableWriteOnlyIndexActionApplicability() {
+        mgmt.makePropertyKey("name").dataType(String.class).make();
+        finishSchema();
+
+        //INSTALLED (within the creating transaction): rejected because the registration barrier has not been passed yet
+        PropertyKey name = mgmt.getPropertyKey("name");
+        final ItinerisIndex installedIndex = mgmt.buildIndex("byNameInstalled", Vertex.class).addKey(name).buildCompositeIndex();
+        assertEquals(SchemaStatus.INSTALLED, installedIndex.getIndexStatus(installedIndex.getFieldKeys()[0]));
+        assertThrows(IllegalArgumentException.class, () -> mgmt.updateIndex(installedIndex, SchemaAction.ENABLE_WRITE_ONLY));
+        mgmt.rollback();
+        mgmt = graph.openManagement();
+
+        //DISABLED: rejected because the index must pass the registration barrier (REGISTER_INDEX) first,
+        //otherwise a subsequent reindex could miss writes from instances that do not yet write to the index
+        PropertyKey rating = mgmt.makePropertyKey("rating").dataType(Integer.class).make();
+        ItinerisIndex byRating = mgmt.buildIndex("byRating", Vertex.class).addKey(rating).buildCompositeIndex();
+        mgmt.updateIndex(byRating, SchemaAction.DISABLE_INDEX);
+        finishSchema();
+        ItinerisIndex byRating2 = mgmt.getGraphIndex("byRating");
+        assertEquals(SchemaStatus.DISABLED, byRating2.getIndexStatus(byRating2.getFieldKeys()[0]));
+        assertThrows(IllegalArgumentException.class, () -> mgmt.updateIndex(mgmt.getGraphIndex("byRating"), SchemaAction.ENABLE_WRITE_ONLY));
+        mgmt.rollback();
+        mgmt = graph.openManagement();
+    }
+
+    @Test
+    public void testRemoveStaleCompositeIndexEntries() throws InterruptedException, ExecutionException {
+        clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ofMillis(0),
+                option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
+                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250)
+        );
+        PropertyKey name = mgmt.makePropertyKey("name").dataType(String.class).make();
+        mgmt.buildIndex("byName", Vertex.class).addKey(name).buildCompositeIndex();
+        finishSchema();
+
+        tx.addVertex("name", "stale");
+        tx.addVertex("name", "alive");
+        newTx();
+
+        //Disable the index and delete a vertex while the index does not receive updates -> stale index entry
+        finishSchema();
+        mgmt.updateIndex(mgmt.getGraphIndex("byName"), SchemaAction.DISABLE_INDEX).get();
+        finishSchema();
+        tx.query().has("name", "stale").vertices().iterator().next().remove();
+        newTx();
+
+        //Re-activate the index without reindexing
+        finishSchema();
+        mgmt.updateIndex(mgmt.getGraphIndex("byName"), SchemaAction.REGISTER_INDEX).get();
+        mgmt.commit();
+        tx.commit();
+        assertTrue(ManagementSystem.awaitGraphIndexStatus(graph, "byName").status(SchemaStatus.REGISTERED)
+                .call().getSucceeded());
+        finishSchema();
+        mgmt.updateIndex(mgmt.getGraphIndex("byName"), SchemaAction.ENABLE_INDEX).get();
+        finishSchema();
+
+        //The stale entry surfaces as a ghost vertex
+        newTx();
+        evaluateQuery(tx.query().has("name", "stale"),
+                ElementCategory.VERTEX, 1, new boolean[]{true, true}, "byName");
+        newTx();
+
+        //Remove the stale entries
+        finishSchema();
+        ScanMetrics metrics = mgmt.updateIndex(mgmt.getGraphIndex("byName"), SchemaAction.REMOVE_STALE_ENTRIES).get();
+        finishSchema();
+        assertEquals(1, metrics.getCustom(StaleIndexEntryRemoveJob.REMOVED_RECORDS_COUNT));
+        assertEquals(2, metrics.getCustom(StaleIndexEntryRemoveJob.SCANNED_RECORDS_COUNT));
+
+        //A second run must find nothing to remove: the stale entry is physically gone
+        ScanMetrics secondRun = mgmt.updateIndex(mgmt.getGraphIndex("byName"), SchemaAction.REMOVE_STALE_ENTRIES).get();
+        finishSchema();
+        assertEquals(0, secondRun.getCustom(StaleIndexEntryRemoveJob.REMOVED_RECORDS_COUNT));
+
+        newTx();
+        evaluateQuery(tx.query().has("name", "stale"),
+                ElementCategory.VERTEX, 0, new boolean[]{true, true}, "byName");
+        evaluateQuery(tx.query().has("name", "alive"),
+                ElementCategory.VERTEX, 1, new boolean[]{true, true}, "byName");
+    }
+
+    @Test
+    public void testRemoveStaleCompositeEdgeIndexEntries() throws InterruptedException, ExecutionException {
+        clopen(option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ofMillis(0),
+                option(KCVSLog.LOG_READ_LAG_TIME, MANAGEMENT_LOG), Duration.ofMillis(50),
+                option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250)
+        );
+        PropertyKey time = mgmt.makePropertyKey("time").dataType(Integer.class).make();
+        mgmt.makeEdgeLabel("knows").make();
+        mgmt.buildIndex("edgesByTime", Edge.class).addKey(time).buildCompositeIndex();
+        finishSchema();
+
+        ItinerisVertex v1 = tx.addVertex();
+        ItinerisVertex v2 = tx.addVertex();
+        v1.addEdge("knows", v2, "time", 1);
+        v1.addEdge("knows", v2, "time", 2);
+        newTx();
+
+        //Disable the index and delete an edge while the index does not receive updates -> stale index entry
+        finishSchema();
+        mgmt.updateIndex(mgmt.getGraphIndex("edgesByTime"), SchemaAction.DISABLE_INDEX).get();
+        finishSchema();
+        tx.query().has("time", 1).edges().iterator().next().remove();
+        newTx();
+
+        //Re-activate the index without reindexing
+        finishSchema();
+        mgmt.updateIndex(mgmt.getGraphIndex("edgesByTime"), SchemaAction.REGISTER_INDEX).get();
+        mgmt.commit();
+        tx.commit();
+        assertTrue(ManagementSystem.awaitGraphIndexStatus(graph, "edgesByTime").status(SchemaStatus.REGISTERED)
+                .call().getSucceeded());
+        finishSchema();
+        mgmt.updateIndex(mgmt.getGraphIndex("edgesByTime"), SchemaAction.ENABLE_INDEX).get();
+        finishSchema();
+
+        //Remove the stale entries (a stale relation entry does not surface as a ghost because unresolvable
+        //relation identifiers are filtered at query time, so the metrics carry the assertions)
+        finishSchema();
+        ScanMetrics metrics = mgmt.updateIndex(mgmt.getGraphIndex("edgesByTime"), SchemaAction.REMOVE_STALE_ENTRIES).get();
+        finishSchema();
+        assertEquals(1, metrics.getCustom(StaleIndexEntryRemoveJob.REMOVED_RECORDS_COUNT));
+        assertEquals(2, metrics.getCustom(StaleIndexEntryRemoveJob.SCANNED_RECORDS_COUNT));
+
+        ScanMetrics secondRun = mgmt.updateIndex(mgmt.getGraphIndex("edgesByTime"), SchemaAction.REMOVE_STALE_ENTRIES).get();
+        finishSchema();
+        assertEquals(0, secondRun.getCustom(StaleIndexEntryRemoveJob.REMOVED_RECORDS_COUNT));
+        assertEquals(1, secondRun.getCustom(StaleIndexEntryRemoveJob.SCANNED_RECORDS_COUNT));
+
+        //The live edge is still served from the index
+        newTx();
+        evaluateQuery(tx.query().has("time", 2),
+                ElementCategory.EDGE, 1, new boolean[]{true, true}, "edgesByTime");
+        evaluateQuery(tx.query().has("time", 1),
+                ElementCategory.EDGE, 0, new boolean[]{true, true}, "edgesByTime");
+    }
+
+    //A composite index still holds the edges which the transaction removed, and a query leaves them out of what the
+    //index returns: one with a limit reads on past them
+    @Test
+    public void testLimitedQueryOfACompositeIndexReadsPastTheEdgesWhichTheTransactionRemoved() {
+        final PropertyKey kind = makeKey("kind", String.class);
+        makeKey("weight", Long.class);
+        mgmt.makeEdgeLabel("road").multiplicity(Multiplicity.MULTI).make();
+        mgmt.buildIndex("roadsByKind", Edge.class).addKey(kind).buildCompositeIndex();
+        finishSchema();
+        final Vertex from = tx.addVertex();
+        final Vertex to = tx.addVertex();
+        for (long w = 1; w <= 30; w++) {
+            from.addEdge("road", to, "kind", "paved", "weight", w);
+        }
+        newTx();
+        tx.traversal().V(from).outE("road").has("weight", P.lte(25L)).toList().forEach(Edge::remove);
+
+        final List<Edge> anyThree = tx.traversal().E().has("kind", "paved").limit(3).toList();
+        assertEquals(3, anyThree.stream().distinct().count());
+        for (final Edge edge : anyThree) {
+            assertTrue(edge.<Long>value("weight") > 25);
+        }
+        assertEquals(5, tx.traversal().E().has("kind", "paved").toList().size());
+        tx.rollback();
+        newTx();
+
+        //A query which drops the edges it reads, as it reads them, before it reads on drops each of its edges once
+        tx.traversal().V(from).outE("road").has("weight", P.inside(8L, 26L)).toList().forEach(Edge::remove);
+        tx.traversal().V(from).outE("road").has("weight", P.lte(5L)).toList().forEach(Edge::remove);
+        tx.traversal().E().has("kind", "paved").limit(5).drop().iterate();
+        assertEquals(3, tx.traversal().E().has("kind", "paved").toList().size());
+    }
+
+    //A query without a limit which the index answers under one all the same, as under query.hard-max-limit, and which
+    //drops the edges it reads, as it reads them, drops each of them once it reads on past that limit
+    @Test
+    public void testQueryUnderTheHardMaxLimitDropsEveryEdgeItReads() {
+        clopen(option(HARD_MAX_LIMIT), 10);
+        final PropertyKey kind = makeKey("kind", String.class);
+        mgmt.makeEdgeLabel("road").multiplicity(Multiplicity.MULTI).make();
+        mgmt.buildIndex("roadsByKind", Edge.class).addKey(kind).buildCompositeIndex();
+        finishSchema();
+        final Vertex from = tx.addVertex();
+        final Vertex to = tx.addVertex();
+        for (int i = 0; i < 30; i++) {
+            from.addEdge("road", to, "kind", "paved");
+        }
+        newTx();
+        tx.traversal().E().has("kind", "paved").drop().iterate();
+        assertEquals(0L, tx.traversal().V(from).outE("road").count().next());
+    }
+
+    @Test
+    public void testRemoveStaleEntriesActionApplicability() {
+        mgmt.makePropertyKey("name").dataType(String.class).make();
+        finishSchema();
+
+        //INSTALLED (within the creating transaction): rejected, the index is not applicable yet
+        PropertyKey name = mgmt.getPropertyKey("name");
+        final ItinerisIndex installedIndex = mgmt.buildIndex("byNameInstalled", Vertex.class).addKey(name).buildCompositeIndex();
+        assertEquals(SchemaStatus.INSTALLED, installedIndex.getIndexStatus(installedIndex.getFieldKeys()[0]));
+        assertThrows(IllegalArgumentException.class, () -> mgmt.updateIndex(installedIndex, SchemaAction.REMOVE_STALE_ENTRIES));
+        mgmt.rollback();
+        mgmt = graph.openManagement();
+
+        //Vertex-centric indexes are not supported
+        PropertyKey rating = mgmt.makePropertyKey("rating").dataType(Integer.class).cardinality(Cardinality.LIST).make();
+        PropertyKey rtime = mgmt.makePropertyKey("rtime").dataType(Integer.class).make();
+        mgmt.buildPropertyIndex(rating, "ratingByTime", desc, rtime);
+        finishSchema();
+        final RelationTypeIndex rindex = mgmt.getRelationIndex(mgmt.getRelationType("rating"), "ratingByTime");
+        assertEquals(SchemaStatus.ENABLED, rindex.getIndexStatus());
+        assertThrows(UnsupportedOperationException.class, () -> mgmt.updateIndex(rindex, SchemaAction.REMOVE_STALE_ENTRIES));
+        mgmt.rollback();
+        mgmt = graph.openManagement();
+    }
+
     @Tag(TestCategory.BRITTLE_TESTS)
     @Test
     public void testIndexUpdateSyncWithMultipleInstances() throws InterruptedException {
@@ -2520,6 +3065,242 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         } catch (IllegalArgumentException ignored) {
         }
 
+    }
+
+    @Test
+    public void testEdgesOfAVertexHasIdWithin() {
+        ItinerisVertex v = graph.addVertex(), u = graph.addVertex(), w = graph.addVertex();
+        Edge e1 = v.addEdge("knows", u);
+        Edge e2 = v.addEdge("knows", u);
+        Edge e3 = v.addEdge("knows", w);
+        Edge e4 = u.addEdge("knows", v);
+        Edge other = u.addEdge("knows", w);
+
+        assertEdgesOfAVertexHasIdWithin(graph.traversal(), v, e1, e2, e3, e4, other);
+        graph.tx().commit();
+        assertEdgesOfAVertexHasIdWithin(graph.traversal(), v, e1, e2, e3, e4, other);
+    }
+
+    private void assertEdgesOfAVertexHasIdWithin(GraphTraversalSource g, Vertex v, Edge e1, Edge e2, Edge e3, Edge e4,
+                                                 Edge other) {
+        RelationIdentifier missing = RelationIdentifier.get(new Object[]{4L, 5L, 6L, 7L});
+
+        assertEquals(ImmutableSet.of(e1.id()), g.V(v).bothE().hasId(e1.id()).id().toSet());
+        assertEquals(ImmutableSet.of(e1.id()), g.V(v).bothE().hasId(P.within(e1.id())).id().toSet());
+        assertEquals(ImmutableSet.of(e1.id(), e2.id()), g.V(v).outE().hasId(P.within(e1.id(), e2.id())).id().toSet());
+        assertEquals(ImmutableSet.of(e1.id(), e2.id()),
+            g.V(v).outE("knows").hasId(P.within(e1.id(), e2.id())).id().toSet());
+        assertEquals(ImmutableSet.of(e1.id()), g.V(v).outE().hasId(P.within(e1.id(), e4.id())).id().toSet());
+        assertEquals(ImmutableSet.of(e4.id()), g.V(v).inE().hasId(P.within(e1.id(), e4.id())).id().toSet());
+        assertEquals(ImmutableSet.of(e1.id(), e4.id()), g.V(v).bothE().hasId(P.within(e1.id(), e4.id())).id().toSet());
+        assertEquals(ImmutableSet.of(e1.id()), g.V(v).bothE().hasId(P.within(e1.id(), e1.id())).id().toSet());
+        assertEquals(ImmutableSet.of(e1.id(), e2.id()),
+            g.V(v).bothE().hasId(P.within(e1.id().toString(), e2.id())).id().toSet());
+        assertEquals(ImmutableSet.of(e3.id()), g.V(v).bothE().hasId(P.within(e3.id(), other.id(), missing)).id().toSet());
+        assertEquals(ImmutableSet.of(), g.V(v).bothE().hasId(P.within(other.id(), missing)).id().toSet());
+        assertEquals(ImmutableSet.of(), g.V(v).bothE().hasId(P.within()).id().toSet());
+
+        assertEquals(ImmutableSet.of(e3.id(), e4.id()), g.V(v).bothE().hasId(P.without(e1.id(), e2.id())).id().toSet());
+        assertEquals(ImmutableSet.of(e2.id(), e3.id()), g.V(v).outE().hasId(P.without(e1.id(), e4.id())).id().toSet());
+        assertEquals(ImmutableSet.of(e1.id(), e2.id(), e3.id(), e4.id()),
+            g.V(v).bothE().hasId(P.without(other.id(), missing)).id().toSet());
+        assertEquals(ImmutableSet.of(e1.id(), e2.id(), e3.id(), e4.id()),
+            g.V(v).bothE().hasId(P.without()).id().toSet());
+
+        //Several ids or a collection of them, which TinkerPop turns into within
+        assertEquals(ImmutableSet.of(e1.id(), e2.id()), g.V(v).bothE().hasId(e1.id(), e2.id()).id().toSet());
+        assertEquals(ImmutableSet.of(e1.id(), e2.id()),
+            g.V(v).bothE().hasId(Arrays.asList(e1.id(), e2.id())).id().toSet());
+        //Connective predicates, each of whose predicates compares ids
+        assertEquals(ImmutableSet.of(e1.id(), e2.id()),
+            g.V(v).bothE().hasId(P.eq(e1.id()).or(P.eq(e2.id()))).id().toSet());
+        assertEquals(ImmutableSet.of(e1.id(), e2.id(), e3.id()),
+            g.V(v).bothE().hasId(P.within(e1.id(), e2.id()).or(P.eq(e3.id()))).id().toSet());
+        assertEquals(ImmutableSet.of(e1.id(), e3.id()),
+            g.V(v).bothE().hasId(P.within(e1.id(), e2.id(), e3.id()).and(P.without(e2.id()))).id().toSet());
+    }
+
+    @Test
+    public void testEdgesOfAVertexHasIdWithinOnSortKeyAndConstrainedLabels() {
+        PropertyKey time = mgmt.makePropertyKey("time").dataType(Integer.class).make();
+        ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("rated")).sortKey(time).make();
+        mgmt.makeEdgeLabel("manager").multiplicity(Multiplicity.MANY2ONE).make();
+        finishSchema();
+
+        ItinerisVertex v = graph.addVertex(), u = graph.addVertex(), w = graph.addVertex();
+        Edge rated1 = v.addEdge("rated", u, "time", 1);
+        Edge rated2 = v.addEdge("rated", u, "time", 2);
+        Edge rated3 = v.addEdge("rated", w, "time", 2);
+        Edge manager = v.addEdge("manager", w);
+        graph.tx().commit();
+
+        GraphTraversalSource g = graph.traversal();
+        assertEquals(ImmutableSet.of(rated1.id(), rated3.id()),
+            g.V(v).outE("rated").hasId(P.within(rated1.id(), rated3.id())).id().toSet());
+        assertEquals(ImmutableSet.of(rated3.id()),
+            g.V(v).outE("rated").has("time", 2).hasId(P.within(rated1.id(), rated3.id())).id().toSet());
+        assertEquals(ImmutableSet.of(rated2.id()),
+            g.V(v).outE("rated").hasId(P.without(rated1.id(), rated3.id())).id().toSet());
+        assertEquals(ImmutableSet.of(manager.id()),
+            g.V(v).outE("manager").hasId(P.within(manager.id(), rated1.id())).id().toSet());
+        assertEquals(ImmutableSet.of(), g.V(v).outE("manager").hasId(P.without(manager.id())).id().toSet());
+        assertEquals(ImmutableSet.of(rated2.id(), manager.id()),
+            g.V(v).outE("rated", "manager").hasId(P.within(rated2.id(), manager.id())).id().toSet());
+    }
+
+    //With an adjacent vertex, the ids of the edges of a label of several edges between two vertices are part of the
+    //columns which the query reads, so a collection of them narrows the read itself
+    @Test
+    public void testEdgesOfAVertexToAnAdjacentVertexHasIdWithin() {
+        ItinerisVertex v = graph.addVertex(), u = graph.addVertex(), w = graph.addVertex();
+        ItinerisEdge e1 = v.addEdge("knows", u);
+        ItinerisEdge e2 = v.addEdge("knows", u);
+        ItinerisEdge e3 = v.addEdge("knows", w);
+        graph.tx().commit();
+
+        assertEquals(ImmutableSet.of(e1.id()), edgeIds(v.query().adjacent(u).direction(OUT).labels("knows")
+            .has(ID_NAME, Contain.IN, ImmutableList.of(e1.id(), e3.id())).edges()));
+        assertEquals(ImmutableSet.of(e2.id()), edgeIds(v.query().adjacent(u).direction(OUT).labels("knows")
+            .has(ID_NAME, Contain.NOT_IN, ImmutableList.of(e1.id(), e3.id())).edges()));
+        assertEquals(ImmutableSet.of(e1.id(), e2.id()), edgeIds(v.query().adjacent(u).direction(BOTH).labels("knows")
+            .has(ID_NAME, Contain.IN, ImmutableList.of(e1.id(), e2.id(), e3.id())).edges()));
+    }
+
+    //Conditions on the same key of a vertex-centric query narrow each other, also where they narrow its read
+    @Test
+    public void testConditionsOnTheSameKeyOfAVertexCentricQueryNarrowEachOther() {
+        PropertyKey time = mgmt.makePropertyKey("time").dataType(Integer.class).make();
+        ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("rated")).sortKey(time).make();
+        mgmt.makePropertyKey("payload").dataType(byte[].class).make();
+        mgmt.makePropertyKey("any").dataType(Object.class).make();
+        finishSchema();
+
+        ItinerisVertex v = graph.addVertex(), u = graph.addVertex();
+        ItinerisEdge e1 = v.addEdge("knows", u, "payload", new byte[]{1});
+        ItinerisEdge e2 = v.addEdge("knows", u, "any", 2L);
+        ItinerisEdge e3 = v.addEdge("knows", u);
+        for (int i = 1; i <= 3; i++) {
+            v.addEdge("rated", u, "time", i);
+        }
+        graph.tx().commit();
+
+        assertEquals(ImmutableSet.of(e2.id()), edgeIds(v.query().adjacent(u).direction(OUT).labels("knows")
+            .has(ID_NAME, Contain.IN, ImmutableList.of(e1.id(), e2.id()))
+            .has(ID_NAME, Contain.IN, ImmutableList.of(e2.id(), e3.id())).edges()));
+        assertEquals(ImmutableSet.of(e2.id()), edgeIds(v.query().adjacent(u).direction(OUT).labels("knows")
+            .has(ID_NAME, new AndJanusPredicate(Arrays.asList(Contain.IN, Contain.IN)),
+                Arrays.asList(ImmutableList.of(e1.id(), e2.id()), ImmutableList.of(e2.id(), e3.id()))).edges()));
+        assertEquals(ImmutableSet.of(), edgeIds(v.query().adjacent(u).direction(OUT).labels("knows")
+            .has(ID_NAME, Contain.IN, ImmutableList.of(e1.id()))
+            .has(ID_NAME, Contain.IN, ImmutableList.of(e3.id())).edges()));
+
+        GraphTraversalSource g = graph.traversal();
+        assertEquals(ImmutableList.of(2),
+            g.V(v).outE("rated").has("time", P.within(1, 2)).has("time", P.within(2, 3)).values("time").toList());
+        assertEquals(ImmutableList.of(2),
+            g.V(v).outE("rated").has("time", P.gt(1)).has("time", P.within(1, 2)).values("time").toList());
+        assertEquals(ImmutableList.of(2),
+            g.V(v).outE("rated").has("time", P.within(1, 2)).has("time", P.gt(1)).values("time").toList());
+
+        //Arrays are equal by their contents, as the conditions compare them, not by identity
+        assertEquals(ImmutableSet.of(e1.id()), edgeIds(v.query().labels("knows")
+            .has("payload", Contain.IN, Arrays.asList(new byte[]{1}, new byte[]{2}))
+            .has("payload", Contain.IN, Arrays.asList(new byte[]{1}, new byte[]{3})).edges()));
+        assertEquals(ImmutableSet.of(e1.id()), edgeIds(v.query().labels("knows")
+            .has("payload", new byte[]{1}).has("payload", new byte[]{1}).edges()));
+
+        //The values of a key of any type may be numbers of different types, which the conditions compare
+        assertEquals(ImmutableSet.of(e2.id()), edgeIds(v.query().labels("knows")
+            .has("any", Cmp.GREATER_THAN, 1).has("any", Contain.IN, Arrays.asList(2L, 3L)).edges()));
+        assertEquals(ImmutableSet.of(e2.id()), edgeIds(v.query().labels("knows")
+            .has("any", Contain.IN, Arrays.asList(2L, 3L)).has("any", Cmp.GREATER_THAN, 1).edges()));
+        assertEquals(ImmutableSet.of(e2.id()), edgeIds(v.query().labels("knows")
+            .has("any", Cmp.GREATER_THAN, 1).has("any", Cmp.LESS_THAN, 5L).edges()));
+    }
+
+    //A branch of a disjunction which no value satisfies, such as within() of nothing, leaves the other branches, and a
+    //disjunction of such branches alone is satisfied by none
+    @Test
+    public void testDisjunctionsOfConditionsWithBranchesWhichNothingSatisfies() {
+        PropertyKey time = mgmt.makePropertyKey("time").dataType(Integer.class).make();
+        ((StandardEdgeLabelMaker) mgmt.makeEdgeLabel("rated")).sortKey(time).make();
+        mgmt.makePropertyKey("name").dataType(String.class).make();
+        finishSchema();
+
+        ItinerisVertex v = graph.addVertex("name", "a"), u = graph.addVertex("name", "b");
+        Edge e1 = v.addEdge("knows", u);
+        Edge e2 = v.addEdge("knows", u);
+        v.addEdge("rated", u, "time", 1);
+        v.addEdge("rated", u, "time", 2);
+        graph.tx().commit();
+
+        GraphTraversalSource g = graph.traversal();
+        assertEquals(ImmutableSet.of(), g.V(v).outE().hasId(P.within().or(P.within())).id().toSet());
+        assertEquals(ImmutableSet.of(e2.id()),
+            g.V(v).outE().hasId(P.within().and(P.eq(e1.id())).or(P.eq(e2.id()))).id().toSet());
+        assertEquals(ImmutableSet.of(e2.id()),
+            g.V(v).outE().hasId(P.eq(e2.id()).or(P.within().and(P.eq(e1.id())))).id().toSet());
+
+        assertEquals(ImmutableList.of(), g.V(v).outE("rated").has("time", P.within().or(P.within())).toList());
+        assertEquals(ImmutableList.of(2),
+            g.V(v).outE("rated").has("time", P.within().and(P.eq(1)).or(P.eq(2))).values("time").toList());
+
+        assertEquals(ImmutableList.of(), g.V().has("name", P.within().or(P.within())).toList());
+        assertEquals(ImmutableList.of("b"),
+            g.V().has("name", P.within().and(P.eq("a")).or(P.eq("b"))).values("name").toList());
+        assertEquals(ImmutableList.of("b"),
+            g.V().has("name", P.eq("b").or(P.within().and(P.eq("a")))).values("name").toList());
+    }
+
+    @Test
+    public void testPropertiesOfAVertexHasIdWithin() {
+        mgmt.makePropertyKey("nickname").dataType(String.class).cardinality(Cardinality.LIST).make();
+        finishSchema();
+
+        ItinerisVertex v = graph.addVertex();
+        VertexProperty<?> a = v.property(VertexProperty.Cardinality.list, "nickname", "a");
+        VertexProperty<?> b = v.property(VertexProperty.Cardinality.list, "nickname", "b");
+        VertexProperty<?> c = v.property(VertexProperty.Cardinality.list, "nickname", "c");
+        graph.tx().commit();
+
+        GraphTraversalSource g = graph.traversal();
+        assertEquals(ImmutableSet.of("a", "c"),
+            g.V(v).properties("nickname").hasId(P.within(a.id(), c.id())).value().toSet());
+        assertEquals(ImmutableSet.of("b"),
+            g.V(v).properties("nickname").hasId(P.without(a.id(), c.id())).value().toSet());
+        assertEquals(ImmutableSet.of("a", "b"), g.V(v).properties().hasId(a.id(), b.id()).value().toSet());
+    }
+
+    @Test
+    public void testVertexCentricQueryHasIdCollection() {
+        ItinerisVertex v = graph.addVertex(), u = graph.addVertex();
+        ItinerisEdge e1 = v.addEdge("knows", u);
+        ItinerisEdge e2 = v.addEdge("knows", u);
+        ItinerisEdge e3 = v.addEdge("knows", u);
+        graph.tx().commit();
+
+        assertEquals(ImmutableSet.of(e1.id(), e2.id()), edgeIds(v.query().direction(OUT)
+            .has(ID_NAME, Contain.IN, ImmutableList.of(e1, e2.id().toString())).edges()));
+        assertEquals(ImmutableSet.of(e3.id()), edgeIds(v.query().direction(OUT)
+            .has(ID_NAME, Contain.NOT_IN, ImmutableList.of(e1.id(), e2.id())).edges()));
+        assertEquals(ImmutableSet.of(e3.id()), edgeIds(u.query().direction(IN).labels("knows")
+            .has(ID_NAME, Contain.IN, ImmutableList.of(e3.id())).edges()));
+        assertEquals(ImmutableSet.of(), edgeIds(v.query().direction(OUT)
+            .has(ID_NAME, Contain.IN, ImmutableList.of()).edges()));
+
+        //An id which isn't one, among several or alone
+        IllegalArgumentException invalid = assertThrows(IllegalArgumentException.class,
+            () -> v.query().has(ID_NAME, Contain.IN, ImmutableList.of(e1.id(), "notAnEdgeId")));
+        assertTrue(invalid.getMessage().contains("notAnEdgeId"), invalid::getMessage);
+        //A predicate other than within and without compares one id, not a collection of them
+        assertThrows(IllegalArgumentException.class,
+            () -> v.query().has(ID_NAME, Cmp.EQUAL, ImmutableList.of(e1.id(), e2.id())));
+    }
+
+    private static Set<Object> edgeIds(Iterable<ItinerisEdge> edges) {
+        final Set<Object> ids = new HashSet<>();
+        edges.forEach(edge -> ids.add(edge.id()));
+        return ids;
     }
 
     @Test
@@ -3282,10 +4063,13 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
 
     /**
      * Execute multiple identical transactions concurrently. Note that since these transactions are running in the same process,
-     * {@link com.forwardmeasure.itineris.diskstorage.locking.LocalLockMediator} is used to resolve lock contentions. If there is only
-     * one lock needed in the whole transaction, exactly one transaction shall succeed and others shall fail due to local
-     * lock contention. If there is more than one lock needed in the transaction, at most one transaction shall succeed
-     * and others shall fail due to local lock contention.
+     * lock contentions are resolved within it: by {@link com.forwardmeasure.itineris.diskstorage.locking.LocalLockMediator} for
+     * Itineris's own locker, and by the locks of the storage backend where it has them, as BerkeleyJE does. If there
+     * is only one lock needed in the whole transaction, exactly one transaction shall succeed and others shall fail due
+     * to local lock contention. If there is more than one lock needed in the transaction, at most one transaction shall
+     * succeed and others shall fail due to local lock contention. A transaction which takes a lock only once the one
+     * which succeeded has released it fails on the value it expected instead, which a thread a few milliseconds late
+     * does on BerkeleyJE, whose locks last as long as the commit which takes them.
      * @throws Exception
      */
     @Test
@@ -3349,7 +4133,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
      * Execute multiple transactions in different threads concurrently to test locking
      * @param job A transaction job which triggers locking
      * @param concurrency Number of threads, each of which runs a transaction
-     * @return [number of successful transactions, number of transactions failed due to local lock contention]
+     * @return [number of successful transactions, number of transactions which failed on a lock]
      */
     private int[] executeParallelTransactions(final TransactionJob job, int concurrency) {
         final CountDownLatch startLatch = new CountDownLatch(concurrency);
@@ -3371,8 +4155,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
                     } catch (Exception ex) {
                         ex.printStackTrace();
                         if (tx.isOpen()) tx.rollback();
-                        if (ex.getCause() instanceof PermanentLockingException &&
-                            ex.getCause().getMessage().contains("Local lock contention")) {
+                        if (isLockingFailure(ex)) {
                             lockingExCount.incrementAndGet();
                         }
                     } finally {
@@ -3397,6 +4180,150 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             e.printStackTrace();
         }
         return new int[] {txSuccess.get(), lockingExCount.get()};
+    }
+
+    /**
+     * Transactions which add a vertex of the same value of a unique index with LOCK consistency commit at once: one of
+     * them adds it, and the commits of the others fail on the lock of the index entry.
+     */
+    @Test
+    public void testConcurrentTransactionsCannotAddTheSameValueOfALockedUniqueIndex() throws Exception {
+        makeLockedUniqueName();
+        assertEquals(1, addVerticesAtOnce(Collections.singletonList(graph), 8, "same"));
+        newTx();
+        assertEquals(1, verticesNamed(tx, "same").size());
+    }
+
+    /**
+     * A transaction which adds a value of a unique index with LOCK consistency that another transaction committed after
+     * it began fails to commit, as the locked index entry no longer has the value it read, and releases the lock.
+     */
+    @Test
+    public void testCommitWhichFailsOnALockReleasesIt() {
+        makeLockedUniqueName();
+        final ItinerisTransaction late = graph.newTransaction();
+        late.addVertex("name", "one");
+        tx.addVertex("name", "one");
+        newTx();
+        final ItinerisException failure = assertThrows(ItinerisException.class, late::commit);
+        assertTrue(isLockingFailure(failure), () -> "Not a locking failure: " + failure);
+
+        //Removing the vertex and adding the value again lock the index entry too, which a leaked lock would fail
+        Iterables.getOnlyElement(tx.query().has("name", "one").vertices()).remove();
+        newTx();
+        tx.addVertex("name", "one");
+        newTx();
+        assertEquals(1, verticesNamed(tx, "one").size());
+    }
+
+    protected void makeLockedUniqueName() {
+        final PropertyKey name = mgmt.makePropertyKey("name").dataType(String.class).make();
+        mgmt.setConsistency(mgmt.buildIndex("byName", Vertex.class).addKey(name).unique().buildCompositeIndex(),
+            ConsistencyModifier.LOCK);
+        finishSchema();
+    }
+
+    /**
+     * Adds a vertex of the given name in a transaction of each thread, of the graphs in turn, which all commit at once.
+     * The commits which fail must fail on a lock.
+     *
+     * @return the number of transactions which committed
+     */
+    protected static int addVerticesAtOnce(List<? extends Itineris> graphs, int threads, String name)
+            throws Exception {
+        final CyclicBarrier readyToCommit = new CyclicBarrier(threads);
+        final ExecutorService executor = Executors.newFixedThreadPool(threads);
+        try {
+            final List<Future<?>> commits = new ArrayList<>();
+            for (int i = 0; i < threads; i++) {
+                final Itineris threadGraph = graphs.get(i % graphs.size());
+                commits.add(executor.submit(() -> {
+                    final ItinerisTransaction transaction = threadGraph.newTransaction();
+                    try {
+                        transaction.addVertex("name", name);
+                        readyToCommit.await(30, TimeUnit.SECONDS);
+                        transaction.commit();
+                        return null;
+                    } catch (Exception e) {
+                        //A rollback which fails as well mustn't hide why the transaction failed
+                        try {
+                            if (transaction.isOpen()) transaction.rollback();
+                        } catch (RuntimeException rollbackFailure) {
+                            e.addSuppressed(rollbackFailure);
+                        }
+                        throw e;
+                    }
+                }));
+            }
+            int committed = 0;
+            for (Future<?> commit : commits) {
+                try {
+                    commit.get(60, TimeUnit.SECONDS);
+                    committed++;
+                } catch (ExecutionException e) {
+                    assertTrue(isLockingFailure(e.getCause()), () -> "Not a locking failure: " + e.getCause());
+                }
+            }
+            return committed;
+        } finally {
+            //Not interrupted, as BerkeleyJE invalidates its environment when a thread is interrupted in it
+            executor.shutdown();
+        }
+    }
+
+    //Every vertex of the name, which a unique index can't tell, as it holds one entry for each value
+    protected static List<ItinerisVertex> verticesNamed(ItinerisTransaction transaction, String name) {
+        final List<ItinerisVertex> named = new ArrayList<>();
+        for (ItinerisVertex vertex : transaction.query().vertices()) {
+            if (name.equals(vertex.valueOrNull(transaction.getPropertyKey("name")))) named.add(vertex);
+        }
+        return named;
+    }
+
+    /**
+     * Two management systems which create a type of the same name: the commit of the second one fails on the lock of
+     * the schema name, and the schema keeps the first type alone. The failed commit releases the lock: renaming the
+     * type takes it again.
+     */
+    @Test
+    public void testManagementSystemsCannotBothCreateATypeOfOneName() {
+        final ItinerisManagement first = graph.openManagement();
+        final ItinerisManagement second = graph.openManagement();
+        first.makePropertyKey("age").dataType(Integer.class).make();
+        second.makePropertyKey("age").dataType(Long.class).make();
+        first.commit();
+        final ItinerisException failure = assertThrows(ItinerisException.class, second::commit);
+        assertTrue(isLockingFailure(failure), () -> "Not a locking failure: " + failure);
+        if (second.isOpen()) second.rollback();
+
+        final ItinerisManagement schema = graph.openManagement();
+        try {
+            final List<Class<?>> ages = new ArrayList<>();
+            for (PropertyKey key : schema.getRelationTypes(PropertyKey.class)) {
+                if (key.name().equals("age")) ages.add(key.dataType());
+            }
+            assertEquals(Collections.singletonList(Integer.class), ages);
+        } finally {
+            schema.rollback();
+        }
+
+        final ItinerisManagement rename = graph.openManagement();
+        rename.changeName(rename.getPropertyKey("age"), "years");
+        rename.commit();
+        final ItinerisManagement renamed = graph.openManagement();
+        try {
+            assertFalse(renamed.containsPropertyKey("age"));
+            assertEquals(Integer.class, renamed.getPropertyKey("years").dataType());
+        } finally {
+            renamed.rollback();
+        }
+    }
+
+    protected static boolean isLockingFailure(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof PermanentLockingException || cause instanceof TemporaryLockingException) return true;
+        }
+        return false;
     }
 
    /* ==================================================================================
@@ -4190,6 +5117,209 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(1, g.V(next).values("name").toList().size());
     }
 
+    /**
+     * An edge-by-id lookup for a label whose schema vertex is not yet visible must not leave that label with a
+     * cached empty definition once it becomes visible. The lookup here races the label's creation: the id is assigned
+     * when the label is made, but its schema row is only written when the creating transaction commits.
+     */
+    @Test
+    public void testEdgeByIdLookupBeforeLabelIsVisibleDoesNotPoisonSchemaCache() {
+        ItinerisVertex a = graph.addVertex();
+        ItinerisVertex b = graph.addVertex();
+        graph.tx().commit();
+        Object aId = a.id();
+        Object bId = b.id();
+
+        ItinerisTransaction creator = graph.newTransaction();
+        EdgeLabel knows = creator.makeEdgeLabel("knows").multiplicity(Multiplicity.SIMPLE).make();
+
+        ItinerisTransaction reader = graph.newTransaction();
+        RelationIdentifier notYetVisible = new RelationIdentifier(aId, knows.longId(), 1L, bId);
+        assertFalse(reader.getEdges(notYetVisible).iterator().hasNext());
+        reader.rollback();
+
+        creator.getVertex(aId).addEdge("knows", creator.getVertex(bId));
+        creator.commit();
+
+        newTx();
+        assertEquals(Multiplicity.SIMPLE, tx.getEdgeLabel("knows").multiplicity());
+        assertCount(1, tx.getVertex(aId).query().direction(Direction.OUT).labels("knows").edges());
+        assertEquals(1, tx.traversal().V(aId).outE().count().next());
+        RelationIdentifier eid = (RelationIdentifier) Iterables.getOnlyElement(tx.getVertex(aId).query().labels("knows").edges()).id();
+        assertEquals(eid, Iterables.getOnlyElement(tx.getEdges(eid)).id());
+        // malformed type ids resolve to "no edge" as before: a negative one, and one with valid type bits that lies
+        // outside the schema id range
+        assertFalse(tx.getEdges(new RelationIdentifier(aId, -knows.longId(), 1L, bId)).iterator().hasNext());
+        long typeBits = knows.longId() & ((1L << IDManager.MAX_PADDING_BITWIDTH) - 1);
+        long outOfRange = ((Long.MAX_VALUE >>> IDManager.MAX_PADDING_BITWIDTH) << IDManager.MAX_PADDING_BITWIDTH) | typeBits;
+        assertFalse(tx.getEdges(new RelationIdentifier(aId, outOfRange, 1L, bId)).iterator().hasNext());
+    }
+
+    /**
+     * Definition edges written by ordinary transactions (here connection constraints auto-created under
+     * schema.constraints=true) must be visible to later transactions on the same instance: the second edge must
+     * find the constraint the first one created instead of creating another copy.
+     */
+    @Test
+    public void testAutoCreatedConnectionConstraintIsSeenByLaterTransactions() {
+        clopen(option(SCHEMA_CONSTRAINTS), true);
+        mgmt.makeVertexLabel("person").make();
+        mgmt.makeEdgeLabel("knows").make();
+        finishSchema();
+
+        for (int i = 0; i < 3; i++) {
+            ItinerisTransaction t = graph.newTransaction();
+            ItinerisVertex p1 = t.addVertex("person");
+            ItinerisVertex p2 = t.addVertex("person");
+            p1.addEdge("knows", p2);
+            t.commit();
+        }
+
+        assertEquals(1, mgmt.getEdgeLabel("knows").mappedConnections().size());
+        assertEquals(1, mgmt.getVertexLabel("person").mappedConnections().size());
+    }
+
+    /**
+     * A transaction which was already open when another one committed a definition edge (here a connection constraint
+     * auto-created under schema.constraints=true) must not keep acting on the definition edges it had loaded: adding
+     * the same kind of edge, it must find the constraint instead of creating a second copy.
+     */
+    @Test
+    public void testAutoCreatedConnectionConstraintIsSeenByTransactionsOpenAtCommit() {
+        clopen(option(SCHEMA_CONSTRAINTS), true);
+        mgmt.makeVertexLabel("person").make();
+        mgmt.makeEdgeLabel("knows").make();
+        finishSchema();
+
+        final ItinerisTransaction open = graph.newTransaction();
+        assertTrue(open.getVertexLabel("person").mappedConnections().isEmpty());
+
+        final ItinerisTransaction creator = graph.newTransaction();
+        creator.addVertex("person").addEdge("knows", creator.addVertex("person"));
+        creator.commit();
+
+        open.addVertex("person").addEdge("knows", open.addVertex("person"));
+        open.commit();
+
+        final ItinerisManagement check = graph.openManagement();
+        try {
+            assertEquals(1, check.getEdgeLabel("knows").mappedConnections().size());
+            assertEquals(1, check.getVertexLabel("person").mappedConnections().size());
+        } finally {
+            check.rollback();
+        }
+    }
+
+    /**
+     * A transaction which had read a relation type's consistency before a management commit changed it must read the
+     * new consistency afterwards: the commit resets the type in the open transactions, and that has to clear the
+     * consistency the type had cached as well.
+     */
+    @Test
+    public void testConsistencyChangeIsSeenByTransactionsOpenAtCommit() {
+        mgmt.makePropertyKey("uid").dataType(String.class).make();
+        finishSchema();
+
+        final ItinerisTransaction open = graph.newTransaction();
+        try {
+            assertEquals(ConsistencyModifier.DEFAULT,
+                ((InternalRelationType) open.getPropertyKey("uid")).getConsistencyModifier());
+
+            mgmt.setConsistency(mgmt.getPropertyKey("uid"), ConsistencyModifier.LOCK);
+            mgmt.commit();
+
+            assertEquals(ConsistencyModifier.LOCK,
+                ((InternalRelationType) open.getPropertyKey("uid")).getConsistencyModifier());
+        } finally {
+            open.rollback();
+        }
+    }
+
+    /**
+     * Replacing a consistency modifier removes the old modifier vertex. A transaction which had read the old
+     * consistency holds that vertex, and the commit must leave it alone there: it has no definition left to reload,
+     * and reloading it would fail inside the commit's finally block. The transaction reads the new consistency.
+     */
+    @Test
+    public void testConsistencyChangeReplacingAModifierIsSeenByTransactionsOpenAtCommit() {
+        final EdgeLabel knows = mgmt.makeEdgeLabel("knows").multiplicity(Multiplicity.MULTI).make();
+        mgmt.setConsistency(knows, ConsistencyModifier.LOCK);
+        finishSchema();
+
+        final ItinerisTransaction open = graph.newTransaction();
+        try {
+            assertEquals(ConsistencyModifier.LOCK,
+                ((InternalRelationType) open.getEdgeLabel("knows")).getConsistencyModifier());
+
+            mgmt.setConsistency(mgmt.getEdgeLabel("knows"), ConsistencyModifier.FORK);
+            mgmt.commit();
+
+            assertEquals(ConsistencyModifier.FORK,
+                ((InternalRelationType) open.getEdgeLabel("knows")).getConsistencyModifier());
+        } finally {
+            open.rollback();
+        }
+    }
+
+    /**
+     * Definition edges which an ordinary transaction commits on one instance (here a connection constraint
+     * auto-created under schema.constraints=true) must reach the schema cache of another instance. Otherwise that
+     * instance keeps serving the definition edges it had cached, and adding the same kind of edge there creates a
+     * second copy of the constraint.
+     */
+    //A message whose write takes longer than the read lag is missed, as for testIndexUpdatesWithReindexAndRemove
+    @RepeatedIfExceptionsTest(repeats = 3)
+    public void testAutoCreatedConnectionConstraintReachesOtherInstances() throws InterruptedException {
+        //The read lag is left at its default of 500 ms: the test waits for the message anyway, and a shorter lag
+        //would miss it more easily
+        clopen(option(SCHEMA_CONSTRAINTS), true,
+            option(LOG_SEND_DELAY, MANAGEMENT_LOG), Duration.ZERO,
+            option(LOG_READ_INTERVAL, MANAGEMENT_LOG), Duration.ofMillis(250));
+        mgmt.makeVertexLabel("person").make();
+        mgmt.makeEdgeLabel("knows").make();
+        finishSchema();
+
+        //Opened from the same configuration, which sets no instance id, so the second instance gets one of its own
+        final StandardItineris graph2 = (StandardItineris) ItinerisFactory.open(config);
+        try {
+            //The second instance caches the vertex label's connections while there are none
+            ItinerisTransaction tx2 = graph2.newTransaction();
+            assertTrue(tx2.getVertexLabel("person").mappedConnections().isEmpty());
+            tx2.rollback();
+
+            //An ordinary transaction on this instance auto-creates the connection
+            final ItinerisTransaction creator = graph.newTransaction();
+            creator.addVertex("person").addEdge("knows", creator.addVertex("person"));
+            creator.commit();
+
+            //The second instance learns about it from the management log
+            final long deadline = System.currentTimeMillis() + 30000;
+            int connections;
+            do {
+                Thread.sleep(100);
+                tx2 = graph2.newTransaction();
+                connections = tx2.getVertexLabel("person").mappedConnections().size();
+                tx2.rollback();
+            } while (connections == 0 && System.currentTimeMillis() < deadline);
+            assertEquals(1, connections);
+
+            //...and adding the same kind of edge there does not create a second copy
+            tx2 = graph2.newTransaction();
+            tx2.addVertex("person").addEdge("knows", tx2.addVertex("person"));
+            tx2.commit();
+        } finally {
+            graph2.close();
+        }
+
+        //Read fresh here as well, since this instance's own commit expired the label
+        final ItinerisManagement check = graph.openManagement();
+        try {
+            assertEquals(1, check.getVertexLabel("person").mappedConnections().size());
+        } finally {
+            check.rollback();
+        }
+    }
+
     private void createStrictSchemaForVertexProperties() {
         clopen(option(AUTO_TYPE), "none", option(SCHEMA_CONSTRAINTS), true);
         VertexLabel label = mgmt.makeVertexLabel("user").make();
@@ -4404,6 +5534,38 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         }
     }
 
+    @Test
+    public void testEdgeLabelMappedConnectionsSharingOutVertexLabel() {
+        VertexLabel transaction = mgmt.makeVertexLabel("transaction").make();
+        VertexLabel person = mgmt.makeVertexLabel("person").make();
+        VertexLabel entity = mgmt.makeVertexLabel("entity").make();
+        VertexLabel account = mgmt.makeVertexLabel("account").make();
+        EdgeLabel from = mgmt.makeEdgeLabel("from").make();
+        mgmt.addConnection(from, person, transaction);
+        mgmt.addConnection(from, entity, transaction);
+        EdgeLabel to = mgmt.makeEdgeLabel("to").make();
+        mgmt.addConnection(to, transaction, person);
+        mgmt.addConnection(to, transaction, entity);
+        mgmt.addConnection(to, transaction, account);
+        //Each connection once, also before the schema is committed: three connections sharing their outgoing vertex
+        //label came nine times
+        assertEquals(3, to.mappedConnections().size());
+        finishSchema();
+
+        assertEquals(Arrays.asList("entity->transaction", "person->transaction"),
+            connections(mgmt.getEdgeLabel("from")));
+        assertEquals(Arrays.asList("transaction->account", "transaction->entity", "transaction->person"),
+            connections(mgmt.getEdgeLabel("to")));
+    }
+
+    //The connections of the edge label as outgoing->incoming vertex label names, in alphabetical order
+    private static List<String> connections(EdgeLabel label) {
+        return label.mappedConnections().stream()
+            .map(c -> c.getOutgoingVertexLabel().name() + "->" + c.getIncomingVertexLabel().name())
+            .sorted()
+            .collect(Collectors.toList());
+    }
+
     private void createStrictSchemaForConnections() {
         clopen(option(AUTO_TYPE), "none", option(SCHEMA_CONSTRAINTS), true);
         VertexLabel user = mgmt.makeVertexLabel("user").make();
@@ -4526,6 +5688,196 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertThrows(IllegalArgumentException.class, () -> v3.addEdge("E2", v4));
         assertThrows(IllegalArgumentException.class, () -> v3.addEdge("E1", v2));
         assertThrows(IllegalArgumentException.class, () -> v1.addEdge("E1", v4));
+    }
+
+    @Test
+    public void testAddingAConnectionTwiceInATransactionWritesItOnce() {
+        VertexLabel person = mgmt.makeVertexLabel("person").make();
+        VertexLabel company = mgmt.makeVertexLabel("company").make();
+        EdgeLabel worksAt = mgmt.makeEdgeLabel("worksAt").make();
+        mgmt.addConnection(worksAt, person, company);
+        mgmt.addConnection(worksAt, person, company);
+        //The connection is found once, also before the schema is committed
+        assertEquals(1, worksAt.mappedConnections().size());
+        assertEquals(1, person.mappedConnections().size());
+        finishSchema();
+
+        assertEquals(1, mgmt.getEdgeLabel("worksAt").mappedConnections().size());
+        assertEquals(1, mgmt.getVertexLabel("person").mappedConnections().size());
+    }
+
+    @Test
+    public void testAddingACommittedConnectionAgainWritesNothing() {
+        mgmt.addConnection(mgmt.makeEdgeLabel("worksAt").make(), mgmt.makeVertexLabel("person").make(),
+            mgmt.makeVertexLabel("company").make());
+        finishSchema();
+
+        mgmt.addConnection(mgmt.getEdgeLabel("worksAt"), mgmt.getVertexLabel("person"),
+            mgmt.getVertexLabel("company"));
+        finishSchema();
+
+        assertEquals(1, mgmt.getEdgeLabel("worksAt").mappedConnections().size());
+        assertEquals(1, mgmt.getVertexLabel("person").mappedConnections().size());
+        //A connection from a vertex label to itself as well
+        mgmt.addConnection(mgmt.getEdgeLabel("worksAt"), mgmt.getVertexLabel("person"),
+            mgmt.getVertexLabel("person"));
+        finishSchema();
+        mgmt.addConnection(mgmt.getEdgeLabel("worksAt"), mgmt.getVertexLabel("person"),
+            mgmt.getVertexLabel("person"));
+        finishSchema();
+
+        assertEquals(2, mgmt.getEdgeLabel("worksAt").mappedConnections().size());
+        assertEquals(2, mgmt.getVertexLabel("person").mappedConnections().size());
+    }
+
+    /**
+     * An edge label finds its connections through the outgoing vertex labels it links to: the connections of an edge
+     * label which share an outgoing vertex label link to it once.
+     */
+    @Test
+    public void testConnectionsWhichShareTheirOutgoingVertexLabelLinkToItOnce() {
+        VertexLabel transfer = mgmt.makeVertexLabel("transfer").make();
+        EdgeLabel to = mgmt.makeEdgeLabel("to").make();
+        for (String name : new String[]{"person", "company", "account"}) {
+            mgmt.addConnection(to, transfer, mgmt.makeVertexLabel(name).make());
+        }
+        assertEquals(1, Iterables.size(((ItinerisSchemaVertex) to).getEdges(
+            TypeDefinitionCategory.UPDATE_CONNECTION_EDGE, Direction.OUT)));
+        finishSchema();
+
+        assertEquals(1, Iterables.size(((ItinerisSchemaVertex) mgmt.getEdgeLabel("to")).getEdges(
+            TypeDefinitionCategory.UPDATE_CONNECTION_EDGE, Direction.OUT)));
+    }
+
+    /**
+     * An ordinary transaction which adds several edges of a connection it creates under schema.constraints=true checks
+     * the connections of the committed schema each time, which don't hold it yet, and creates the connection once.
+     */
+    @Test
+    public void testAutoCreatedConnectionConstraintIsWrittenOnceByATransaction() {
+        clopen(option(SCHEMA_CONSTRAINTS), true);
+        mgmt.makeVertexLabel("person").make();
+        mgmt.makeEdgeLabel("knows").make();
+        finishSchema();
+
+        final ItinerisTransaction t = graph.newTransaction();
+        for (int i = 0; i < 3; i++) {
+            t.addVertex("person").addEdge("knows", t.addVertex("person"));
+        }
+        t.commit();
+
+        assertEquals(1, mgmt.getEdgeLabel("knows").mappedConnections().size());
+        assertEquals(1, mgmt.getVertexLabel("person").mappedConnections().size());
+    }
+
+    @Test
+    public void testAddingAPropertyWhichALabelHasWritesNothing() {
+        VertexLabel person = mgmt.makeVertexLabel("person").make();
+        EdgeLabel knows = mgmt.makeEdgeLabel("knows").make();
+        PropertyKey name = mgmt.makePropertyKey("name").dataType(String.class).make();
+        PropertyKey since = mgmt.makePropertyKey("since").dataType(Integer.class).make();
+        mgmt.addProperties(person, name);
+        mgmt.addProperties(person, name, name);
+        mgmt.addProperties(knows, since);
+        mgmt.addProperties(knows, since);
+        //Each property is found once, also before the schema is committed
+        assertEquals(Collections.singletonList(name), new ArrayList<>(person.mappedProperties()));
+        assertEquals(Collections.singletonList(since), new ArrayList<>(knows.mappedProperties()));
+        finishSchema();
+
+        //A call of one key, and of several keys: one of which the label has, and one which it doesn't have, twice
+        mgmt.addProperties(mgmt.getVertexLabel("person"), mgmt.getPropertyKey("name"));
+        mgmt.addProperties(mgmt.getVertexLabel("person"), mgmt.getPropertyKey("name"),
+            mgmt.makePropertyKey("age").dataType(Integer.class).make());
+        mgmt.addProperties(mgmt.getEdgeLabel("knows"), mgmt.getPropertyKey("since"));
+        final PropertyKey weight = mgmt.makePropertyKey("weight").dataType(Double.class).make();
+        mgmt.addProperties(mgmt.getEdgeLabel("knows"), weight, weight);
+        finishSchema();
+
+        assertEquals(Arrays.asList("age", "name"), mgmt.getVertexLabel("person").mappedProperties().stream()
+            .map(PropertyKey::name).sorted().collect(Collectors.toList()));
+        assertEquals(Arrays.asList("since", "weight"), mgmt.getEdgeLabel("knows").mappedProperties().stream()
+            .map(PropertyKey::name).sorted().collect(Collectors.toList()));
+    }
+
+    /**
+     * An ordinary transaction which adds a property to several vertices and edges under schema.constraints=true checks
+     * the properties of the committed schema each time, which don't hold it yet, and adds the property to the label
+     * once.
+     */
+    @Test
+    public void testAutoCreatedPropertyConstraintsAreWrittenOnceByATransaction() {
+        clopen(option(SCHEMA_CONSTRAINTS), true);
+        mgmt.makeVertexLabel("person").make();
+        mgmt.makeEdgeLabel("knows").make();
+        mgmt.makePropertyKey("name").dataType(String.class).make();
+        mgmt.makePropertyKey("since").dataType(Integer.class).make();
+        finishSchema();
+
+        final ItinerisTransaction t = graph.newTransaction();
+        for (int i = 0; i < 3; i++) {
+            t.addVertex(T.label, "person", "name", "n" + i).addEdge("knows", t.addVertex("person"), "since", i);
+        }
+        t.commit();
+
+        assertEquals(1, mgmt.getVertexLabel("person").mappedProperties().size());
+        assertEquals(1, mgmt.getEdgeLabel("knows").mappedProperties().size());
+    }
+
+    /**
+     * A read-only transaction can't add a connection or property, also not one which the schema has already: the
+     * write access is checked before the schema is.
+     */
+    @Test
+    public void testAddingAConstraintWhichTheSchemaHasFailsInAReadOnlyTransaction() {
+        VertexLabel person = mgmt.makeVertexLabel("person").make();
+        PropertyKey name = mgmt.makePropertyKey("name").dataType(String.class).make();
+        PropertyKey age = mgmt.makePropertyKey("age").dataType(Integer.class).make();
+        mgmt.addConnection(mgmt.makeEdgeLabel("knows").make(), person, person);
+        mgmt.addProperties(person, name, age);
+        finishSchema();
+
+        final ItinerisTransaction readOnly = graph.buildTransaction().readOnly().start();
+        try {
+            final VertexLabel readPerson = readOnly.getVertexLabel("person");
+            assertThrows(ReadOnlyTransactionException.class,
+                () -> readOnly.addConnection(readOnly.getEdgeLabel("knows"), readPerson, readPerson));
+            assertThrows(ReadOnlyTransactionException.class,
+                () -> readOnly.addProperties(readPerson, readOnly.getPropertyKey("name")));
+            assertThrows(ReadOnlyTransactionException.class, () -> readOnly.addProperties(readPerson,
+                readOnly.getPropertyKey("name"), readOnly.getPropertyKey("age")));
+        } finally {
+            readOnly.rollback();
+        }
+    }
+
+    /**
+     * Renaming an edge label renames each of its connection edges, also the copies of a connection which an earlier
+     * Itineris version wrote when the connection was added more than once.
+     */
+    @Test
+    public void testRenamingAnEdgeLabelRenamesEachCopyOfItsConnections() {
+        clopen(option(AUTO_TYPE), "none", option(SCHEMA_CONSTRAINTS), true);
+        VertexLabel v1 = mgmt.makeVertexLabel("V1").make();
+        VertexLabel v2 = mgmt.makeVertexLabel("V2").make();
+        EdgeLabel e1 = mgmt.makeEdgeLabel("E1").make();
+        //Two copies of the connection and of the edge label's link to V1, as earlier versions wrote them
+        final StandardItinerisTx schemaTx = ((ManagementSystem) mgmt).getWrappedTx();
+        for (int i = 0; i < 2; i++) {
+            schemaTx.addSchemaEdge(v1, v2, TypeDefinitionCategory.CONNECTION_EDGE, "E1");
+            schemaTx.addSchemaEdge(e1, v1, TypeDefinitionCategory.UPDATE_CONNECTION_EDGE, null);
+        }
+        finishSchema();
+
+        mgmt.changeName(mgmt.getEdgeLabel("E1"), "E2");
+        finishSchema();
+
+        final Collection<Connection> connections = mgmt.getVertexLabel("V1").mappedConnections();
+        assertEquals(2, connections.size());
+        for (Connection connection : connections) {
+            assertEquals("E2", connection.getEdgeLabel());
+        }
+        tx.addVertex("V1").addEdge("E2", tx.addVertex("V2"));
     }
 
 
@@ -4797,11 +6149,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 3);
 
         // until repeat emit(predicate).
-        // This case is using batches per iteration and not batches per loop
+        // Since TinkerPop 3.8 a repeat traversal which contains a barrier receives all traversers of a loop at once,
+        // so this case is batched per loop as well (before TinkerPop 3.8 it was using batches per iteration).
         profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).until(__.in("knows").has("depth", "3")).repeat(__.out("knows").barrier(barrierSize)).emit(__.in("knows").has("depth", "3")).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
-        assertEquals(0, countBackendQueriesOfSize(s -> s > barrierSize * levelVerticesAmount, profile.getMetrics()));
-        assertTrue(countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()) > ((int) Math.pow(levelVerticesAmount, depth)));
+        assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile);
 
         // until emit(predicate) repeat
         profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).until(__.in("knows").has("depth", "3")).emit(__.in("knows").has("depth", "3")).repeat(__.out("knows").barrier(barrierSize)).count());
@@ -4809,11 +6161,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 2);
 
         // emit(predicate) repeat until
-        // This case is using batches per iteration and not batches per loop
+        // Since TinkerPop 3.8 a repeat traversal which contains a barrier receives all traversers of a loop at once,
+        // so this case is batched per loop as well (before TinkerPop 3.8 it was using batches per iteration).
         profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).emit(__.in("knows").has("depth", "3")).repeat(__.out("knows").barrier(barrierSize)).until(__.in("knows").has("depth", "3")).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
-        assertEquals(0, countBackendQueriesOfSize(s -> s > barrierSize * levelVerticesAmount, profile.getMetrics()));
-        assertTrue(countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()) > ((int) Math.pow(levelVerticesAmount, depth)));
+        assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 3);
 
         // repeat emit(predicate) until
         profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).repeat(__.out("knows").barrier(barrierSize)).emit(__.in("knows").has("depth", "3")).until(__.in("knows").has("depth", "3")).count());
@@ -4831,11 +6183,11 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 3);
 
         // emit repeat until
-        // This case is using batches per iteration and not batches per loop
+        // Since TinkerPop 3.8 a repeat traversal which contains a barrier receives all traversers of a loop at once,
+        // so this case is batched per loop as well (before TinkerPop 3.8 it was using batches per iteration).
         profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).emit().repeat(__.out("knows").barrier(barrierSize)).until(__.in("knows").has("depth", "3")).count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
-        assertEquals(0, countBackendQueriesOfSize(s -> s > barrierSize * levelVerticesAmount, profile.getMetrics()));
-        assertTrue(countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()) > ((int) Math.pow(levelVerticesAmount, depth)));
+        assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 3);
 
         // repeat emit until
         profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).repeat(__.out("knows").barrier(barrierSize)).emit().until(__.in("knows").has("depth", "3")).count());
@@ -4843,7 +6195,7 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertRepeatBatchSizeByLoop(depth, levelVerticesAmount, barrierSize, profile, 3);
 
         // MultiQueriable inside multi-query compatible parent which is inside repeat step
-        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).repeat(__.union(__.out("knows"), __.<Vertex>where(__.in("knows")).none()).barrier(barrierSize)).emit().count());
+        profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize).repeat(__.union(__.out("knows"), __.<Vertex>where(__.in("knows")).discard()).barrier(barrierSize)).emit().count());
         assertTrue(countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()) > 0);
         assertEquals(0, countBackendQueriesOfSize(s -> s > barrierSize * levelVerticesAmount, profile.getMetrics()));
         assertTrue(countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()) <= 2);
@@ -4871,10 +6223,12 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         Vertex[] middleVertices = graph.traversal().V(a).repeat(__.out("knows")).times(depth/2+1).toList().toArray(new Vertex[0]);;
 
         // Repeat step mode: CLOSEST_REPEAT_PARENT. multi-nested `repeat` start steps. Early drop.
+        // Since TinkerPop 3.8 a repeat traversal which contains a barrier receives all traversers of a loop at once, so the
+        // first iteration of the nested `repeat` prefetches a whole batch of the outer barrier instead of a single vertex.
         profile = testLimitedBatch(() -> graph.traversal().V((Object[]) middleVertices).barrier(barrierSize).repeat(__.barrier(barrierSize).union(__.repeat(__.out("knows").barrier(barrierSize)).until(__.identity())).barrier(barrierSize)).until(__.identity()).limit(1),
             option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(REPEAT_STEP_BATCH_MODE), MultiQueryStrategyRepeatStepMode.CLOSEST_REPEAT_PARENT.getConfigName());
-        assertEquals(1,countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()));
-        assertEquals(0,countBackendQueriesOfSize(s -> s > levelVerticesAmount, profile.getMetrics()));
+        assertEquals(1,countBackendQueriesOfSize(barrierSize * levelVerticesAmount, profile.getMetrics()));
+        assertEquals(0,countBackendQueriesOfSize(s -> s != barrierSize * levelVerticesAmount, profile.getMetrics()));
 
         // Repeat step mode: ALL_REPEAT_PARENTS. multi-nested `repeat` start steps. Early drop.
         profile = testLimitedBatch(() -> graph.traversal().V((Object[]) middleVertices).barrier(barrierSize).repeat(__.barrier(barrierSize).union(__.repeat(__.out("knows").barrier(barrierSize)).until(__.identity())).barrier(barrierSize)).until(__.identity()).limit(1),
@@ -4900,13 +6254,17 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         assertEquals(0, countBackendQueriesOfSize(s -> s < levelVerticesAmount, profile.getMetrics()));
 
         // Repeat step mode: STARTS_ONLY_OF_ALL_REPEAT_PARENTS. multi-nested `repeat` start steps. Most outer repeat step next iteration not registering new vertices.
+        // Since TinkerPop 3.8 a repeat traversal which contains a barrier receives all traversers of a loop at once (the
+        // `barrier(1)` no longer feeds them one by one), so all vertices of the second loop are prefetched together by
+        // the nested `repeat` even though the most outer `repeat` does not register them for the next iteration.
         profile = testLimitedBatch(() -> graph.traversal().V(a).barrier(barrierSize)
                 .repeat(__.<Vertex>barrier(1)
                     .repeat(__.out("knows").barrier(barrierSize)).until(__.identity().loops().is(P.gt(0))).barrier(barrierSize)
                 ).until(__.identity().loops().is(P.gt(1))),
             option(USE_MULTIQUERY), true, option(LIMITED_BATCH), true, option(REPEAT_STEP_BATCH_MODE), MultiQueryStrategyRepeatStepMode.STARTS_ONLY_OF_ALL_REPEAT_PARENTS.getConfigName());
-        assertEquals(1+levelVerticesAmount,countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()));
-        assertEquals(0, countBackendQueriesOfSize(s -> s > levelVerticesAmount, profile.getMetrics()));
+        assertEquals(1,countBackendQueriesOfSize(levelVerticesAmount, profile.getMetrics()));
+        assertEquals(1,countBackendQueriesOfSize(levelVerticesAmount*levelVerticesAmount, profile.getMetrics()));
+        assertEquals(0, countBackendQueriesOfSize(s -> s > levelVerticesAmount*levelVerticesAmount, profile.getMetrics()));
         assertEquals(0, countBackendQueriesOfSize(s -> s < levelVerticesAmount, profile.getMetrics()));
     }
 
@@ -4925,11 +6283,30 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
         int currentReturnSize = 1;
         int currentLoop = 0;
         while (currentReturnSize < maxReturnSize && currentLoop <= depth){
-            assertTrue(countBackendQueriesOfSize(currentReturnSize, profile.getMetrics()) <= uniqueBatchRequestsAmount * 2);
+            final long queries = countBackendQueriesOfSize(currentReturnSize, profile.getMetrics());
+            assertTrue(queries <= uniqueBatchRequestsAmount * 2, "Expected at most " + uniqueBatchRequestsAmount * 2 +
+                " backend queries of size " + currentReturnSize + " but found " + queries + ". Backend query sizes: " + backendQuerySizes(profile.getMetrics()));
             currentReturnSize*=levelVerticesAmount;
             ++currentLoop;
         }
-        assertEquals(0, countBackendQueriesOfSize(s -> s > maxReturnSize, profile.getMetrics()));
+        assertEquals(0, countBackendQueriesOfSize(s -> s > maxReturnSize, profile.getMetrics()),
+            "Expected no backend queries larger than " + maxReturnSize + ". Backend query sizes: " + backendQuerySizes(profile.getMetrics()));
+    }
+
+    /**
+     * Returns the sizes of all backend queries of the given metrics mapped to the number of queries of that size.
+     */
+    private Map<Long, Long> backendQuerySizes(Collection<? extends Metrics> metrics) {
+        final Map<Long, Long> sizes = new TreeMap<>();
+        for (Metrics m : metrics) {
+            if (m.getName().equals("backend-query")) {
+                for (Long count : m.getCounts().values()) {
+                    sizes.merge(count, 1L, Long::sum);
+                }
+            }
+            backendQuerySizes(m.getNested()).forEach((size, count) -> sizes.merge(size, count, Long::sum));
+        }
+        return sizes;
     }
 
     private void addTestAdjacentVertices(Vertex vertex, int levelVerticesAmount, int depth, Map<Integer, Integer> levelToNumberOfVertices){
@@ -6684,7 +8061,9 @@ public abstract class ItinerisTest extends ItinerisBaseTest {
             assertEquals(4, userChangeCounter.get(Change.REMOVED).get());
         }
 
-        clopen(option(VERBOSE_TX_RECOVERY), true);
+        clopen(option(VERBOSE_TX_RECOVERY), true,
+                option(KCVSLog.LOG_READ_LAG_TIME, TRANSACTION_LOG), Duration.ofMillis(50),
+                option(LOG_READ_INTERVAL, TRANSACTION_LOG), Duration.ofMillis(250));
         /*
         Transaction Recovery
          */

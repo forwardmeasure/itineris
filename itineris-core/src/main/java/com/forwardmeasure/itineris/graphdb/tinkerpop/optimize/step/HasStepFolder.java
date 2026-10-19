@@ -40,6 +40,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import com.forwardmeasure.itineris.core.Cardinality;
 import com.forwardmeasure.itineris.core.ItinerisTransaction;
 import com.forwardmeasure.itineris.core.PropertyKey;
+import com.forwardmeasure.itineris.graphdb.database.StandardItineris;
 import com.forwardmeasure.itineris.graphdb.query.ItinerisPredicateUtils;
 import com.forwardmeasure.itineris.graphdb.query.QueryUtil;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.ItinerisTraversalUtil;
@@ -117,11 +118,18 @@ public interface HasStepFolder<S, E> extends Step<S, E> {
                 // do not fold comparators that include nested traversals that are not simple ElementValues
                 return false;
             }
+
+            // check if all mixed index backends of the graph supports ordering for LIST cardinality properties
+            // if this is the case, validItinerisOrder() method can return true not only for SINGLE
+            // but also for LIST cardinality properties
+            StandardItineris graph = ItinerisTraversalUtil.getItineris(rootTraversal.asAdmin());
+            boolean allMixedIndexBackendSupportsOrderingListProperty = graph.getIndexSerializer().allMixedIndexBackendSupportsOrderingListProperty();
+
             final ItinerisTransaction tx = ItinerisTraversalUtil.getTx(rootTraversal.asAdmin());
             final PropertyKey pKey = tx.getPropertyKey(key);
             if (pKey == null
                 || !(Comparable.class.isAssignableFrom(pKey.dataType()))
-                || (isVertexOrder && pKey.cardinality() != Cardinality.SINGLE)) {
+                || (isVertexOrder && !allMixedIndexBackendSupportsOrderingListProperty && pKey.cardinality() != Cardinality.SINGLE)) {
                 return false;
             }
         }
@@ -132,7 +140,7 @@ public interface HasStepFolder<S, E> extends Step<S, E> {
         Step<?, ?> currentStep = itinerisStep.getNextStep();
         while (true) {
             if (currentStep instanceof HasContainerHolder) {
-                final HasContainerHolder hasContainerHolder = (HasContainerHolder) currentStep;
+                final HasContainerHolder<?, ?> hasContainerHolder = (HasContainerHolder<?, ?>) currentStep;
                 final GraphStep graphStep = (GraphStep) itinerisStep;
                 // HasContainer collection that we get back is immutable so we keep track of which containers
                 // need to be deleted after they've been folded into the ItinerisStep and then remove them from their
@@ -178,7 +186,7 @@ public interface HasStepFolder<S, E> extends Step<S, E> {
                 currentStep.getLabels().forEach(itinerisStep::addLabel);
                 traversal.removeStep(currentStep);
             } else if (currentStep instanceof HasContainerHolder && validFoldInHasContainer(currentStep, true)){
-                List<HasContainer> hasContainersList = ((HasContainerHolder) currentStep).getHasContainers();
+                List<HasContainer> hasContainersList = ((HasContainerHolder<?, ?>) currentStep).getHasContainers();
                 itinerisStep.ensureAdditionalHasContainersCapacity(hasContainersList.size());
                 for(HasContainer hasContainer : hasContainersList){
                     itinerisStep.addHasContainer(ItinerisPredicateUtils.convert(hasContainer));
@@ -201,7 +209,7 @@ public interface HasStepFolder<S, E> extends Step<S, E> {
         while (true) {
             if (currentStep instanceof HasContainerHolder) {
                 List<HasContainer> localHasContainers = itinerisStep.addLocalHasContainersConvertingAndPContainers(
-                    traversal.getParent(), ((HasContainerHolder) currentStep).getHasContainers());
+                    traversal.getParent(), ((HasContainerHolder<?, ?>) currentStep).getHasContainers());
                 currentStep.getLabels().forEach(itinerisStep::addLabel);
                 traversal.removeStep(currentStep);
                 currentStep = foldInOrder(itinerisStep, currentStep, traversal, rootTraversal, itinerisStep instanceof ItinerisStep && ((ItinerisStep)itinerisStep).returnsVertex(), localHasContainers);
@@ -221,7 +229,7 @@ public interface HasStepFolder<S, E> extends Step<S, E> {
         Boolean toReturn = null;
         while (!(currentStep instanceof EmptyStep)) {
             if (currentStep instanceof HasContainerHolder) {
-                final Iterable<HasContainer> containers = ((HasContainerHolder) currentStep).getHasContainers();
+                final Iterable<HasContainer> containers = ((HasContainerHolder<?, ?>) currentStep).getHasContainers();
                 toReturn = toReturn == null ? validItinerisHas(containers) : toReturn && validItinerisHas(containers);
             } else if (isExistsStep(currentStep)) {
                 toReturn = true;

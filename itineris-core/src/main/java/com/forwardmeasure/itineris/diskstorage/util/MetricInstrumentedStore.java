@@ -20,6 +20,7 @@ import com.google.common.base.Preconditions;
 import com.forwardmeasure.itineris.diskstorage.BackendException;
 import com.forwardmeasure.itineris.diskstorage.Entry;
 import com.forwardmeasure.itineris.diskstorage.EntryList;
+import com.forwardmeasure.itineris.diskstorage.PermanentBackendException;
 import com.forwardmeasure.itineris.diskstorage.StaticBuffer;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.KeyColumnValueStore;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.KeyIterator;
@@ -29,6 +30,7 @@ import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.KeySlicesIterator;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.MultiKeysQueryGroups;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.MultiSlicesQuery;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.SliceQuery;
+import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.SplittableScanStore;
 import com.forwardmeasure.itineris.diskstorage.keycolumnvalue.StoreTransaction;
 import com.forwardmeasure.itineris.util.stats.MetricManager;
 import org.slf4j.Logger;
@@ -69,7 +71,7 @@ import java.util.Map;
  *
  * @author Dan LaRocque (dalaro@hopcount.org)
  */
-public class MetricInstrumentedStore implements KeyColumnValueStore {
+public class MetricInstrumentedStore implements KeyColumnValueStore, SplittableScanStore {
 
     private final KeyColumnValueStore backend;
 
@@ -166,9 +168,48 @@ public class MetricInstrumentedStore implements KeyColumnValueStore {
     }
 
     @Override
+    public KeyIterator getKeys(final List<StaticBuffer> keys, final SliceQuery query, final StoreTransaction txh) throws BackendException {
+        return runWithMetrics(txh, metricsStoreName, M_GET_KEYS, () -> {
+            final KeyIterator ki = backend.getKeys(keys, query, txh);
+            if (txh.getConfiguration().hasGroupName()) {
+                return MetricInstrumentedIterator.of(ki, txh.getConfiguration().getGroupName(), metricsStoreName, M_GET_KEYS, M_ITERATOR);
+            } else {
+                return ki;
+            }
+        });
+    }
+
+    @Override
     public KeyIterator getKeys(final KeyRangeQuery query, final StoreTransaction txh) throws BackendException {
         return runWithMetrics(txh, metricsStoreName, M_GET_KEYS, () -> {
             final KeyIterator ki = backend.getKeys(query, txh);
+            if (txh.getConfiguration().hasGroupName()) {
+                return MetricInstrumentedIterator.of(ki, txh.getConfiguration().getGroupName(), metricsStoreName, M_GET_KEYS, M_ITERATOR);
+            } else {
+                return ki;
+            }
+        });
+    }
+
+    @Override
+    public int getUnorderedScanSplitCount() {
+        // Forward the split-scan capability of the wrapped store: without this delegation, the
+        // scan-job framework's `store instanceof SplittableScanStore` check would see only the
+        // metrics wrapper and silently fall back to a single scan pipeline.
+        if (backend instanceof SplittableScanStore) {
+            return ((SplittableScanStore) backend).getUnorderedScanSplitCount();
+        }
+        return 1;
+    }
+
+    @Override
+    public KeyIterator getKeysForSplit(final SliceQuery query, final StoreTransaction txh,
+                                       final int splitIndex, final int splitCount) throws BackendException {
+        if (!(backend instanceof SplittableScanStore)) {
+            throw new PermanentBackendException("Store does not support split scans: " + backend);
+        }
+        return runWithMetrics(txh, metricsStoreName, M_GET_KEYS, () -> {
+            final KeyIterator ki = ((SplittableScanStore) backend).getKeysForSplit(query, txh, splitIndex, splitCount);
             if (txh.getConfiguration().hasGroupName()) {
                 return MetricInstrumentedIterator.of(ki, txh.getConfiguration().getGroupName(), metricsStoreName, M_GET_KEYS, M_ITERATOR);
             } else {

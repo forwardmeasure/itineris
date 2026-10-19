@@ -21,7 +21,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.ChooseStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.LocalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.OptionalStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.branch.RepeatStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.UnionStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.AndStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.OrStep;
@@ -34,6 +33,7 @@ import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisMulti
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisNoOpBarrierVertexOnlyStep;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisPropertiesStep;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisStep;
+import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisRepeatStep;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisVertexStep;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.strategy.ItinerisLocalQueryOptimizerStrategy;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.strategy.ItinerisUnusedMultiQueryRemovalStrategy;
@@ -127,7 +127,7 @@ public class ItinerisMultiQueryStrategyTest extends OptimizerStrategyTest {
                 .has("id", loop[0]))
             .times(numV)
             .profile("~metrics");
-        assertNumStep(3, 1, (GraphTraversal)t, RepeatStep.class);
+        assertNumStep(3, 1, (GraphTraversal)t, ItinerisRepeatStep.class);
         assertEquals(numV - 1, loop[0]);
         assertTrue(queryProfilerAnnotationIsPresent(t, QueryProfiler.MULTIQUERY_ANNOTATION));
 

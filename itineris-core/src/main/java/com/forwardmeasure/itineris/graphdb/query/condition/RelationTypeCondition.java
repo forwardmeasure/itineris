@@ -35,6 +35,10 @@ public class RelationTypeCondition<E extends ItinerisElement> extends Literal<E>
         this.relationType = relationType;
     }
 
+    public RelationType getRelationType() {
+        return relationType;
+    }
+
     @Override
     public boolean evaluate(E element) {
         Preconditions.checkArgument(element instanceof ItinerisRelation);

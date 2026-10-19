@@ -34,7 +34,7 @@ public class ConnectiveItinerisP extends P<Object>{
     }
     @Override
     public String toString() {
-        return toString((ConnectiveJanusPredicate) this.biPredicate, this.originalValue).toString();
+        return toString((ConnectiveJanusPredicate) this.biPredicate, this.getValue()).toString();
     }
 
     private StringBuilder toString(final ItinerisPredicate predicate, final Object value) {

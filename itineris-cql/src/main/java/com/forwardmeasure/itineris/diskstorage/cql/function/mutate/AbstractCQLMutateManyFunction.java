@@ -32,24 +32,59 @@ public abstract class AbstractCQLMutateManyFunction {
     protected final ColumnOperationFunction deletionsFunction;
     protected final ColumnOperationFunction additionsFunction;
 
+    /**
+     * The idempotence of the batches, which carry every write: with the timestamps Itineris assigns, a batch sent
+     * again writes the same cells with the same timestamps, so the batches are marked idempotent, and the driver may
+     * resend them, unless {@code storage.cql.idempotent-writes} is off. Without assigned timestamps, or with the option
+     * off, the driver's default applies. A batch doesn't take the idempotence of its statements, and the driver reads
+     * only the batch's flag.
+     */
+    protected final Boolean batchIdempotence;
+
     private final Map<String, CQLKeyColumnValueStore> openStores;
 
+    /**
+     * Marks the batches idempotent whenever timestamps are assigned, as if {@code storage.cql.idempotent-writes} were
+     * on.
+     */
     public AbstractCQLMutateManyFunction(final ConsumerWithBackendException<DistributedStoreManager.MaskedTimestamp> sleepAfterWriteFunction,
                                          final boolean assignTimestamp, final TimestampProvider times, Map<String, CQLKeyColumnValueStore> openStores) {
+        this(sleepAfterWriteFunction, assignTimestamp, assignTimestamp, times, openStores);
+    }
+
+    /**
+     * @param idempotentWrites whether to mark the batches idempotent; only takes effect with {@code assignTimestamp},
+     *                         as only writes with assigned timestamps are idempotent
+     */
+    public AbstractCQLMutateManyFunction(final ConsumerWithBackendException<DistributedStoreManager.MaskedTimestamp> sleepAfterWriteFunction,
+                                         final boolean assignTimestamp, final boolean idempotentWrites,
+                                         final TimestampProvider times, Map<String, CQLKeyColumnValueStore> openStores) {
         this.openStores = openStores;
+        this.batchIdempotence = assignTimestamp && idempotentWrites ? Boolean.TRUE : null;
 
         if(assignTimestamp){
             this.createMaskedTimestampFunction = DistributedStoreManager.MaskedTimestamp::new;
             this.sleepAfterWriteFunction = sleepAfterWriteFunction;
-            this.deletionsFunction = (commitTime, keyMutations, columnValueStore, key) -> Iterator.of(commitTime.getDeletionTime(times))
-                .flatMap(deleteTime -> Iterator.ofAll(keyMutations.getDeletions()).map(deletion -> columnValueStore.deleteColumn(key, deletion, deleteTime)));
+            this.deletionsFunction = (commitTime, keyMutations, columnValueStore, key) -> {
+                if (keyMutations.hasWholeRowDeletion()) {
+                    return Iterator.of(columnValueStore.deleteRow(key, commitTime.getDeletionTime(times)));
+                }
+                return Iterator.of(commitTime.getDeletionTime(times))
+                    .flatMap(deleteTime -> Iterator.ofAll(keyMutations.getDeletions())
+                        .map(deletion -> columnValueStore.deleteColumn(key, deletion, deleteTime)));
+            };
             this.additionsFunction = (commitTime, keyMutations, columnValueStore, key) -> Iterator.of(commitTime.getAdditionTime(times))
                 .flatMap(addTime -> Iterator.ofAll(keyMutations.getAdditions()).map(addition -> columnValueStore.insertColumn(key, addition, addTime)));
         } else {
             this.createMaskedTimestampFunction = txh -> null;
             this.sleepAfterWriteFunction = mustPass -> {};
-            this.deletionsFunction = (commitTime, keyMutations, columnValueStore, key) -> Iterator.ofAll(keyMutations.getDeletions())
-                .map(deletion -> columnValueStore.deleteColumn(key, deletion));
+            this.deletionsFunction = (commitTime, keyMutations, columnValueStore, key) -> {
+                if (keyMutations.hasWholeRowDeletion()) {
+                    return Iterator.of(columnValueStore.deleteRow(key));
+                }
+                return Iterator.ofAll(keyMutations.getDeletions())
+                    .map(deletion -> columnValueStore.deleteColumn(key, deletion));
+            };
             this.additionsFunction = (commitTime, keyMutations, columnValueStore, key) -> Iterator.ofAll(keyMutations.getAdditions())
                 .map(addition -> columnValueStore.insertColumn(key, addition));
         }

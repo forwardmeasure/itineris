@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.Spliterators;
 import java.util.regex.Pattern;
@@ -303,6 +304,18 @@ public class ItinerisFactory {
         return new StandardTransactionLogProcessor((StandardItineris)graph, start);
     }
 
+    /**
+     * Returns a {@link TransactionRecovery} process for recovering partially failed transactions. The recovery process
+     * will start processing the write-ahead transaction log at the specified transaction time.
+     * Once stopped, this method can be used to start the recovery process again from a specified transaction time.
+     * @param graph
+     * @param start
+     * @return
+     */
+    public static TransactionRecovery startRecurringTransactionRecovery(Itineris graph, Instant start) {
+        return new StandardTransactionLogProcessor((StandardItineris) graph, start, true);
+    }
+
     //###################################
     //          HELPER METHODS
     //###################################
@@ -314,7 +327,7 @@ public class ItinerisFactory {
             int pos = shortcutOrFile.indexOf(':');
             if (pos<0) pos = shortcutOrFile.length();
             String backend = shortcutOrFile.substring(0,pos);
-            Preconditions.checkArgument(StandardStoreManager.getAllManagerClasses().containsKey(backend.toLowerCase()), "Backend shorthand unknown: %s", backend);
+            Preconditions.checkArgument(StandardStoreManager.getAllManagerClasses().containsKey(backend.toLowerCase(Locale.ROOT)), "Backend shorthand unknown: %s", backend);
             String secondArg = null;
             if (pos+1<shortcutOrFile.length()) secondArg = shortcutOrFile.substring(pos + 1).trim();
             BaseConfiguration config = ConfigurationUtil.createBaseConfiguration();

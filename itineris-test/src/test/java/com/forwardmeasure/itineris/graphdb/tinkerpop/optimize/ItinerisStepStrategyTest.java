@@ -24,6 +24,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.DefaultGraphTrav
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.apache.tinkerpop.gremlin.process.traversal.step.branch.RepeatStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.DropStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.IsStep;
@@ -64,6 +65,7 @@ import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisMulti
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisNoOpBarrierVertexOnlyStep;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisPropertiesStep;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisPropertyMapStep;
+import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisRepeatStep;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisStep;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.step.ItinerisVertexStep;
 import com.forwardmeasure.itineris.graphdb.tinkerpop.optimize.strategy.ItinerisHasStepStrategy;
@@ -166,6 +168,10 @@ public class ItinerisStepStrategyTest {
     }
 
     private void applyMultiQueryTraversalSteps(Traversal.Admin<?,?> traversal) {
+        // ItinerisMultiQueryStrategy replaces RepeatSteps with ItinerisRepeatSteps when limited batches are used
+        TraversalHelper.getStepsOfAssignableClassRecursively(RepeatStep.class, traversal).stream()
+            .filter(repeatStep -> repeatStep.getClass() == RepeatStep.class)
+            .forEach(repeatStep -> ItinerisRepeatStep.replace(repeatStep, repeatStep.getTraversal()));
         TraversalHelper.getStepsOfAssignableClassRecursively(VertexStep.class, traversal).forEach(vertexStep -> {
             ItinerisVertexStep janusGraphVertexStep = new ItinerisVertexStep<>(vertexStep);
             TraversalHelper.replaceStep(vertexStep, janusGraphVertexStep, vertexStep.getTraversal());
@@ -228,7 +234,7 @@ public class ItinerisStepStrategyTest {
                 }
             } else if (hasKeyValues[i] instanceof DefaultGraphTraversal &&  ((DefaultGraphTraversal) hasKeyValues[i]).getStartStep() instanceof RangeGlobalStep){
                 final RangeGlobalStep range = (RangeGlobalStep) ((DefaultGraphTraversal) hasKeyValues[i]).getStartStep();
-                graphStep.setLimit((int) range.getLowRange(), (int) range.getHighRange());
+                graphStep.setLimit(range.getLowRange().intValue(), range.getHighRange().intValue());
             }  else if (i < hasKeyValues.length -1 && hasKeyValues[i + 1] instanceof ConnectiveP) {
                 final ConnectiveJanusPredicate connectivePredicate = ItinerisPredicateUtils.instanceConnectiveJanusPredicate((ConnectiveP) hasKeyValues[i + 1] );
                 graphStep.addHasContainer(new HasContainer((String) hasKeyValues[i], new P<>(connectivePredicate, ItinerisPredicateUtils.convert(((ConnectiveP<?>) hasKeyValues[i + 1]), connectivePredicate))));
