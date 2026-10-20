@@ -69,7 +69,7 @@
         <!-- Since 2.20 jackson-annotations is released without the patch number (2.20, 2.21, ...). -->
         <jackson2-annotations.version>2.22</jackson2-annotations.version>
         <lucene.version>9.12.3</lucene.version>
-        <opensearch.version>3.5.0</opensearch.version>
+        <opensearch.version>3.9.0</opensearch.version>
         <reactivestreams.version>1.0.4</reactivestreams.version>
         <commons.beanutils.version>1.11.0</commons.beanutils.version>
         <commons.collections.version>3.2.2</commons.collections.version>
