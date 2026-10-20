@@ -117,7 +117,7 @@
         <jetty.version>12.1.7</jetty.version>
         <log4j2.version>2.26.1</log4j2.version>
         <graalvm-nativeimage.version>25.0.2</graalvm-nativeimage.version>
-        <caffeine.version>3.3.0</caffeine.version>
+        <caffeine.version>3.3.1</caffeine.version>
         <checker-qual.version>4.2.3</checker-qual.version>
         <curator.version>5.9.0</curator.version>
         <apache.rat.plugin.version>0.17</apache.rat.plugin.version>
